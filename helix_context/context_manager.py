@@ -117,9 +117,6 @@ class HelixContextManager:
         self.genome = Genome(
             path=config.genome.path,
             synonym_map=config.synonym_map,
-            decay_rate=config.genome.decay_rate,
-            heterochromatin_threshold=config.genome.heterochromatin_threshold,
-            stale_threshold=config.genome.stale_threshold,
         )
 
         # Chunker (deterministic text splitting)

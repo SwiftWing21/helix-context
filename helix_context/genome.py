@@ -37,15 +37,9 @@ class Genome:
         self,
         path: str,
         synonym_map: Optional[Dict[str, List[str]]] = None,
-        decay_rate: float = 0.95,
-        heterochromatin_threshold: float = 0.3,
-        stale_threshold: float = 3600.0,
     ):
         self.path = path
         self.synonym_map = synonym_map or {}
-        self.decay_rate = decay_rate
-        self.heterochromatin_threshold = heterochromatin_threshold
-        self.stale_threshold = stale_threshold
 
         self.conn = sqlite3.connect(self.path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
@@ -325,23 +319,27 @@ class Genome:
 
     def compact(self) -> int:
         """
-        Iterate all genes, decay scores for stale ones,
-        promote to HETEROCHROMATIN when decay_score < threshold.
-        Returns the number of genes compacted.
+        Check genes for source file changes. No time-based decay.
 
-        Two decay mechanisms:
-        1. TIME-BASED (gentle): genes not accessed in stale_threshold seconds
-           get slow decay (0.9998622/cycle = HETERO after ~1 year unused).
-           Access-count-weighted: frequently queried genes resist decay.
+        Genes are NEVER removed by time alone. Knowledge doesn't expire.
+        Only two things change a gene's state:
 
-        2. CHANGE-BASED (immediate): if gene has a source_id (file path) and
-           that file's mtime is newer than last_accessed, the gene is stale.
-           Its decay_score drops to 0.5 immediately (AGING), signaling that
-           the genome's copy is outdated. Re-ingesting the file resets it.
+        1. SOURCE CHANGED: if gene.source_id points to a file whose mtime
+           is newer than last_accessed, decay_score drops to 0.5 (AGING)
+           and chromatin moves to EUCHROMATIN. The gene is still queryable
+           but the system knows it's outdated. Re-ingesting resets it.
+
+        2. EXPLICIT SPLICE: the ribosome's splice operation cuts introns
+           per-query (irrelevant codons). This is the RNA splicing analog —
+           relevance filtering happens at expression time, not storage time.
+
+        Time since last access is used ONLY for expression priority
+        (recently accessed genes rank higher in query results), never
+        for deletion or decay.
+
+        Returns the number of genes marked as source-changed.
         """
         cur = self.conn.cursor()
-        now = time.time()
-        compacted = 0
         change_detected = 0
 
         rows = cur.execute(
@@ -349,51 +347,33 @@ class Genome:
         ).fetchall()
 
         for row in rows:
-            epi = EpigeneticMarkers.model_validate_json(row["epigenetics"])
-            new_chromatin = int(row["chromatin"])
             source_id = row["source_id"]
-            changed = False
+            if not source_id or not os.path.exists(source_id):
+                continue
 
-            # --- Change-based decay: check if source file was modified ---
-            if source_id and os.path.exists(source_id):
-                try:
-                    file_mtime = os.path.getmtime(source_id)
-                    if file_mtime > epi.last_accessed:
-                        # Source changed since this gene was last accessed/ingested
-                        epi.decay_score = min(epi.decay_score, 0.5)
-                        changed = True
-                        change_detected += 1
-                except OSError:
-                    pass  # File inaccessible, skip change check
+            try:
+                file_mtime = os.path.getmtime(source_id)
+            except OSError:
+                continue
 
-            # --- Time-based decay: gentle aging for untouched genes ---
-            if not changed:
-                age = now - epi.last_accessed
-                if age < self.stale_threshold:
-                    continue
+            epi = EpigeneticMarkers.model_validate_json(row["epigenetics"])
 
-                # Access-weighted: frequently accessed genes resist decay
-                access_bonus = min(epi.access_count * 0.005, 0.03)
-                effective_rate = self.decay_rate + access_bonus
-                epi.decay_score *= effective_rate
+            if file_mtime > epi.last_accessed:
+                # Source changed — gene is outdated but NOT removed
+                epi.decay_score = min(epi.decay_score, 0.5)
+                new_chromatin = int(ChromatinState.EUCHROMATIN)
+                change_detected += 1
 
-            # --- Chromatin transition ---
-            if epi.decay_score < self.heterochromatin_threshold and new_chromatin < int(ChromatinState.HETEROCHROMATIN):
-                new_chromatin = int(ChromatinState.HETEROCHROMATIN)
-                compacted += 1
-
-            cur.execute(
-                "UPDATE genes SET epigenetics = ?, chromatin = ? WHERE gene_id = ?",
-                (epi.model_dump_json(), new_chromatin, row["gene_id"]),
-            )
+                cur.execute(
+                    "UPDATE genes SET epigenetics = ?, chromatin = ? WHERE gene_id = ?",
+                    (epi.model_dump_json(), new_chromatin, row["gene_id"]),
+                )
 
         self.conn.commit()
         if change_detected:
-            log.info("Compaction: %d genes compacted, %d source changes detected",
-                     compacted, change_detected)
-        else:
-            log.info("Compaction complete: %d genes moved to HETEROCHROMATIN", compacted)
-        return compacted
+            log.info("Compaction: %d source changes detected (genes marked EUCHROMATIN)",
+                     change_detected)
+        return change_detected
 
     # ── Stats ───────────────────────────────────────────────────────
 

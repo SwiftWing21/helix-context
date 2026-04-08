@@ -14,10 +14,11 @@ decoder_mode = "full"                   # "full"|"condensed"|"minimal"|"none" (n
 
 [genome]
 path = "genome.db"
-compact_interval = 3600                 # seconds between compaction (hourly)
-stale_threshold = 86400                 # seconds before decay kicks in (24 hours)
-decay_rate = 0.9998622                  # FRESH 30d, HEALTHY 90d, AGING 6mo, HETERO 1yr (never accessed)
+compact_interval = 3600                 # seconds between source-change checks (hourly)
 cold_start_threshold = 10              # genes needed before history stripping kicks in (Fix 3)
+# No time-based decay. Genes never expire.
+# Compaction only detects source file changes (mtime vs last_accessed).
+# Irrelevant data is handled by splice (intron/exon) at expression time.
 
 [server]
 host = "127.0.0.1"

@@ -42,11 +42,8 @@ class BudgetConfig:
 @dataclass
 class GenomeConfig:
     path: str = "genome.db"
-    compact_interval: float = 300.0
-    stale_threshold: float = 3600.0
-    decay_rate: float = 0.95
+    compact_interval: float = 3600.0    # Seconds between source-change checks
     cold_start_threshold: int = 10      # Fix 3: genes needed before history stripping
-    heterochromatin_threshold: float = 0.3  # Decay score below this -> HETEROCHROMATIN
 
 
 @dataclass
@@ -112,10 +109,7 @@ def load_config(path: Optional[str] = None) -> HelixConfig:
         cfg.genome = GenomeConfig(
             path=g.get("path", cfg.genome.path),
             compact_interval=float(g.get("compact_interval", cfg.genome.compact_interval)),
-            stale_threshold=float(g.get("stale_threshold", cfg.genome.stale_threshold)),
-            decay_rate=float(g.get("decay_rate", cfg.genome.decay_rate)),
             cold_start_threshold=int(g.get("cold_start_threshold", cfg.genome.cold_start_threshold)),
-            heterochromatin_threshold=float(g.get("heterochromatin_threshold", cfg.genome.heterochromatin_threshold)),
         )
 
     # Server

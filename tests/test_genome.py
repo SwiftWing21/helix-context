@@ -238,27 +238,59 @@ class TestEpigenetics:
 
 
 class TestCompaction:
-    def test_stale_genes_get_compacted(self, genome):
-        gene = make_gene("old gene", domains=["test"])
-        # Backdate the access time
-        gene.epigenetics.last_accessed = time.time() - 7200  # 2 hours ago
-        gene.epigenetics.decay_score = 0.25  # Just above the threshold
+    def test_source_changed_gene_gets_marked(self, genome, tmp_path):
+        """Gene with source_id pointing to a modified file gets EUCHROMATIN."""
+        # Create a temp file and ingest a gene from it
+        src_file = tmp_path / "test_source.py"
+        src_file.write_text("def hello(): return 'world'")
+
+        gene = make_gene("def hello(): return 'world'", domains=["test"])
+        gene.source_id = str(src_file)
+        gene.epigenetics.last_accessed = time.time() - 10  # Accessed 10s ago
         genome.upsert_gene(gene)
 
-        # First compaction: decay 0.25 * 0.95 = 0.2375 → below 0.3 → HETEROCHROMATIN
-        compacted = genome.compact()
-        assert compacted == 1
+        # Modify the source file (mtime will be newer than last_accessed)
+        time.sleep(0.1)
+        src_file.write_text("def hello(): return 'changed!'")
+
+        # Compaction should detect the change
+        changed = genome.compact()
+        assert changed == 1
 
         retrieved = genome.get_gene(gene.gene_id)
-        assert retrieved.chromatin == ChromatinState.HETEROCHROMATIN
+        assert retrieved.chromatin == ChromatinState.EUCHROMATIN
+        assert retrieved.epigenetics.decay_score == 0.5
 
-    def test_fresh_genes_not_compacted(self, genome):
-        gene = make_gene("fresh gene", domains=["test"])
-        # last_accessed is now (default), well within stale_threshold
+    def test_unchanged_source_not_affected(self, genome, tmp_path):
+        """Gene with source_id pointing to unchanged file stays OPEN."""
+        src_file = tmp_path / "stable.py"
+        src_file.write_text("CONSTANT = 42")
+
+        gene = make_gene("CONSTANT = 42", domains=["test"])
+        gene.source_id = str(src_file)
+        # last_accessed is AFTER file mtime
+        gene.epigenetics.last_accessed = time.time() + 10
         genome.upsert_gene(gene)
 
-        compacted = genome.compact()
-        assert compacted == 0
+        changed = genome.compact()
+        assert changed == 0
+
+        retrieved = genome.get_gene(gene.gene_id)
+        assert retrieved.chromatin == ChromatinState.OPEN
+        assert retrieved.epigenetics.decay_score == 1.0
+
+    def test_gene_without_source_not_affected(self, genome):
+        """Gene with no source_id (conversation, manual) never decays."""
+        gene = make_gene("conversation exchange", domains=["test"])
+        gene.epigenetics.last_accessed = time.time() - 86400 * 365  # 1 year old
+        genome.upsert_gene(gene)
+
+        changed = genome.compact()
+        assert changed == 0
+
+        retrieved = genome.get_gene(gene.gene_id)
+        assert retrieved.chromatin == ChromatinState.OPEN
+        assert retrieved.epigenetics.decay_score == 1.0
 
         retrieved = genome.get_gene(gene.gene_id)
         assert retrieved.chromatin == ChromatinState.OPEN
