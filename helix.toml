@@ -14,9 +14,9 @@ decoder_mode = "full"                   # "full"|"condensed"|"minimal"|"none" (n
 
 [genome]
 path = "genome.db"
-compact_interval = 300                  # seconds between compaction
-stale_threshold = 3600                  # seconds before decay kicks in
-decay_rate = 0.95                       # multiplier per compaction cycle
+compact_interval = 3600                 # seconds between compaction (1 hour, not 5 min)
+stale_threshold = 86400                 # seconds before decay kicks in (24 hours, not 1 hour)
+decay_rate = 0.995                      # gentle: gene at 0.995^30 = 0.86 after 30 days of no access
 cold_start_threshold = 10              # genes needed before history stripping kicks in (Fix 3)
 
 [server]

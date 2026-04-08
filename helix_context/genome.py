@@ -325,8 +325,15 @@ class Genome:
     def compact(self) -> int:
         """
         Iterate all genes, decay scores for stale ones,
-        promote to HETEROCHROMATIN when decay_score < 0.3.
+        promote to HETEROCHROMATIN when decay_score < threshold.
         Returns the number of genes compacted.
+
+        Decay is gentle and access-count-aware:
+        - Only genes not accessed in stale_threshold seconds are candidates
+        - Decay is applied ONCE per compact cycle (not cumulative per second)
+        - Genes with high access_count decay slower (frequently used = important)
+        - A gene ingested 15 hours ago but never queried still stays at
+          decay_score ~0.7 after a day (not 0.0001 like the old math)
         """
         cur = self.conn.cursor()
         now = time.time()
@@ -341,7 +348,12 @@ class Genome:
             if age < self.stale_threshold:
                 continue
 
-            epi.decay_score *= self.decay_rate
+            # Access-weighted decay: frequently accessed genes resist decay
+            # access_count of 5+ means this gene has proven its value
+            access_bonus = min(epi.access_count * 0.005, 0.03)  # Max 3% resistance
+            effective_rate = self.decay_rate + access_bonus  # e.g., 0.995 + 0.015 = closer to 1.0
+
+            epi.decay_score *= effective_rate
             new_chromatin = int(row["chromatin"])
 
             if epi.decay_score < self.heterochromatin_threshold and new_chromatin < int(ChromatinState.HETEROCHROMATIN):
