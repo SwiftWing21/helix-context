@@ -64,6 +64,16 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
         # Step 1-5: Expression pipeline
         context_window = await helix.build_context_async(user_query)
 
+        # Delta-epsilon health signal
+        health = context_window.context_health
+        log.info(
+            "Context health: status=%s ellipticity=%.3f coverage=%.2f "
+            "density=%.2f freshness=%.2f genes=%d/%d",
+            health.status, health.ellipticity, health.coverage,
+            health.density, health.freshness,
+            health.genes_expressed, health.genes_available,
+        )
+
         # Munge messages: inject context, apply history stripping
         body["messages"] = _munge_messages(
             messages=messages,
@@ -114,12 +124,17 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             return JSONResponse({"error": "No query provided"}, status_code=400)
 
         window = await helix.build_context_async(query)
+        health = window.context_health
         return [
             {
                 "name": "Helix Genome Context",
-                "description": f"{window.metadata.get('genes_expressed', 0)} genes expressed, "
-                               f"{window.compression_ratio:.1f}x compression",
+                "description": (
+                    f"{health.genes_expressed} genes expressed, "
+                    f"{window.compression_ratio:.1f}x compression, "
+                    f"health={health.status} (Δε={health.ellipticity:.2f})"
+                ),
                 "content": window.expressed_context,
+                "context_health": health.model_dump(),
             }
         ]
 

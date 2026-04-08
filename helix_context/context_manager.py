@@ -29,7 +29,7 @@ from .config import HelixConfig
 from .exceptions import PromoterMismatch
 from .genome import Genome
 from .ribosome import Ribosome, OllamaBackend
-from .schemas import ContextWindow, Gene
+from .schemas import ContextHealth, ContextWindow, Gene
 
 log = logging.getLogger("helix.context_manager")
 
@@ -164,11 +164,21 @@ class HelixContextManager:
         candidates = self._express(domains, entities, max_genes)
 
         if not candidates:
+            empty_health = ContextHealth(
+                ellipticity=0.0,
+                coverage=0.0,
+                density=0.0,
+                freshness=0.0,
+                genes_available=self.genome.stats().get("total_genes", 0),
+                genes_expressed=0,
+                status="denatured" if self.genome.stats().get("total_genes", 0) > 0 else "sparse",
+            )
             return ContextWindow(
                 ribosome_prompt=RIBOSOME_DECODER,
                 expressed_context="(no relevant context found in genome)",
                 total_estimated_tokens=len(RIBOSOME_DECODER) // 4,
                 compression_ratio=1.0,
+                context_health=empty_health,
                 metadata={"query": query, "genes_expressed": 0},
             )
 
@@ -350,18 +360,103 @@ class HelixContextManager:
 
         compressed_chars = len(expressed)
 
+        # Delta-epsilon health signal
+        query_terms = query.lower().split()
+        health = self._compute_health(query_terms, candidates, compressed_chars)
+
         return ContextWindow(
             ribosome_prompt=RIBOSOME_DECODER,
             expressed_context=expressed_wrapped,
             expressed_gene_ids=[g.gene_id for g in sorted_genes[:len(parts)]],
             total_estimated_tokens=est_tokens,
             compression_ratio=total_raw / max(compressed_chars, 1),
+            context_health=health,
             metadata={
                 "query": query,
                 "genes_expressed": len(parts),
                 "raw_chars": total_raw,
                 "compressed_chars": compressed_chars,
             },
+        )
+
+    # -- Internal: delta-epsilon health --------------------------------
+
+    def _compute_health(
+        self,
+        query_terms: List[str],
+        candidates: List[Gene],
+        compressed_chars: int,
+    ) -> ContextHealth:
+        """
+        Compute the delta-epsilon context health signal.
+
+        Measures four dimensions:
+            coverage  — fraction of query terms that matched genome tags
+            density   — fraction of expression token budget actually used
+            freshness — average decay score of expressed genes (1=fresh, 0=stale)
+            ellipticity — composite score (geometric mean of the three)
+
+        Status thresholds:
+            aligned   — ellipticity >= 0.7 (genome is well-grounded)
+            sparse    — ellipticity >= 0.3 (genome has gaps, model may guess)
+            stale     — freshness < 0.4 (expressed genes are outdated)
+            denatured — ellipticity < 0.3 (context is unreliable)
+        """
+        import math
+
+        genome_stats = self.genome.stats()
+        total_genes = genome_stats.get("total_genes", 0)
+        genes_expressed = len(candidates)
+
+        # Coverage: what fraction of query terms hit the promoter index?
+        if query_terms:
+            matched = 0
+            all_tags: set[str] = set()
+            for g in candidates:
+                all_tags.update(d.lower() for d in g.promoter.domains)
+                all_tags.update(e.lower() for e in g.promoter.entities)
+            for term in query_terms:
+                if term.lower() in all_tags:
+                    matched += 1
+            coverage = matched / len(query_terms)
+        else:
+            coverage = 0.0
+
+        # Density: how much of the expression budget did we use?
+        budget_chars = self.config.budget.expression_tokens * 4  # ~4 chars/token
+        density = min(1.0, compressed_chars / max(budget_chars, 1))
+
+        # Freshness: average decay score of expressed genes
+        if candidates:
+            freshness = sum(g.epigenetics.decay_score for g in candidates) / len(candidates)
+        else:
+            freshness = 0.0
+
+        # Ellipticity: geometric mean of the three signals
+        # Clamp inputs to avoid log(0)
+        c = max(coverage, 0.01)
+        d = max(density, 0.01)
+        f = max(freshness, 0.01)
+        ellipticity = (c * d * f) ** (1.0 / 3.0)
+
+        # Status classification
+        if freshness < 0.4 and genes_expressed > 0:
+            status = "stale"
+        elif ellipticity >= 0.7:
+            status = "aligned"
+        elif ellipticity >= 0.3:
+            status = "sparse"
+        else:
+            status = "denatured"
+
+        return ContextHealth(
+            ellipticity=round(ellipticity, 4),
+            coverage=round(coverage, 4),
+            density=round(density, 4),
+            freshness=round(freshness, 4),
+            genes_available=total_genes,
+            genes_expressed=genes_expressed,
+            status=status,
         )
 
     # -- Internal: compaction ------------------------------------------

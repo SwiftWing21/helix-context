@@ -6,7 +6,7 @@ context like a genome instead of a flat text buffer.
 """
 
 from .config import HelixConfig, load_config
-from .schemas import Gene, ContextWindow, ChromatinState, PromoterTags, EpigeneticMarkers
+from .schemas import Gene, ContextWindow, ContextHealth, ChromatinState, PromoterTags, EpigeneticMarkers
 from .genome import Genome
 from .ribosome import Ribosome, OllamaBackend
 from .codons import CodonChunker, CodonEncoder, RawStrand, Codon
@@ -26,6 +26,7 @@ __all__ = [
     "load_config",
     "Gene",
     "ContextWindow",
+    "ContextHealth",
     "ChromatinState",
     "PromoterTags",
     "EpigeneticMarkers",

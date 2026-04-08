@@ -60,6 +60,17 @@ class Gene(BaseModel):
     supersedes: Optional[str] = None
 
 
+class ContextHealth(BaseModel):
+    """Delta-epsilon context health signal — the 'Check Engine Light.'"""
+    ellipticity: float = 1.0            # 0=denatured, 1=perfectly grounded
+    coverage: float = 0.0               # Fraction of query terms that matched genes
+    density: float = 0.0                # Fraction of expression budget used
+    freshness: float = 1.0              # Average decay score of expressed genes
+    genes_available: int = 0            # Total genes in genome
+    genes_expressed: int = 0            # Genes expressed for this query
+    status: str = "unmeasured"          # aligned | sparse | stale | denatured
+
+
 class ContextWindow(BaseModel):
     """The assembled context ready for the big model."""
     ribosome_prompt: str                # 3k fixed decoder layer
@@ -67,4 +78,5 @@ class ContextWindow(BaseModel):
     expressed_gene_ids: List[str] = Field(default_factory=list)
     total_estimated_tokens: int = 0
     compression_ratio: float = 0.0
+    context_health: ContextHealth = Field(default_factory=ContextHealth)
     metadata: dict = Field(default_factory=dict)
