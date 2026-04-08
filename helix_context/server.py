@@ -144,6 +144,12 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
     async def stats_endpoint():
         return helix.stats()
 
+    # -- Health history endpoint ----------------------------------------
+
+    @app.get("/health/history")
+    async def health_history_endpoint(limit: int = 50):
+        return helix.genome.health_history(limit=limit)
+
     # -- Health endpoint -----------------------------------------------
 
     @app.get("/health")

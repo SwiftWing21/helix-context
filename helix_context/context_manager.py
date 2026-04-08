@@ -203,6 +203,19 @@ class HelixContextManager:
         self.genome.touch_genes(expressed_ids)
         self.genome.link_coactivated(expressed_ids)
 
+        # Log health signal for historical tracking
+        health = window.context_health
+        self.genome.log_health(
+            query=query,
+            ellipticity=health.ellipticity,
+            coverage=health.coverage,
+            density=health.density,
+            freshness=health.freshness,
+            genes_expressed=health.genes_expressed,
+            genes_available=health.genes_available,
+            status=health.status,
+        )
+
         return window
 
     async def build_context_async(self, query: str) -> ContextWindow:
@@ -247,9 +260,11 @@ class HelixContextManager:
 
     def stats(self) -> Dict:
         genome_stats = self.genome.stats()
+        health_summary = self.genome.health_summary()
         return {
             **genome_stats,
             "pending_replications": len(self._pending),
+            "health": health_summary,
             "config": {
                 "ribosome_budget": self.config.budget.ribosome_tokens,
                 "expression_budget": self.config.budget.expression_tokens,

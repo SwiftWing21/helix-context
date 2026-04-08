@@ -79,6 +79,21 @@ class Genome:
         )
         """)
 
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS health_log (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp  REAL,
+            query      TEXT,
+            ellipticity REAL,
+            coverage   REAL,
+            density    REAL,
+            freshness  REAL,
+            genes_expressed INTEGER,
+            genes_available INTEGER,
+            status     TEXT
+        )
+        """)
+
         cur.execute(
             "CREATE INDEX IF NOT EXISTS idx_promoter_value "
             "ON promoter_index(tag_value)"
@@ -378,6 +393,79 @@ class Genome:
             "SELECT * FROM genes WHERE gene_id = ?", (gene_id,)
         ).fetchone()
         return self._row_to_gene(row) if row else None
+
+    # ── Health logging ─────────────────────────────────────────────
+
+    def log_health(
+        self,
+        query: str,
+        ellipticity: float,
+        coverage: float,
+        density: float,
+        freshness: float,
+        genes_expressed: int,
+        genes_available: int,
+        status: str,
+    ) -> None:
+        """Record a health signal for historical tracking."""
+        self.conn.execute(
+            "INSERT INTO health_log (timestamp, query, ellipticity, coverage, "
+            "density, freshness, genes_expressed, genes_available, status) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (time.time(), query, ellipticity, coverage, density, freshness,
+             genes_expressed, genes_available, status),
+        )
+        self.conn.commit()
+
+    def health_history(self, limit: int = 50) -> List[Dict]:
+        """Return recent health signals, newest first."""
+        rows = self.conn.execute(
+            "SELECT timestamp, query, ellipticity, coverage, density, freshness, "
+            "genes_expressed, genes_available, status "
+            "FROM health_log ORDER BY id DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        return [
+            {
+                "timestamp": r[0],
+                "query": r[1],
+                "ellipticity": r[2],
+                "coverage": r[3],
+                "density": r[4],
+                "freshness": r[5],
+                "genes_expressed": r[6],
+                "genes_available": r[7],
+                "status": r[8],
+            }
+            for r in rows
+        ]
+
+    def health_summary(self) -> Dict:
+        """Aggregate health stats across all logged queries."""
+        cur = self.conn.cursor()
+        total = cur.execute("SELECT COUNT(*) FROM health_log").fetchone()[0]
+        if total == 0:
+            return {"total_queries": 0, "avg_ellipticity": 0, "status_counts": {}}
+
+        avg = cur.execute(
+            "SELECT AVG(ellipticity), AVG(coverage), AVG(density), AVG(freshness) "
+            "FROM health_log"
+        ).fetchone()
+
+        status_counts = {}
+        for row in cur.execute(
+            "SELECT status, COUNT(*) FROM health_log GROUP BY status"
+        ).fetchall():
+            status_counts[row[0]] = row[1]
+
+        return {
+            "total_queries": total,
+            "avg_ellipticity": round(avg[0], 4),
+            "avg_coverage": round(avg[1], 4),
+            "avg_density": round(avg[2], 4),
+            "avg_freshness": round(avg[3], 4),
+            "status_counts": status_counts,
+        }
 
     # ── Close ───────────────────────────────────────────────────────
 
