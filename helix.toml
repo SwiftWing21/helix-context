@@ -1,7 +1,7 @@
 [ribosome]
-model = "auto"                          # auto-detect from Ollama, or explicit override
+model = "gemma4:e4b"                    # e4b for Claude Code (GPU free, no model contention)
 base_url = "http://localhost:11434"
-timeout = 10                            # seconds — splice/re_rank timeout before fallback
+timeout = 30                            # seconds — splice/re_rank timeout before fallback
 keep_alive = "30m"                      # keep ribosome model loaded (eliminates swap latency)
 warmup = true                           # pre-load model on server start
 
