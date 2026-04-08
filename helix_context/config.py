@@ -36,6 +36,7 @@ class BudgetConfig:
     expression_tokens: int = 6000
     max_genes_per_turn: int = 8
     splice_aggressiveness: float = 0.5
+    decoder_mode: str = "full"  # "full"|"condensed"|"minimal"|"none"
 
 
 @dataclass
@@ -102,6 +103,7 @@ def load_config(path: Optional[str] = None) -> HelixConfig:
             expression_tokens=b.get("expression_tokens", cfg.budget.expression_tokens),
             max_genes_per_turn=b.get("max_genes_per_turn", cfg.budget.max_genes_per_turn),
             splice_aggressiveness=float(b.get("splice_aggressiveness", cfg.budget.splice_aggressiveness)),
+            decoder_mode=b.get("decoder_mode", cfg.budget.decoder_mode),
         )
 
     # Genome

@@ -1,5 +1,5 @@
 [ribosome]
-model = "gemma4:e4b"                    # e4b for Claude Code (GPU free, no model contention)
+model = "gemma4:e2b"                    # e2b for bulk ingest (fast), switch to e4b for Claude Code usage
 base_url = "http://localhost:11434"
 timeout = 30                            # seconds — splice/re_rank timeout before fallback
 keep_alive = "30m"                      # keep ribosome model loaded (eliminates swap latency)
@@ -10,6 +10,7 @@ ribosome_tokens = 3000                  # fixed decoder prompt
 expression_tokens = 6000                # compressed context
 max_genes_per_turn = 8
 splice_aggressiveness = 0.3             # 0=keep all, 1=ruthless trim (lower preserves more literal detail)
+decoder_mode = "full"                   # "full"|"condensed"|"minimal"|"none" (none saves ~750 tokens for API models)
 
 [genome]
 path = "genome.db"

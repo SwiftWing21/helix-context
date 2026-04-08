@@ -119,11 +119,25 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
     async def context_endpoint(request: Request):
         data = await request.json()
         query = data.get("query", "")
+        decoder_override = data.get("decoder_mode")
 
         if not query:
             return JSONResponse({"error": "No query provided"}, status_code=400)
 
+        # Per-request decoder mode override
+        if decoder_override and decoder_override in ("full", "condensed", "minimal", "none"):
+            from .context_manager import DECODER_MODES
+            original_mode = helix._decoder_mode
+            original_prompt = helix._decoder_prompt
+            helix._decoder_mode = decoder_override
+            helix._decoder_prompt = DECODER_MODES[decoder_override]
+
         window = await helix.build_context_async(query)
+
+        # Restore original mode after request
+        if decoder_override and decoder_override in ("full", "condensed", "minimal", "none"):
+            helix._decoder_mode = original_mode
+            helix._decoder_prompt = original_prompt
         health = window.context_health
         return [
             {

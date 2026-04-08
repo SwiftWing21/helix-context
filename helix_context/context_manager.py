@@ -39,7 +39,14 @@ _executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="helix-ribosome
 
 # -- Ribosome decoder prompt (3k fixed, tells the big model how to read context) --
 
-RIBOSOME_DECODER = """CRITICAL INSTRUCTIONS — READ BEFORE RESPONDING:
+# -- Adaptive decoder prompts (tiered by model capability) --------
+#
+# "full"      ~750 tokens — for small local models (e2b, qwen3:1.7b)
+# "condensed" ~300 tokens — for medium local models (e4b, 8b)
+# "minimal"   ~80 tokens  — for large local models (26b, 31b)
+# "none"      0 tokens    — for API models (Claude, GPT) that don't need instructions
+
+DECODER_FULL = """CRITICAL INSTRUCTIONS — READ BEFORE RESPONDING:
 
 You have access to <expressed_context> blocks below. This is your ONLY source of
 project-specific knowledge. You MUST use it as your primary source of truth.
@@ -66,6 +73,25 @@ DO NOT:
 - Use words like "hypothesis", "implies", "suggests" when the context states facts
 - Generate generic architectural advice that ignores the actual context
 - Mention codons, genes, splicing, or DNA unless the user asks about memory internals"""
+
+DECODER_CONDENSED = """The <expressed_context> below contains compressed project knowledge selected for your query.
+Each section between --- dividers is one knowledge unit. Use ONLY this context to answer.
+Use specific names and details from the context. If the context doesn't cover the question,
+say so — do not guess. The user's message overrides context if they conflict."""
+
+DECODER_MINIMAL = """Answer using ONLY the <expressed_context> below. Do not guess beyond what it states."""
+
+DECODER_NONE = ""
+
+DECODER_MODES = {
+    "full": DECODER_FULL,
+    "condensed": DECODER_CONDENSED,
+    "minimal": DECODER_MINIMAL,
+    "none": DECODER_NONE,
+}
+
+# Keep backward compatibility
+RIBOSOME_DECODER = DECODER_FULL
 
 
 class HelixContextManager:
@@ -113,6 +139,10 @@ class HelixContextManager:
             encoder=self.encoder,
             splice_aggressiveness=config.budget.splice_aggressiveness,
         )
+
+        # Adaptive decoder prompt based on downstream model capability
+        self._decoder_mode = config.budget.decoder_mode
+        self._decoder_prompt = DECODER_MODES.get(self._decoder_mode, DECODER_FULL)
 
         # Pending replication buffer -- genes from background replication
         # that haven't committed to SQLite yet. Checked during Step 2
@@ -180,9 +210,9 @@ class HelixContextManager:
                 status="denatured" if self.genome.stats().get("total_genes", 0) > 0 else "sparse",
             )
             return ContextWindow(
-                ribosome_prompt=RIBOSOME_DECODER,
+                ribosome_prompt=self._decoder_prompt,
                 expressed_context="(no relevant context found in genome)",
-                total_estimated_tokens=len(RIBOSOME_DECODER) // 4,
+                total_estimated_tokens=len(self._decoder_prompt) // 4,
                 compression_ratio=1.0,
                 context_health=empty_health,
                 metadata={"query": query, "genes_expressed": 0},
@@ -270,6 +300,8 @@ class HelixContextManager:
                 "expression_budget": self.config.budget.expression_tokens,
                 "max_genes_per_turn": self.config.budget.max_genes_per_turn,
                 "splice_aggressiveness": self.config.budget.splice_aggressiveness,
+                "decoder_mode": self._decoder_mode,
+                "decoder_tokens": len(self._decoder_prompt) // 4,
             },
         }
 
@@ -368,7 +400,7 @@ class HelixContextManager:
         )
 
         # Budget enforcement: if over token budget, drop lowest-scored genes
-        est_tokens = (len(RIBOSOME_DECODER) + len(expressed_wrapped)) // 4
+        est_tokens = (len(self._decoder_prompt) + len(expressed_wrapped)) // 4
         budget = self.config.budget.ribosome_tokens + self.config.budget.expression_tokens
 
         if est_tokens > budget and len(parts) > 1:
@@ -377,7 +409,7 @@ class HelixContextManager:
                 parts.pop()
                 expressed = "\n---\n".join(parts)
                 expressed_wrapped = f"<expressed_context>\n{expressed}\n</expressed_context>"
-                est_tokens = (len(RIBOSOME_DECODER) + len(expressed_wrapped)) // 4
+                est_tokens = (len(self._decoder_prompt) + len(expressed_wrapped)) // 4
 
         compressed_chars = len(expressed)
 
@@ -386,7 +418,7 @@ class HelixContextManager:
         health = self._compute_health(query_terms, candidates, compressed_chars)
 
         return ContextWindow(
-            ribosome_prompt=RIBOSOME_DECODER,
+            ribosome_prompt=self._decoder_prompt,
             expressed_context=expressed_wrapped,
             expressed_gene_ids=[g.gene_id for g in sorted_genes[:len(parts)]],
             total_estimated_tokens=est_tokens,
