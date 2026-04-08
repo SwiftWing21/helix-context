@@ -19,6 +19,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import sqlite3
 import time
 from typing import Dict, List, Optional
@@ -328,34 +329,55 @@ class Genome:
         promote to HETEROCHROMATIN when decay_score < threshold.
         Returns the number of genes compacted.
 
-        Decay is gentle and access-count-aware:
-        - Only genes not accessed in stale_threshold seconds are candidates
-        - Decay is applied ONCE per compact cycle (not cumulative per second)
-        - Genes with high access_count decay slower (frequently used = important)
-        - A gene ingested 15 hours ago but never queried still stays at
-          decay_score ~0.7 after a day (not 0.0001 like the old math)
+        Two decay mechanisms:
+        1. TIME-BASED (gentle): genes not accessed in stale_threshold seconds
+           get slow decay (0.9998622/cycle = HETERO after ~1 year unused).
+           Access-count-weighted: frequently queried genes resist decay.
+
+        2. CHANGE-BASED (immediate): if gene has a source_id (file path) and
+           that file's mtime is newer than last_accessed, the gene is stale.
+           Its decay_score drops to 0.5 immediately (AGING), signaling that
+           the genome's copy is outdated. Re-ingesting the file resets it.
         """
         cur = self.conn.cursor()
         now = time.time()
         compacted = 0
+        change_detected = 0
 
-        rows = cur.execute("SELECT gene_id, epigenetics, chromatin FROM genes").fetchall()
+        rows = cur.execute(
+            "SELECT gene_id, epigenetics, chromatin, source_id FROM genes"
+        ).fetchall()
 
         for row in rows:
             epi = EpigeneticMarkers.model_validate_json(row["epigenetics"])
-            age = now - epi.last_accessed
-
-            if age < self.stale_threshold:
-                continue
-
-            # Access-weighted decay: frequently accessed genes resist decay
-            # access_count of 5+ means this gene has proven its value
-            access_bonus = min(epi.access_count * 0.005, 0.03)  # Max 3% resistance
-            effective_rate = self.decay_rate + access_bonus  # e.g., 0.995 + 0.015 = closer to 1.0
-
-            epi.decay_score *= effective_rate
             new_chromatin = int(row["chromatin"])
+            source_id = row["source_id"]
+            changed = False
 
+            # --- Change-based decay: check if source file was modified ---
+            if source_id and os.path.exists(source_id):
+                try:
+                    file_mtime = os.path.getmtime(source_id)
+                    if file_mtime > epi.last_accessed:
+                        # Source changed since this gene was last accessed/ingested
+                        epi.decay_score = min(epi.decay_score, 0.5)
+                        changed = True
+                        change_detected += 1
+                except OSError:
+                    pass  # File inaccessible, skip change check
+
+            # --- Time-based decay: gentle aging for untouched genes ---
+            if not changed:
+                age = now - epi.last_accessed
+                if age < self.stale_threshold:
+                    continue
+
+                # Access-weighted: frequently accessed genes resist decay
+                access_bonus = min(epi.access_count * 0.005, 0.03)
+                effective_rate = self.decay_rate + access_bonus
+                epi.decay_score *= effective_rate
+
+            # --- Chromatin transition ---
             if epi.decay_score < self.heterochromatin_threshold and new_chromatin < int(ChromatinState.HETEROCHROMATIN):
                 new_chromatin = int(ChromatinState.HETEROCHROMATIN)
                 compacted += 1
@@ -366,7 +388,11 @@ class Genome:
             )
 
         self.conn.commit()
-        log.info("Compaction complete: %d genes moved to HETEROCHROMATIN", compacted)
+        if change_detected:
+            log.info("Compaction: %d genes compacted, %d source changes detected",
+                     compacted, change_detected)
+        else:
+            log.info("Compaction complete: %d genes moved to HETEROCHROMATIN", compacted)
         return compacted
 
     # ── Stats ───────────────────────────────────────────────────────

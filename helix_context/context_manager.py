@@ -164,11 +164,16 @@ class HelixContextManager:
         strands = self.chunker.chunk(content, content_type=content_type, metadata=metadata)
         gene_ids = []
 
+        source_path = metadata.get("path") if metadata else None
+
         for strand in strands:
             gene = self.ribosome.pack(strand.content, content_type=content_type)
             # Preserve sequence index from chunking
             gene.promoter.sequence_index = strand.sequence_index
             gene.is_fragment = strand.is_fragment
+            # Store source file path for change-based decay
+            if source_path:
+                gene.source_id = source_path
 
             gid = self.genome.upsert_gene(gene)
             gene_ids.append(gid)
