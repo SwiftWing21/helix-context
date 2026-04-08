@@ -9,7 +9,7 @@ warmup = true                           # pre-load model on server start
 ribosome_tokens = 3000                  # fixed decoder prompt
 expression_tokens = 6000                # compressed context
 max_genes_per_turn = 8
-splice_aggressiveness = 0.5             # 0=keep all, 1=ruthless trim
+splice_aggressiveness = 0.3             # 0=keep all, 1=ruthless trim (lower preserves more literal detail)
 
 [genome]
 path = "genome.db"
