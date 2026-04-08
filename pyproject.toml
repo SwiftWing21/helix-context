@@ -1,16 +1,22 @@
 [build-system]
 requires = ["hatchling"]
-build-backend = "hatchling.backends"
+build-backend = "hatchling.build"
 
 [project]
 name = "helix-context"
-version = "0.1.0-beta"
+version = "0.1.0b1"
 description = "Genome-based context compression for local LLMs"
+readme = "README.md"
 requires-python = ">=3.11"
 license = "Apache-2.0"
+authors = [
+    { name = "Michael Bachaud", email = "swiftwing21@users.noreply.github.com" },
+]
+keywords = ["llm", "context", "compression", "ollama", "genome", "rag"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -22,6 +28,11 @@ dependencies = [
     "httpx>=0.27",
     "pydantic>=2.6",
 ]
+
+[project.urls]
+Homepage = "https://github.com/SwiftWing21/helix-context"
+Repository = "https://github.com/SwiftWing21/helix-context"
+Issues = "https://github.com/SwiftWing21/helix-context/issues"
 
 [project.optional-dependencies]
 embeddings = ["numpy", "sentence-transformers"]

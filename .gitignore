@@ -16,6 +16,10 @@ helix.log
 .vscode/
 .idea/
 
+# Build
+dist/
+*.egg-info/
+
 # OS
 Thumbs.db
 .DS_Store
