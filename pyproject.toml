@@ -1,0 +1,36 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.backends"
+
+[project]
+name = "helix-context"
+version = "0.1.0-beta"
+description = "Genome-based context compression for local LLMs"
+requires-python = ">=3.11"
+license = "MIT"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+    "fastapi>=0.110",
+    "uvicorn>=0.29",
+    "httpx>=0.27",
+    "pydantic>=2.6",
+]
+
+[project.optional-dependencies]
+embeddings = ["numpy", "sentence-transformers"]
+scorerift = ["scorerift"]
+dev = ["pytest", "pytest-asyncio"]
+
+[project.scripts]
+helix = "helix_context.server:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["live: requires Ollama running with at least one model"]

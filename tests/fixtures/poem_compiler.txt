@@ -1,0 +1,21 @@
+The Compiler's Lament
+
+I parse your tokens one by one,
+Each semicolon, brace, and pun,
+Through lexer gates and grammar trees,
+I bend your syntax to appease.
+
+You write your loops with careless hands,
+Not knowing what the runtime demands,
+I optimize your every call,
+Inlining functions, short and tall.
+
+Your variables, scattered wide,
+I pack them neatly, side by side,
+In registers where speed prevails,
+Or spill to stack when memory fails.
+
+And when at last the binary blooms,
+You run it once, then close the rooms,
+Not knowing that I labored through
+Ten thousand passes just for you.

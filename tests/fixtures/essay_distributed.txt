@@ -1,0 +1,25 @@
+Notes on Distributed Consensus
+
+The fundamental challenge of distributed systems is agreement. When multiple machines must coordinate to provide a service, they must agree on the state of the world: which node is the leader, what order events occurred in, which transactions committed and which aborted. This agreement is called consensus, and it is provably impossible to achieve perfectly in the presence of network partitions and failures.
+
+This impossibility result, known as the FLP theorem (after Fischer, Lynch, and Paterson), established in 1985 that no deterministic algorithm can guarantee consensus in an asynchronous system where even one process may fail. The proof is elegant and devastating: in any protocol, there exists a sequence of message delays that prevents the system from reaching a decision. The protocol cannot distinguish between a slow process and a crashed one, and so it must wait — potentially forever.
+
+In practice, we escape this impossibility by weakening our assumptions. Paxos, Raft, and their descendants do not solve the impossible problem. Instead, they solve a slightly different one: achieve consensus in systems that are mostly well-behaved, with timeouts to detect suspected failures, and with the understanding that progress may stall during periods of instability.
+
+Raft, designed by Diego Ongaro specifically for understandability, decomposes consensus into three subproblems: leader election, log replication, and safety. A cluster of nodes elects a leader. The leader accepts client requests, appends them to its log, and replicates the log to followers. Once a majority of nodes have acknowledged an entry, the leader considers it committed and applies it to the state machine.
+
+The beauty of Raft is that the leader serializes all decisions. There is no concurrent conflict resolution, no vector clocks, no merge logic. The leader decides, and the followers follow. This simplicity comes at a cost: the leader is a bottleneck and a single point of failure. When the leader crashes, the cluster must detect the failure (via heartbeat timeouts), elect a new leader, and ensure that the new leader has all committed entries. This process typically takes a few hundred milliseconds to a few seconds, during which the cluster cannot serve writes.
+
+The practical implications for system designers are several.
+
+First, consensus is expensive. Every write requires a round trip to a majority of nodes. In a five-node cluster spanning three data centers, the write latency is bounded by the network latency to the second-closest data center. This is typically 10-50 milliseconds for cross-region deployments, which is acceptable for metadata and configuration but prohibitive for high-throughput data paths.
+
+Second, consensus clusters should be small. Three or five nodes is typical. Seven is unusual. More nodes means more round trips, more potential for disagreement, and more operational complexity. The diminishing returns of additional nodes (slightly higher fault tolerance) rarely justify the increased latency and operational burden.
+
+Third, not everything needs consensus. The reflexive instinct to "put it in etcd" or "use a Raft group" for every piece of shared state is a recipe for bottlenecks. Many systems can tolerate eventual consistency for most data, reserving strong consensus for the critical metadata: leader election, configuration changes, schema migrations, and transaction coordination.
+
+Fourth, consensus algorithms assume a crash-failure model: nodes either work correctly or stop entirely. They do not protect against Byzantine failures, where a node behaves incorrectly (sending conflicting messages, corrupting data, acting unpredictably). Byzantine fault tolerance requires a different class of algorithms, such as PBFT, which are significantly more expensive and are primarily used in blockchain and high-security systems.
+
+The field continues to evolve. EPaxos and its successors explore leaderless consensus, where any node can propose a command and conflicts are resolved through a dependency graph. CRDTs (Conflict-free Replicated Data Types) sidestep consensus entirely for certain data structures by ensuring that all possible merge orders produce the same result. And the rise of cloud-managed consensus services (like AWS DynamoDB or Google Spanner) means that most application developers never need to implement consensus themselves — they just need to understand its costs and limitations well enough to choose the right abstraction.
+
+The lesson, as always, is that distributed systems are about tradeoffs. Consensus gives you strong guarantees at the cost of latency and availability. Eventual consistency gives you performance and availability at the cost of complexity in application logic. The art is knowing which tradeoff to make for each piece of your system, and being honest about the consequences.

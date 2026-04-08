@@ -1,0 +1,51 @@
+Computational Fluid Dynamics: From Navier-Stokes to Lattice Boltzmann
+
+The motion of fluids is governed by the Navier-Stokes equations, a set of nonlinear partial differential equations that describe how velocity, pressure, density, and temperature evolve in a fluid over time. For incompressible Newtonian fluids, the momentum equation takes the form:
+
+rho * (du/dt + u dot grad(u)) = -grad(p) + mu * laplacian(u) + f
+
+where rho is density, u is the velocity vector field, p is pressure, mu is dynamic viscosity, and f represents external body forces such as gravity. The continuity equation (mass conservation) adds the constraint div(u) = 0 for incompressible flow.
+
+Despite their apparent simplicity, the Navier-Stokes equations remain one of the Millennium Prize Problems. No general proof exists for the existence and smoothness of solutions in three dimensions. In practice, we solve them numerically using discretization methods.
+
+Finite Volume Method (FVM)
+
+The most widely used approach in production CFD codes (OpenFOAM, ANSYS Fluent) is the finite volume method. The computational domain is divided into small control volumes (cells), and the integral form of the conservation equations is applied to each cell. Fluxes across cell faces are computed using interpolation schemes, and the resulting algebraic system is solved iteratively.
+
+The key advantage of FVM is that it is inherently conservative: what flows out of one cell flows into its neighbor. This property is crucial for capturing shocks, discontinuities, and turbulent structures without introducing spurious mass or energy.
+
+Reynolds-Averaged Navier-Stokes (RANS)
+
+Direct numerical simulation of turbulent flows is computationally prohibitive for most engineering applications. A DNS of turbulent flow in a pipe at Reynolds number 10,000 would require approximately 10^9 grid cells and 10^6 time steps. Instead, RANS models decompose the velocity field into a mean component and a fluctuating component, and model the effect of turbulence on the mean flow through an eddy viscosity.
+
+The k-epsilon model is the workhorse of industrial CFD. It solves two additional transport equations: one for the turbulent kinetic energy k, and one for its dissipation rate epsilon. The eddy viscosity is then computed as mu_t = rho * C_mu * k^2 / epsilon, where C_mu is an empirical constant (typically 0.09).
+
+The k-epsilon model performs well for fully turbulent flows away from walls but struggles with separated flows, strong curvature, and transitional regimes. The k-omega SST model (Menter, 1994) blends k-epsilon in the free stream with k-omega near walls, providing better performance across a wider range of flows.
+
+Lattice Boltzmann Methods (LBM)
+
+An alternative to solving the Navier-Stokes equations directly is the lattice Boltzmann method, which simulates fluid flow by tracking the statistical distribution of particle velocities on a discrete lattice. Instead of solving for macroscopic quantities (velocity, pressure) directly, LBM evolves particle distribution functions f_i(x, t) through two steps:
+
+1. Collision: f_i(x, t+) = f_i(x, t) - (1/tau) * (f_i - f_i^eq)
+2. Streaming: f_i(x + e_i*dt, t+dt) = f_i(x, t+)
+
+where tau is the relaxation time (related to viscosity), e_i are the discrete velocity vectors, and f_i^eq is the equilibrium distribution function (derived from the Maxwell-Boltzmann distribution).
+
+The macroscopic density and velocity are recovered as moments of the distribution:
+rho = sum(f_i), rho*u = sum(f_i * e_i)
+
+LBM has several advantages over traditional CFD:
+- Naturally parallelizable (each lattice node computes independently)
+- Complex boundary conditions are handled through simple bounce-back rules
+- Multi-phase flows and porous media are easier to model
+- The algorithm maps efficiently to GPU architectures
+
+The primary limitation is that LBM operates at low Mach numbers (effectively incompressible) and requires uniform Cartesian grids, which limits geometric flexibility compared to unstructured FVM meshes.
+
+Practical Considerations
+
+In real engineering CFD, the mesh is everything. A poorly designed mesh will produce inaccurate results regardless of the turbulence model or numerical scheme. Wall-resolved simulations require y+ values below 1.0 at the first cell, which means cell heights on the order of micrometers near solid surfaces. This drives cell counts into the millions even for simple geometries.
+
+Convergence monitoring is equally critical. The residuals of each equation (continuity, momentum, energy, turbulence) should decrease by at least three orders of magnitude. But residual convergence alone is insufficient — one must also monitor integral quantities (drag, lift, mass flow rate) to ensure they have reached steady state.
+
+Post-processing often reveals more about the flow than the simulation itself. Streamline visualization, Q-criterion isosurfaces for vortex identification, and turbulent kinetic energy contours are standard diagnostic tools. The CFD engineer's skill lies not in running simulations but in interpreting their results and knowing when to trust them.

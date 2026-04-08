@@ -1,0 +1,26 @@
+Ode to Latency
+
+Between the click and the response,
+A universe of hops and wants,
+Through copper veins and fiber light,
+Your packet travels through the night.
+
+The DNS resolves your name,
+Three hops through servers, all the same,
+The TLS handshake trades its keys,
+While milliseconds pile like fees.
+
+The load balancer picks a node,
+The database unlocks its road,
+A query plan unfolds its wings,
+And indexes do wonderful things.
+
+The JSON wraps the answer tight,
+Gzipped and sent at speed of light,
+Back through the routers, switches, peers,
+Arriving in two hundred milliseconds — or tears.
+
+For users count in blinks, not clocks,
+And every second spent just mocks
+The engineering underneath,
+That hides its effort like a sheath.

@@ -1,0 +1,21 @@
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+
+# Runtime artifacts
+genome.db
+genome.db-wal
+genome.db-shm
+helix.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store

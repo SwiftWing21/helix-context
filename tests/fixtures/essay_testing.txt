@@ -1,0 +1,23 @@
+Why Most Test Suites Fail Their Purpose
+
+The purpose of a test suite is not to prove that code works. It is to provide confidence that code can be changed safely. This distinction matters more than it appears, because it fundamentally alters what you choose to test and how you write those tests.
+
+A test that proves code works today but breaks every time the implementation changes is worse than no test at all. It creates a maintenance burden that actively discourages refactoring. Developers learn to fear the test suite instead of trusting it. They make smaller changes, avoid restructuring, and leave technical debt untouched — all because touching anything triggers a cascade of test failures that have nothing to do with correctness.
+
+The root cause is almost always coupling. Tests that are tightly coupled to implementation details — mocking internal methods, asserting on specific database queries, checking the exact sequence of function calls — are brittle by design. They test how the code does something rather than what the code achieves. When the implementation changes but the behavior stays the same, these tests fail, producing noise that obscures real problems.
+
+The alternative is behavioral testing: test the public contract, not the private machinery. If a function takes an input and produces an output, test the input-output relationship. If a service exposes an API, test the API responses. If a module maintains state, test the observable state transitions. Leave the internal wiring alone.
+
+This does not mean you should never test internals. There are cases where the internal logic is genuinely complex and the public interface does not provide enough granularity to exercise all paths. A compression algorithm, a parser, a state machine — these have internal complexity that warrants direct testing. But even in these cases, the tests should be written against the logical contract of the internal component, not against its syntactic structure.
+
+The practical consequences of this philosophy are significant.
+
+First, prefer integration tests over unit tests for most application code. A unit test that mocks the database, the HTTP client, the filesystem, and three internal services is testing a fantasy. It proves that your code works in a world where none of its dependencies exist. An integration test that boots the actual dependencies (even if containerized) and exercises the real code path provides genuine confidence.
+
+Second, invest heavily in test fixtures and factories. The hardest part of writing good tests is setting up realistic state. If creating a test scenario requires fifty lines of setup, developers will avoid writing tests. If it requires calling a factory function with two parameters, they will write tests eagerly.
+
+Third, delete tests that provide no value. A test that has been red for six months and nobody has fixed it is not a test — it is a lie. A test that is so flaky that developers automatically re-run failures is not providing confidence — it is eroding trust. Remove them. The test suite should be a sharp tool, not a dull one.
+
+Finally, measure the right thing. Code coverage is a useful proxy but a dangerous metric. One hundred percent coverage does not mean correctness; it means every line was executed, which is a much weaker statement. A single well-designed property-based test can provide more confidence than twenty hand-written examples. Focus on the behaviors that matter to your users, and test those thoroughly. Leave the rest alone.
+
+The goal is a test suite that developers trust, that runs fast, that fails only when something is genuinely wrong, and that makes refactoring feel safe rather than terrifying. Achieving this requires discipline, taste, and a willingness to delete tests that have outlived their usefulness.

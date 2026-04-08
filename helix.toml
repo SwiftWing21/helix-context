@@ -1,0 +1,44 @@
+[ribosome]
+model = "auto"                          # auto-detect from Ollama, or explicit override
+base_url = "http://localhost:11434"
+timeout = 10                            # seconds — splice/re_rank timeout before fallback
+keep_alive = "30m"                      # keep ribosome model loaded (eliminates swap latency)
+warmup = true                           # pre-load model on server start
+
+[budget]
+ribosome_tokens = 3000                  # fixed decoder prompt
+expression_tokens = 6000                # compressed context
+max_genes_per_turn = 8
+splice_aggressiveness = 0.5             # 0=keep all, 1=ruthless trim
+
+[genome]
+path = "genome.db"
+compact_interval = 300                  # seconds between compaction
+stale_threshold = 3600                  # seconds before decay kicks in
+decay_rate = 0.95                       # multiplier per compaction cycle
+cold_start_threshold = 10              # genes needed before history stripping kicks in (Fix 3)
+
+[server]
+host = "127.0.0.1"
+port = 11437
+upstream = "http://localhost:11434"     # Ollama
+
+[synonyms]
+# Fix 1: lightweight synonym expansion for promoter queries
+slow = ["performance", "latency", "bottleneck", "timeout", "lag"]
+fast = ["performance", "speed", "optimization", "cache"]
+cache = ["redis", "ttl", "invalidation", "cdn", "caching", "eviction"]
+auth = ["jwt", "login", "security", "token", "session", "oauth"]
+protein = ["folding", "amino", "alpha_helix", "beta_sheet", "alphafold", "biochemistry"]
+tree = ["btree", "b-tree", "data_structures", "index", "binary_tree"]
+helix = ["genome", "ribosome", "codons", "splice", "chromatin", "promoter", "context compression"]
+pipeline = ["steps", "expression", "workflow", "process", "stages"]
+scoring = ["scorerift", "divergence", "audit", "grades", "ratchet", "dimensions"]
+compress = ["compression", "context", "codons", "splice", "tokens", "budget"]
+error = ["exception", "crash", "failure", "bug", "traceback"]
+db = ["database", "sqlite", "postgres", "sql", "query", "schema"]
+api = ["endpoint", "route", "rest", "http", "request", "response"]
+ui = ["frontend", "component", "render", "layout", "css", "style"]
+test = ["pytest", "unittest", "mock", "assert", "coverage"]
+deploy = ["docker", "kubernetes", "ci", "cd", "pipeline", "helm"]
+config = ["settings", "toml", "env", "environment", "dotenv"]

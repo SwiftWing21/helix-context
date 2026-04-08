@@ -1,0 +1,19 @@
+On the Nature of Caching
+
+Caching is the art of trading space for time, and like all trades, it carries risk. The fundamental promise is simple: store the result of an expensive computation so that subsequent requests for the same result can be served cheaply. The fundamental betrayal is equally simple: the cached value may no longer reflect reality.
+
+Every cache is a bet that the future will resemble the recent past. When that bet pays off, response times drop by orders of magnitude. A database query that takes 200 milliseconds can be served from Redis in under a millisecond. A page render that requires aggregating data from six microservices can be served from a CDN edge node in the time it takes light to travel across a city.
+
+But when the bet fails, the consequences range from mildly confusing to catastrophic. A user sees stale data. A financial calculation uses yesterday's exchange rate. A permissions check grants access that was revoked ten minutes ago. The severity depends entirely on the domain, and this is why caching strategies cannot be designed in isolation from business requirements.
+
+The three classical problems of caching are invalidation, cold starts, and thundering herds.
+
+Invalidation is famously one of the two hard problems in computer science. When the underlying data changes, how do you ensure the cache reflects that change? Time-based expiration (TTL) is the simplest approach: declare that cached values are valid for N seconds, and accept that data may be stale for up to N seconds. Event-based invalidation is more precise: when the data changes, actively purge or update the cached entry. But event-based invalidation requires reliable event delivery, and in distributed systems, reliability is expensive.
+
+Cold starts occur when a cache is empty, either because the system just booted, or because a new type of request arrives that has never been cached. During a cold start, every request becomes a cache miss, and the underlying system must handle the full load. This is particularly dangerous after a deployment or a cache flush, when thousands of requests simultaneously discover that their cached values are gone.
+
+Thundering herds are a special case of cold starts. When a popular cached value expires, hundreds of concurrent requests may simultaneously attempt to regenerate it. Each request independently queries the database, computes the result, and writes it to the cache. The database sees a sudden spike of identical expensive queries. The solution is usually a lock or a "single-flight" pattern: the first request to discover the miss acquires a lock and regenerates the value, while subsequent requests wait for the result.
+
+The deeper lesson of caching is that it is not merely a performance optimization. It is an architectural decision that changes the consistency model of your system. A system without caching offers strong consistency by default: every read reflects the most recent write. A system with caching offers eventual consistency at best, and stale reads at worst. This tradeoff must be made consciously, with clear documentation of the staleness windows and their business impact.
+
+In practice, the best caching strategies are boring. Cache at the edge for static assets. Cache database queries with short TTLs and event-based invalidation for critical paths. Use read-through caches that populate themselves on miss. Monitor hit rates obsessively. And never, ever cache error responses — unless you want your system to remember its failures longer than its successes.

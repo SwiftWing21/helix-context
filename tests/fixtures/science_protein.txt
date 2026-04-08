@@ -1,0 +1,60 @@
+Protein Folding: From Primary Sequence to Functional Architecture
+
+Proteins are the molecular machines of life. Every enzyme, receptor, structural fiber, and signaling molecule in a living organism is a protein — a linear chain of amino acids that spontaneously folds into a precise three-dimensional shape determined almost entirely by its sequence.
+
+Primary Structure
+
+The primary structure of a protein is its amino acid sequence, read from the N-terminus to the C-terminus. There are 20 standard amino acids, each with a common backbone (amino group, alpha carbon, carboxyl group) and a unique side chain (R group) that determines its chemical properties.
+
+Side chains are classified by their interaction with water:
+- Hydrophobic (nonpolar): alanine, valine, leucine, isoleucine, proline, phenylalanine, tryptophan, methionine
+- Hydrophilic (polar uncharged): serine, threonine, asparagine, glutamine, tyrosine, cysteine
+- Positively charged: lysine, arginine, histidine
+- Negatively charged: aspartate, glutamate
+- Special: glycine (minimal side chain, maximum flexibility)
+
+The peptide bond connecting adjacent amino acids is planar and rigid due to partial double-bond character. This constrains the backbone geometry, leaving only two freely rotating angles per residue: phi (N-Calpha bond) and psi (Calpha-C bond). The allowed combinations of phi and psi angles are visualized in the Ramachandran plot, which shows that most residues cluster in a few favored regions corresponding to regular secondary structures.
+
+Secondary Structure
+
+The two dominant secondary structures are alpha-helices and beta-sheets.
+
+Alpha-helices are right-handed coils stabilized by hydrogen bonds between the carbonyl oxygen of residue i and the amide nitrogen of residue i+4. Each turn of the helix spans 3.6 residues and rises 5.4 angstroms. The side chains project outward from the helix axis, and the interior of the helix is tightly packed with backbone atoms.
+
+Beta-sheets are formed by extended strands (beta-strands) lying side by side, connected by hydrogen bonds between backbone atoms of adjacent strands. Sheets can be parallel (strands running in the same direction) or antiparallel (alternating directions). Antiparallel sheets have more linear hydrogen bonds and are generally more stable.
+
+Loops and turns connect helices and sheets. They are often found on the protein surface and are frequently involved in ligand binding and catalysis. Beta-turns are a common motif where the chain reverses direction over four residues, stabilized by a hydrogen bond between residues i and i+3.
+
+Tertiary Structure and the Folding Problem
+
+The tertiary structure is the complete three-dimensional arrangement of all atoms in a single polypeptide chain. It is determined by a complex interplay of forces:
+
+1. The hydrophobic effect: nonpolar side chains are buried in the protein interior, away from water. This is the dominant driving force of folding, contributing approximately 1-2 kcal/mol per hydrophobic residue buried.
+
+2. Hydrogen bonds: both backbone and side chain hydrogen bonds stabilize the folded structure. While individual hydrogen bonds are weak (2-5 kcal/mol), a typical protein contains hundreds of them.
+
+3. Van der Waals interactions: close packing of atoms in the protein interior contributes favorable dispersion forces. The protein core is as densely packed as a crystal of small organic molecules.
+
+4. Electrostatic interactions: salt bridges between oppositely charged residues (e.g., lysine and glutamate) can stabilize the structure, particularly on the protein surface.
+
+5. Disulfide bonds: covalent bonds between cysteine side chains provide additional stability, particularly in extracellular proteins.
+
+The folding problem — predicting the three-dimensional structure from the amino acid sequence alone — was considered one of the grand challenges of biology for decades. The search space is astronomical: a 100-residue protein with just two possible phi/psi angles per residue has 2^200 possible conformations. If each conformation could be sampled in a picosecond, exhaustive search would take longer than the age of the universe.
+
+Yet real proteins fold in milliseconds to seconds. This paradox, known as Levinthal's paradox, implies that folding does not proceed by random search. Instead, proteins follow a folding funnel: the energy landscape is shaped like a funnel, with the native state at the bottom. The protein rapidly collapses to a compact state (driven by the hydrophobic effect) and then rearranges through progressively lower-energy intermediates until it reaches the native fold.
+
+AlphaFold and the Computational Revolution
+
+In 2020, DeepMind's AlphaFold system achieved near-experimental accuracy in predicting protein structures from sequence alone. AlphaFold2 uses a deep neural network architecture that processes multiple sequence alignments (MSAs) and pairwise residue features through an iterative attention mechanism called the Evoformer.
+
+The key insight is that co-evolutionary information encoded in MSAs — pairs of residues that mutate together across species — provides strong constraints on residue-residue contacts. AlphaFold2 combines these evolutionary signals with learned physical priors to predict inter-residue distances and backbone torsion angles, which are then assembled into a full 3D structure.
+
+The AlphaFold Protein Structure Database now contains predicted structures for over 200 million proteins, covering nearly every known protein sequence. This has transformed structural biology from a bottleneck to a commodity, enabling researchers to study protein function, design novel enzymes, and develop targeted therapeutics at unprecedented scale.
+
+Intrinsically Disordered Proteins
+
+Not all proteins fold into stable structures. Approximately 30-40% of eukaryotic proteins contain significant intrinsically disordered regions (IDRs) that lack a fixed three-dimensional structure under physiological conditions. These regions sample an ensemble of conformations and often undergo disorder-to-order transitions upon binding to their partners.
+
+IDRs are enriched in signaling proteins, transcription factors, and scaffold proteins. Their flexibility allows them to interact with multiple partners through short linear motifs — small sequence elements (typically 3-10 residues) that adopt a defined structure only when bound. This "fly-casting" mechanism enables rapid, low-affinity interactions that are ideal for signaling networks.
+
+The study of intrinsically disordered proteins challenges the classical structure-function paradigm and highlights that protein function emerges not just from structure but from the dynamic ensemble of conformations a protein samples over time.

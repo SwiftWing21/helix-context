@@ -1,0 +1,24 @@
+A Poem About Recursion
+
+To understand recursion,
+You must first understand recursion.
+
+The base case is a quiet room,
+Where nothing calls and nothing blooms,
+A simple truth, returned and done,
+The anchor where the stack's unwound.
+
+But oh, the calls that came before,
+Each one a frame upon the floor,
+Holding state and holding place,
+Waiting for the answer's grace.
+
+And when the deepest call returns,
+Each parent frame in sequence learns
+The value that it waited for,
+Then pops itself and waits no more.
+
+So if you find yourself confused,
+With stack frames piled and patience bruised,
+Remember: every winding stair
+Eventually leads back to air.
