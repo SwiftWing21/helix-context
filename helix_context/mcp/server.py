@@ -50,30 +50,55 @@ TIMEOUT = float(os.environ.get("HELIX_TIMEOUT", "30"))
 # This avoids requiring the `mcp` SDK which has compatibility issues.
 
 
+_stdin = None
+_stdout = None
+
+
+def _init_io() -> None:
+    """Set up binary-safe stdin/stdout for MCP Content-Length framing.
+
+    Works on both Windows and Linux. On Windows, stdin/stdout default to
+    text mode which mangles \\r\\n. We switch to raw binary and wrap with
+    a buffered reader/writer.
+    """
+    global _stdin, _stdout
+
+    if sys.platform == "win32":
+        import msvcrt
+        msvcrt.setmode(sys.stdin.fileno(), os.O_BINARY)
+        msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
+
+    _stdin = sys.stdin.buffer
+    _stdout = sys.stdout.buffer
+
+
 def _read_message() -> dict | None:
     """Read a JSON-RPC message from stdin (Content-Length framing)."""
-    headers = {}
+    # Read headers line by line until empty line
+    content_length = 0
     while True:
-        line = sys.stdin.readline()
-        if not line or line.strip() == "":
-            break
-        if ":" in line:
-            key, val = line.split(":", 1)
-            headers[key.strip().lower()] = val.strip()
+        line = _stdin.readline()
+        if not line:
+            return None  # EOF
+        line_str = line.decode("utf-8").strip()
+        if line_str == "":
+            break  # End of headers
+        if line_str.lower().startswith("content-length:"):
+            content_length = int(line_str.split(":", 1)[1].strip())
 
-    length = int(headers.get("content-length", 0))
-    if length == 0:
+    if content_length == 0:
         return None
 
-    body = sys.stdin.read(length)
-    return json.loads(body)
+    body = _stdin.read(content_length)
+    return json.loads(body.decode("utf-8"))
 
 
 def _send_message(msg: dict) -> None:
     """Write a JSON-RPC message to stdout (Content-Length framing)."""
-    body = json.dumps(msg)
-    sys.stdout.write(f"Content-Length: {len(body)}\r\n\r\n{body}")
-    sys.stdout.flush()
+    body = json.dumps(msg).encode("utf-8")
+    header = f"Content-Length: {len(body)}\r\n\r\n".encode("utf-8")
+    _stdout.write(header + body)
+    _stdout.flush()
 
 
 def _result(id: int | str, result: dict) -> None:
@@ -279,13 +304,7 @@ HANDLERS = {
 
 def main():
     """Run the MCP stdio server."""
-    # Set stdin/stdout to binary-safe mode on Windows
-    if sys.platform == "win32":
-        import msvcrt
-        msvcrt.setmode(sys.stdin.fileno(), os.O_BINARY)
-        msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
-        sys.stdin = open(sys.stdin.fileno(), "r", encoding="utf-8", newline="")
-        sys.stdout = open(sys.stdout.fileno(), "w", encoding="utf-8", newline="")
+    _init_io()
 
     while True:
         msg = _read_message()
