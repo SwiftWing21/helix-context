@@ -317,7 +317,7 @@ class HelixContextManager:
                 metadata={"query": query, "genes_expressed": 0},
             )
 
-        # Step 3: Re-rank + trim to budget
+        # Step 3: Trim to budget
         if (
             self.config.ingestion.rerank_enabled
             and hasattr(self.ribosome, 're_rank')
@@ -339,18 +339,14 @@ class HelixContextManager:
             except Exception:
                 log.warning("NLI classification failed, proceeding without", exc_info=True)
 
-        # Step 4: Contextual splice — raw content with source context prefix.
-        # Prepending the source file path gives the downstream model a
-        # "situational anchor" — it knows WHERE each gene came from,
-        # which dramatically improves extraction accuracy for specific values.
+        # Step 4: Dense gene expression
+        # Each gene expressed as: Facts (KV pairs) + Source + Raw content
+        # Dense format minimizes prose for small model extraction.
         spliced_map = {}
         for g in candidates:
-            # Build source context prefix
             src = g.source_id or ""
             if src and not src.startswith("_"):
-                # Extract readable path: "BigEd/config.toml" from full path
                 parts = src.replace("\\", "/").split("/")
-                # Find the project name (after "Projects" or use last 3 segments)
                 try:
                     idx = parts.index("Projects")
                     short = "/".join(parts[idx + 1:])
@@ -359,7 +355,6 @@ class HelixContextManager:
                 prefix = f"[Source: {short}]\n"
             else:
                 prefix = ""
-            # Prepend pre-extracted key-value facts if available
             kv_line = ""
             if g.key_values:
                 kv_line = "Facts: " + ", ".join(g.key_values[:10]) + "\n"

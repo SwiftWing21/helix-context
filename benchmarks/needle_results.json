@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-04-09T02:49:19",
-  "genome_genes": 3280,
-  "compression_ratio": 6.674420750969232,
+  "timestamp": "2026-04-09T12:48:57",
+  "genome_genes": 11563,
+  "compression_ratio": 2.6649877566705467,
   "needles": [
     {
       "name": "helix_port",
@@ -9,38 +9,38 @@
       "expected": "11437",
       "found_in_context": true,
       "answer_correct": false,
-      "context_latency_s": 0.21,
-      "proxy_latency_s": 5.807,
-      "ellipticity": 0.4808,
+      "context_latency_s": 2.24,
+      "proxy_latency_s": 10.404,
+      "ellipticity": 0.5249,
       "status": "sparse",
-      "genes_expressed": 12,
-      "answer_preview": "The Helix proxy server primarily uses port **`5000`** for its API endpoint (as indicated by the general structure in several context files).\n\nHowever, based specifically on the initialization examples"
+      "genes_expressed": 30,
+      "answer_preview": "I do not have a single, definitive answer for the proxy server's listening port based solely on the context provided. The previous exchanges have referenced several possibilities or have been contradi"
     },
     {
       "name": "scorerift_threshold",
       "query": "What is the divergence threshold that triggers alerts in ScoreRift?",
       "expected": "0.15",
       "found_in_context": true,
-      "answer_correct": true,
-      "context_latency_s": 0.11,
-      "proxy_latency_s": 12.612,
-      "ellipticity": 0.3529,
+      "answer_correct": false,
+      "context_latency_s": 1.329,
+      "proxy_latency_s": 11.548,
+      "ellipticity": 0.3732,
       "status": "sparse",
-      "genes_expressed": 12,
-      "answer_preview": "Based on the provided code snippets, the parameter used for **divergence** is explicitly defined with a value of **`0.15`** in the `classify_status_rich` function:\n\n`def classify_status_rich(..., dive"
+      "genes_expressed": 30,
+      "answer_preview": "The context provided contains several instances where different values, or contextual clues, are given for thresholds, suggesting that the precise answer depends heavily on which specific part of the "
     },
     {
       "name": "biged_skills_count",
       "query": "How many skills does the BigEd fleet have?",
       "expected": "125",
-      "found_in_context": true,
+      "found_in_context": false,
       "answer_correct": false,
-      "context_latency_s": 0.136,
-      "proxy_latency_s": 5.095,
-      "ellipticity": 0.4099,
+      "context_latency_s": 1.745,
+      "proxy_latency_s": 10.306,
+      "ellipticity": 0.6881,
       "status": "sparse",
-      "genes_expressed": 12,
-      "answer_preview": "The provided context states that the process involves **\"1333 skills\"** (from the initial context, which is not fully visible, but this figure is commonly associated with the platform's scope).\n\nHowev"
+      "genes_expressed": 30,
+      "answer_preview": "I do not have access to a definitive list of all existing skills or the total count of available skills.\n\nHowever, I can tell you about the **types of concepts and functionalities** that are discussed"
     },
     {
       "name": "bookkeeper_monetary",
@@ -48,25 +48,25 @@
       "expected": "Decimal",
       "found_in_context": true,
       "answer_correct": true,
-      "context_latency_s": 0.161,
-      "proxy_latency_s": 26.955,
-      "ellipticity": 0.3208,
+      "context_latency_s": 1.3,
+      "proxy_latency_s": 8.91,
+      "ellipticity": 0.3925,
       "status": "sparse",
-      "genes_expressed": 12,
-      "answer_preview": "Monetary values in BookKeeper must use the **`Decimal` type** from Python's `decimal` module, and must **never** use standard floating-point types (`float`).\n\nBased on the context, this rule involves "
+      "genes_expressed": 30,
+      "answer_preview": "The system clearly advises using the **`Decimal`** type (from Python's `decimal` module) for handling all monetary calculations.\n\nThis is crucial because standard floating-point types (`float`) can in"
     },
     {
       "name": "helix_pipeline_steps",
       "query": "How many steps are in the Helix expression pipeline?",
       "expected": "6",
       "found_in_context": true,
-      "answer_correct": true,
-      "context_latency_s": 0.118,
-      "proxy_latency_s": 15.2,
-      "ellipticity": 0.4481,
-      "status": "sparse",
-      "genes_expressed": 12,
-      "answer_preview": "The Helix expression pipeline consists of **6** steps per turn."
+      "answer_correct": false,
+      "context_latency_s": 1.222,
+      "proxy_latency_s": 10.982,
+      "ellipticity": 0.1952,
+      "status": "denatured",
+      "genes_expressed": 30,
+      "answer_preview": "The initial process of processing context in the system follows several distinct steps, which can be summarized as:\n\n1.  **Context Extraction:** The system first needs to identify and extract relevant"
     },
     {
       "name": "biged_rust_binary_size",
@@ -74,25 +74,25 @@
       "expected": "11",
       "found_in_context": true,
       "answer_correct": false,
-      "context_latency_s": 0.129,
-      "proxy_latency_s": 5.74,
-      "ellipticity": 0.4756,
+      "context_latency_s": 2.032,
+      "proxy_latency_s": 6.326,
+      "ellipticity": 0.6301,
       "status": "sparse",
-      "genes_expressed": 12,
-      "answer_preview": "The context mentions the following regarding the build process and size:\n\n*   **General description:** \"The context implies an ongoing development process, but no single finalized, universally applica"
+      "genes_expressed": 30,
+      "answer_preview": "The provided documentation snippets do not specify the final binary size of the `biged` build. The information focuses on the architecture, libraries, communication protocols, and functional requireme"
     },
     {
       "name": "genome_compression_target",
       "query": "What is the target compression ratio for Helix Context?",
       "expected": "5x",
-      "found_in_context": true,
+      "found_in_context": false,
       "answer_correct": false,
-      "context_latency_s": 0.114,
-      "proxy_latency_s": 18.254,
-      "ellipticity": 0.4591,
-      "status": "sparse",
-      "genes_expressed": 12,
-      "answer_preview": "The target compression ratio mentioned for the context is **> 10:1**."
+      "context_latency_s": 1.093,
+      "proxy_latency_s": 7.801,
+      "ellipticity": 0.2014,
+      "status": "denatured",
+      "genes_expressed": 30,
+      "answer_preview": "The provided context does not contain a specific numerical value for the target compression ratio for Helix Context.\n\nHowever, it strongly implies the purpose of the system is advanced context managem"
     },
     {
       "name": "scorerift_preset_dimensions",
@@ -100,43 +100,43 @@
       "expected": "8",
       "found_in_context": true,
       "answer_correct": false,
-      "context_latency_s": 0.121,
-      "proxy_latency_s": 7.698,
-      "ellipticity": 0.5206,
+      "context_latency_s": 1.743,
+      "proxy_latency_s": 11.922,
+      "ellipticity": 0.5972,
       "status": "sparse",
-      "genes_expressed": 12,
-      "answer_preview": "Based on the provided documents, the program structure suggests that the `api` package is responsible for defining the structure and implementation details of the system. Within this context, the `api"
+      "genes_expressed": 30,
+      "answer_preview": "Based on the documentation excerpts provided, there is **no single, definitive answer** stating the *exact* number of dimensions checked by the Python preset.\n\nHowever, I can point to related informat"
     },
     {
       "name": "helix_ribosome_budget",
       "query": "How many tokens are allocated for the ribosome decoder prompt?",
       "expected": "3000",
       "found_in_context": true,
-      "answer_correct": true,
-      "context_latency_s": 0.115,
-      "proxy_latency_s": 17.575,
-      "ellipticity": 0.3375,
+      "answer_correct": false,
+      "context_latency_s": 1.084,
+      "proxy_latency_s": 14.288,
+      "ellipticity": 0.4826,
       "status": "sparse",
-      "genes_expressed": 12,
-      "answer_preview": "The token budget allocated for the ribosome decoder prompt is **3k** (or **3000** tokens).\n\nThis information is found in two places in the context:\n\n1.  **In `context_manager.py`:** The documentation "
+      "genes_expressed": 30,
+      "answer_preview": "The context explicitly states the token allocation for the ribosome prompt:\n\n> **Token budget:**\n> *   System prompt: 50 tokens\n> *   User tokens: 20 tokens\n> *   Model tokens: 20 tokens\n> *   **Ribos"
     },
     {
       "name": "biged_default_model",
       "query": "What is the default local model used by BigEd for conductor tasks?",
       "expected": "qwen3",
-      "found_in_context": false,
+      "found_in_context": true,
       "answer_correct": false,
-      "context_latency_s": 0.162,
-      "proxy_latency_s": 6.08,
-      "ellipticity": 0.355,
+      "context_latency_s": 2.381,
+      "proxy_latency_s": 10.441,
+      "ellipticity": 0.6094,
       "status": "sparse",
-      "genes_expressed": 12,
-      "answer_preview": "Based on the provided text snippets, there is **no explicit mention** of what model is used by default for conducting tasks.\n\nThe text focuses heavily on:\n*   The architecture and separation of concer"
+      "genes_expressed": 30,
+      "answer_preview": "The provided context describes the architecture, components, and migration paths for services like the \"BigEd Dashboard\" and general development practices, touching upon concepts like services, APIs, "
     }
   ],
   "summary": {
-    "context_retrieval_rate": 0.9,
-    "answer_accuracy_rate": 0.4,
-    "avg_context_latency_s": 0.138
+    "context_retrieval_rate": 0.8,
+    "answer_accuracy_rate": 0.1,
+    "avg_context_latency_s": 1.617
   }
 }

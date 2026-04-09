@@ -17,7 +17,8 @@ decoder_mode = "condensed"              # "full"|"condensed"|"minimal"|"none" (n
 path = "genome.db"
 compact_interval = 3600                 # seconds between source-change checks (hourly)
 cold_start_threshold = 10              # genes needed before history stripping kicks in (Fix 3)
-replicas = ["C:/helix-cache/genome.db", "D:/helix-cache/genome.db", "E:/helix-cache/genome.db"]
+replicas = []  # TEMP: disabled during bulk ingest — re-enable after
+# replicas = ["C:/helix-cache/genome.db", "D:/helix-cache/genome.db", "E:/helix-cache/genome.db"]
 replica_sync_interval = 100             # sync replicas every N inserts
 # No time-based decay. Genes never expire.
 # Compaction only detects source file changes (mtime vs last_accessed).
