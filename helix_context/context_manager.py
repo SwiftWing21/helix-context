@@ -265,9 +265,12 @@ class HelixContextManager:
                 metadata={"query": query, "genes_expressed": 0},
             )
 
-        # Step 3: Re-rank (ribosome, optional -- only if over budget)
+        # Step 3: Trim to budget (FTS5 hybrid scoring already ranks well)
+        # DeBERTa re-rank is disabled — it was trained on limited data and
+        # drops FTS5-matched needle genes. The hybrid retrieval score
+        # (promoter tag + prefix + FTS5 content) is a better signal.
         if len(candidates) > max_genes:
-            candidates = self.ribosome.re_rank(query, candidates, k=max_genes)
+            candidates = candidates[:max_genes]
 
         # Step 3.5: NLI classification (optional, DeBERTa backend only)
         relation_graph = {}
@@ -277,19 +280,15 @@ class HelixContextManager:
             except Exception:
                 log.warning("NLI classification failed, proceeding without", exc_info=True)
 
-        # Step 4: Splice — use complement with raw content fallback.
-        # Complement preserves structure while being compact. Raw content
-        # is appended (truncated) to preserve specific values (numbers,
-        # config literals) that complement may compress away.
-        spliced_map = {}
-        for g in candidates:
-            complement = g.complement or ""
-            # Append a raw content snippet to preserve specific values
-            raw_snippet = g.content[:800]
-            if complement and complement != raw_snippet:
-                spliced_map[g.gene_id] = f"{complement}\n---raw---\n{raw_snippet}"
-            else:
-                spliced_map[g.gene_id] = raw_snippet
+        # Step 4: Splice — use raw content directly.
+        # The DeBERTa splice and complement both strip specific values
+        # (numbers, config literals) that downstream models need.
+        # Raw content preserves everything. Budget enforcement in Step 5
+        # drops excess genes if over token limit.
+        spliced_map = {
+            g.gene_id: g.content[:1500]
+            for g in candidates
+        }
 
         # Step 5: Assemble
         window = self._assemble(query, candidates, spliced_map, relation_graph)

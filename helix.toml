@@ -9,7 +9,7 @@ backend = "deberta"                     # "deberta" for fast re_rank+splice, "ol
 [budget]
 ribosome_tokens = 3000                  # fixed decoder prompt
 expression_tokens = 8000                # compressed context
-max_genes_per_turn = 10
+max_genes_per_turn = 12
 splice_aggressiveness = 0.3             # 0=keep all, 1=ruthless trim (lower preserves more literal detail)
 decoder_mode = "condensed"              # "full"|"condensed"|"minimal"|"none" (none saves ~750 tokens for API models)
 
@@ -57,3 +57,4 @@ ui = ["frontend", "component", "render", "layout", "css", "style"]
 test = ["pytest", "unittest", "mock", "assert", "coverage"]
 deploy = ["docker", "kubernetes", "ci", "cd", "pipeline", "helm"]
 config = ["settings", "toml", "env", "environment", "dotenv"]
+conductor = ["llm", "agent", "orchestration", "model", "fleet"]

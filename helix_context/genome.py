@@ -370,6 +370,30 @@ class Genome:
         if not gene_scores:
             raise PromoterMismatch("Zero genes matched across all tiers")
 
+        # ── Lexical anchoring: IDF-weighted rare-term boost ────────
+        # Weight query terms by inverse document frequency — rare terms
+        # are stronger discriminators. A gene matching "conductor" (3 genes)
+        # is much more likely the answer than one matching "biged" (200+ genes).
+        total_genes_est = max(len(gene_scores), 100)
+        import math as _math
+        for term in query_terms:
+            term_freq = cur.execute(
+                "SELECT COUNT(DISTINCT gene_id) FROM promoter_index WHERE tag_value = ?",
+                (term,),
+            ).fetchone()[0]
+            if term_freq == 0:
+                continue
+            # IDF boost: rare terms get up to 5.0, common terms ~0.5
+            idf = _math.log(total_genes_est / term_freq) if term_freq > 0 else 0
+            boost = min(idf * 1.5, 5.0)
+            if boost > 1.0:
+                anchor_genes = cur.execute(
+                    "SELECT gene_id FROM promoter_index WHERE tag_value = ?",
+                    (term,),
+                ).fetchall()
+                for r in anchor_genes:
+                    gene_scores[r["gene_id"]] = gene_scores.get(r["gene_id"], 0) + boost
+
         # Sort by combined score, fetch top genes
         ranked_ids = sorted(gene_scores, key=gene_scores.get, reverse=True)[:limit]
 
