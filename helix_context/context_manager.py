@@ -75,10 +75,16 @@ DO NOT:
 - Generate generic architectural advice that ignores the actual context
 - Mention codons, genes, splicing, or DNA unless the user asks about memory internals"""
 
-DECODER_CONDENSED = """The <expressed_context> below contains compressed project knowledge selected for your query.
-Each section between --- dividers is one knowledge unit. Use ONLY this context to answer.
-Use specific names and details from the context. If the context doesn't cover the question,
-say so — do not guess. The user's message overrides context if they conflict."""
+DECODER_CONDENSED = """The <expressed_context> below contains project knowledge selected for your query.
+Each section between --- dividers is one knowledge unit. Each starts with [Source: path] showing where it came from.
+
+To answer, follow these steps:
+1. LOCATE: Find the section most relevant to the question. Look for specific values, names, and numbers.
+2. QUOTE: Identify the exact line or value that answers the question.
+3. ANSWER: State the answer using the specific value from the context.
+
+If the context truly does not contain the answer, say so. But LOOK CAREFULLY first — the answer
+is usually a specific number, name, or value buried in one of the sections."""
 
 DECODER_MINIMAL = """Answer using ONLY the <expressed_context> below. Do not guess beyond what it states."""
 
@@ -280,15 +286,27 @@ class HelixContextManager:
             except Exception:
                 log.warning("NLI classification failed, proceeding without", exc_info=True)
 
-        # Step 4: Splice — use raw content directly.
-        # The DeBERTa splice and complement both strip specific values
-        # (numbers, config literals) that downstream models need.
-        # Raw content preserves everything. Budget enforcement in Step 5
-        # drops excess genes if over token limit.
-        spliced_map = {
-            g.gene_id: g.content[:1500]
-            for g in candidates
-        }
+        # Step 4: Contextual splice — raw content with source context prefix.
+        # Prepending the source file path gives the downstream model a
+        # "situational anchor" — it knows WHERE each gene came from,
+        # which dramatically improves extraction accuracy for specific values.
+        spliced_map = {}
+        for g in candidates:
+            # Build source context prefix
+            src = g.source_id or ""
+            if src and not src.startswith("_"):
+                # Extract readable path: "BigEd/config.toml" from full path
+                parts = src.replace("\\", "/").split("/")
+                # Find the project name (after "Projects" or use last 3 segments)
+                try:
+                    idx = parts.index("Projects")
+                    short = "/".join(parts[idx + 1:])
+                except ValueError:
+                    short = "/".join(parts[-3:]) if len(parts) > 3 else src
+                prefix = f"[Source: {short}]\n"
+            else:
+                prefix = ""
+            spliced_map[g.gene_id] = prefix + g.content[:1400]
 
         # Step 5: Assemble
         window = self._assemble(query, candidates, spliced_map, relation_graph)

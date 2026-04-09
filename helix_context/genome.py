@@ -168,7 +168,8 @@ class Genome:
                 cur.execute("DELETE FROM genes_fts")
                 cur.execute(
                     "INSERT INTO genes_fts(gene_id, content, complement) "
-                    "SELECT gene_id, content, COALESCE(complement, '') FROM genes"
+                    "SELECT gene_id, COALESCE(source_id,'') || ' ' || content, "
+                    "COALESCE(complement, '') FROM genes"
                 )
                 self.conn.commit()
         except Exception:
@@ -799,7 +800,8 @@ class Genome:
         cur.execute("DELETE FROM genes_fts")
         cur.execute(
             "INSERT INTO genes_fts(gene_id, content, complement) "
-            "SELECT gene_id, content, COALESCE(complement, '') FROM genes"
+            "SELECT gene_id, COALESCE(source_id,'') || ' ' || content, "
+            "COALESCE(complement, '') FROM genes"
         )
         self.conn.commit()
         count = cur.execute("SELECT COUNT(*) FROM genes_fts").fetchone()[0]
