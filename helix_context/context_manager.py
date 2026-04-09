@@ -114,10 +114,22 @@ class HelixContextManager:
     def __init__(self, config: HelixConfig):
         self.config = config
 
+        # ΣĒMA codec (optional — loaded if sentence-transformers available)
+        self._sema_codec = None
+        try:
+            from .sema import SemaCodec
+            self._sema_codec = SemaCodec()
+            log.info("ΣĒMA codec loaded — semantic retrieval enabled")
+        except ImportError:
+            log.info("sentence-transformers not installed — ΣĒMA disabled")
+        except Exception:
+            log.warning("ΣĒMA codec failed to load", exc_info=True)
+
         # Genome (SQLite storage)
         self.genome = Genome(
             path=config.genome.path,
             synonym_map=config.synonym_map,
+            sema_codec=self._sema_codec,
         )
 
         # Chunker (deterministic text splitting)
@@ -184,7 +196,16 @@ class HelixContextManager:
 
         source_path = metadata.get("path") if metadata else None
 
-        for strand in strands:
+        # Batch-encode ΣĒMA vectors if codec available
+        sema_vectors = None
+        if self._sema_codec is not None:
+            try:
+                texts = [s.content[:1000] for s in strands]  # Cap for encoder
+                sema_vectors = self._sema_codec.encode_batch(texts)
+            except Exception:
+                log.debug("ΣĒMA batch encoding failed, skipping")
+
+        for i, strand in enumerate(strands):
             gene = self.ribosome.pack(strand.content, content_type=content_type)
             # Preserve sequence index from chunking
             gene.promoter.sequence_index = strand.sequence_index
@@ -192,6 +213,9 @@ class HelixContextManager:
             # Store source file path for change-based decay
             if source_path:
                 gene.source_id = source_path
+            # Attach ΣĒMA vector
+            if sema_vectors is not None and i < len(sema_vectors):
+                gene.embedding = sema_vectors[i]
 
             gid = self.genome.upsert_gene(gene)
             gene_ids.append(gid)
@@ -312,6 +336,13 @@ class HelixContextManager:
         """
         try:
             gene = self.ribosome.replicate(query, response)
+
+            # Attach ΣĒMA vector to replicated gene
+            if self._sema_codec is not None:
+                try:
+                    gene.embedding = self._sema_codec.encode(gene.content[:1000])
+                except Exception:
+                    pass
 
             # Add to pending buffer immediately (before SQLite commit)
             with self._pending_lock:

@@ -22,6 +22,15 @@ from .exceptions import (
     GenomeFullError,
 )
 
+# ΣĒMA is optional (requires sentence-transformers)
+try:
+    from .sema import SemaCodec, SemaPrime, PRIMES, PRIME_COUNT
+except ImportError:
+    SemaCodec = None
+    SemaPrime = None
+    PRIMES = None
+    PRIME_COUNT = None
+
 __all__ = [
     "accel_info",
     "JSON_BACKEND",
@@ -48,4 +57,8 @@ __all__ = [
     "FoldingError",
     "TranscriptionError",
     "GenomeFullError",
+    "SemaCodec",
+    "SemaPrime",
+    "PRIMES",
+    "PRIME_COUNT",
 ]

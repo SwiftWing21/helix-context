@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-04-08T23:35:13",
+  "timestamp": "2026-04-09T00:09:17",
   "genome_genes": 3510,
-  "compression_ratio": 7.046416752272031,
+  "compression_ratio": 7.046371708795744,
   "needles": [
     {
       "name": "helix_port",
@@ -9,38 +9,38 @@
       "expected": "11437",
       "found_in_context": true,
       "answer_correct": false,
-      "context_latency_s": 0.545,
-      "proxy_latency_s": 4.196,
-      "ellipticity": 0.684,
+      "context_latency_s": 0.559,
+      "proxy_latency_s": 3.49,
+      "ellipticity": 0.5492,
       "status": "sparse",
-      "genes_expressed": 12,
-      "answer_preview": "My context does not cover this"
+      "genes_expressed": 10,
+      "answer_preview": ""
     },
     {
       "name": "scorerift_threshold",
       "query": "What is the divergence threshold that triggers alerts in ScoreRift?",
       "expected": "0.15",
-      "found_in_context": true,
+      "found_in_context": false,
       "answer_correct": false,
-      "context_latency_s": 0.592,
-      "proxy_latency_s": 6.332,
-      "ellipticity": 0.4506,
-      "status": "sparse",
-      "genes_expressed": 12,
-      "answer_preview": "My context does not cover this"
+      "context_latency_s": 0.482,
+      "proxy_latency_s": 3.069,
+      "ellipticity": 0.1992,
+      "status": "denatured",
+      "genes_expressed": 10,
+      "answer_preview": ""
     },
     {
       "name": "biged_skills_count",
       "query": "How many skills does the BigEd fleet have?",
       "expected": "125",
-      "found_in_context": false,
+      "found_in_context": true,
       "answer_correct": false,
-      "context_latency_s": 0.51,
-      "proxy_latency_s": 6.259,
-      "ellipticity": 0.5,
+      "context_latency_s": 0.432,
+      "proxy_latency_s": 3.435,
+      "ellipticity": 0.5929,
       "status": "sparse",
-      "genes_expressed": 12,
-      "answer_preview": "My context does not cover this"
+      "genes_expressed": 10,
+      "answer_preview": ""
     },
     {
       "name": "bookkeeper_monetary",
@@ -48,12 +48,12 @@
       "expected": "Decimal",
       "found_in_context": true,
       "answer_correct": false,
-      "context_latency_s": 0.524,
-      "proxy_latency_s": 4.141,
-      "ellipticity": 0.3983,
+      "context_latency_s": 0.5,
+      "proxy_latency_s": 3.384,
+      "ellipticity": 0.3798,
       "status": "sparse",
-      "genes_expressed": 12,
-      "answer_preview": "My context does not cover this"
+      "genes_expressed": 10,
+      "answer_preview": ""
     },
     {
       "name": "helix_pipeline_steps",
@@ -61,12 +61,12 @@
       "expected": "6",
       "found_in_context": true,
       "answer_correct": false,
-      "context_latency_s": 0.514,
-      "proxy_latency_s": 5.662,
-      "ellipticity": 0.438,
+      "context_latency_s": 0.499,
+      "proxy_latency_s": 3.314,
+      "ellipticity": 0.4193,
       "status": "sparse",
-      "genes_expressed": 12,
-      "answer_preview": "My context does not cover this"
+      "genes_expressed": 10,
+      "answer_preview": ""
     },
     {
       "name": "biged_rust_binary_size",
@@ -74,25 +74,25 @@
       "expected": "11",
       "found_in_context": true,
       "answer_correct": false,
-      "context_latency_s": 0.539,
-      "proxy_latency_s": 4.612,
-      "ellipticity": 0.5563,
+      "context_latency_s": 0.473,
+      "proxy_latency_s": 3.548,
+      "ellipticity": 0.4207,
       "status": "sparse",
-      "genes_expressed": 12,
-      "answer_preview": "My context does not cover this"
+      "genes_expressed": 10,
+      "answer_preview": ""
     },
     {
       "name": "genome_compression_target",
       "query": "What is the target compression ratio for Helix Context?",
       "expected": "5x",
-      "found_in_context": true,
+      "found_in_context": false,
       "answer_correct": false,
-      "context_latency_s": 0.507,
-      "proxy_latency_s": 5.349,
-      "ellipticity": 0.4249,
+      "context_latency_s": 0.096,
+      "proxy_latency_s": 2.846,
+      "ellipticity": 0.3005,
       "status": "sparse",
-      "genes_expressed": 12,
-      "answer_preview": "My context does not cover this"
+      "genes_expressed": 4,
+      "answer_preview": ""
     },
     {
       "name": "scorerift_preset_dimensions",
@@ -100,12 +100,12 @@
       "expected": "8",
       "found_in_context": true,
       "answer_correct": false,
-      "context_latency_s": 0.527,
-      "proxy_latency_s": 5.865,
-      "ellipticity": 0.5548,
+      "context_latency_s": 0.494,
+      "proxy_latency_s": 3.443,
+      "ellipticity": 0.3594,
       "status": "sparse",
-      "genes_expressed": 12,
-      "answer_preview": "My context does not cover this"
+      "genes_expressed": 10,
+      "answer_preview": ""
     },
     {
       "name": "helix_ribosome_budget",
@@ -113,12 +113,12 @@
       "expected": "3000",
       "found_in_context": false,
       "answer_correct": false,
-      "context_latency_s": 0.514,
-      "proxy_latency_s": 5.412,
-      "ellipticity": 0.2092,
+      "context_latency_s": 0.091,
+      "proxy_latency_s": 2.843,
+      "ellipticity": 0.1268,
       "status": "denatured",
-      "genes_expressed": 12,
-      "answer_preview": "My context does not cover this"
+      "genes_expressed": 3,
+      "answer_preview": ""
     },
     {
       "name": "biged_default_model",
@@ -126,17 +126,17 @@
       "expected": "qwen3",
       "found_in_context": true,
       "answer_correct": false,
-      "context_latency_s": 0.552,
-      "proxy_latency_s": 6.092,
-      "ellipticity": 0.2154,
+      "context_latency_s": 0.546,
+      "proxy_latency_s": 3.665,
+      "ellipticity": 0.1993,
       "status": "denatured",
-      "genes_expressed": 12,
-      "answer_preview": "My context does not cover this"
+      "genes_expressed": 10,
+      "answer_preview": ""
     }
   ],
   "summary": {
-    "context_retrieval_rate": 0.8,
+    "context_retrieval_rate": 0.7,
     "answer_accuracy_rate": 0.0,
-    "avg_context_latency_s": 0.532
+    "avg_context_latency_s": 0.417
   }
 }

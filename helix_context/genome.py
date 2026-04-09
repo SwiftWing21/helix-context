@@ -44,9 +44,11 @@ class Genome:
         self,
         path: str,
         synonym_map: Optional[Dict[str, List[str]]] = None,
+        sema_codec=None,
     ):
         self.path = path
         self.synonym_map = synonym_map or {}
+        self._sema_codec = sema_codec  # Optional SemaCodec for Tier 4 retrieval
 
         self.conn = sqlite3.connect(self.path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
@@ -315,6 +317,13 @@ class Genome:
                             gene_scores[gid] = gene_scores.get(gid, 0) + fts_score
                 except Exception:
                     log.warning("FTS5 query failed", exc_info=True)
+
+        # ── Tier 4: ΣĒMA semantic retrieval (Phase 2 — currently disabled)
+        # ΣĒMA vectors are stored on every gene (20D projections via
+        # sentence-transformer). Retrieval integration needs tuning to
+        # avoid displacing exact FTS5 content matches.
+        # The codec, vectors, and nearest() are ready — enable when
+        # the boost/weight balance is calibrated against a larger needle set.
 
         if not gene_scores:
             raise PromoterMismatch("Zero genes matched across all tiers")
