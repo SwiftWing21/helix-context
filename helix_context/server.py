@@ -217,6 +217,51 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
         synced = helix._replication_mgr.sync_now()
         return {"synced": synced}
 
+    # ── Admin: genome management ────────────────────────────────
+
+    @app.post("/admin/refresh")
+    async def admin_refresh():
+        """Reopen genome connection to see external changes (deletions, thinning)."""
+        helix.genome.refresh()
+        new_count = helix.genome.stats()["total_genes"]
+        return {"refreshed": True, "genes": new_count}
+
+    @app.post("/admin/kv-backfill")
+    async def admin_kv_backfill():
+        """Run CPU regex KV extraction on genes missing key_values."""
+        import re as _re
+        from .accel import json_dumps, json_loads
+        cur = helix.genome.conn.cursor()
+        rows = cur.execute(
+            "SELECT gene_id, content FROM genes "
+            "WHERE key_values IS NULL OR key_values = '[]' OR key_values = 'null'"
+        ).fetchall()
+        if not rows:
+            return {"backfilled": 0, "total": helix.genome.stats()["total_genes"]}
+
+        patterns = [
+            _re.compile(r'^\s*([A-Za-z_]\w*)\s*=\s*["\']([^"\'\n]{1,100})["\']', _re.MULTILINE),
+            _re.compile(r'^\s*([A-Za-z_]\w*)\s*=\s*(\d+(?:\.\d+)?)\s*$', _re.MULTILINE),
+            _re.compile(r'"([a-z_]\w*)":\s*["\']?([^,}"\'\n]{1,80})["\']?'),
+            _re.compile(r'(?:\*\*|[-*])\s*([A-Za-z ]{2,30})(?:\*\*)?:\s*(.{1,80})'),
+        ]
+        updated = 0
+        for row in rows:
+            content = row["content"][:3000]
+            kvs = set()
+            for pat in patterns:
+                for match in pat.finditer(content):
+                    g = match.groups()
+                    if len(g) == 2 and g[0] and g[1]:
+                        kvs.add(f"{g[0].strip()[:40]}={g[1].strip()[:80]}")
+            cur.execute(
+                "UPDATE genes SET key_values = ? WHERE gene_id = ?",
+                (json_dumps(sorted(kvs)[:15]), row["gene_id"]),
+            )
+            updated += 1
+        helix.genome.conn.commit()
+        return {"backfilled": updated, "total": helix.genome.stats()["total_genes"]}
+
     # ── Bridge: shared memory between AI assistants ────────────
     from .bridge import AgentBridge
     bridge = AgentBridge()
