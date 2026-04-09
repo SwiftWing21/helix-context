@@ -52,6 +52,8 @@ class GenomeConfig:
     path: str = "genome.db"
     compact_interval: float = 3600.0    # Seconds between source-change checks
     cold_start_threshold: int = 10      # Fix 3: genes needed before history stripping
+    replicas: List[str] = field(default_factory=list)  # Read-only clone paths
+    replica_sync_interval: int = 100    # Sync replicas every N inserts
 
 
 @dataclass
@@ -63,11 +65,23 @@ class ServerConfig:
 
 
 @dataclass
+class IngestionConfig:
+    """Controls which backend encodes raw content into genes."""
+    backend: str = "ollama"         # "ollama" | "cpu" | "hybrid"
+    splade_enabled: bool = False    # Phase 2: SPLADE sparse expansion at index time
+    rerank_model: str = ""          # Phase 3: pretrained cross-encoder HF model ID
+    rerank_enabled: bool = False    # Phase 3: enable cross-encoder reranking
+    colbert_enabled: bool = False   # Phase 4: ColBERT late interaction (optional)
+    entity_graph: bool = False      # Phase 5: entity-based co-activation links
+
+
+@dataclass
 class HelixConfig:
     ribosome: RibosomeConfig = field(default_factory=RibosomeConfig)
     budget: BudgetConfig = field(default_factory=BudgetConfig)
     genome: GenomeConfig = field(default_factory=GenomeConfig)
     server: ServerConfig = field(default_factory=ServerConfig)
+    ingestion: IngestionConfig = field(default_factory=IngestionConfig)
     synonym_map: Dict[str, List[str]] = field(default_factory=dict)
 
 
@@ -126,6 +140,8 @@ def load_config(path: Optional[str] = None) -> HelixConfig:
             path=g.get("path", cfg.genome.path),
             compact_interval=float(g.get("compact_interval", cfg.genome.compact_interval)),
             cold_start_threshold=int(g.get("cold_start_threshold", cfg.genome.cold_start_threshold)),
+            replicas=g.get("replicas", cfg.genome.replicas),
+            replica_sync_interval=int(g.get("replica_sync_interval", cfg.genome.replica_sync_interval)),
         )
 
     # Server
@@ -136,6 +152,18 @@ def load_config(path: Optional[str] = None) -> HelixConfig:
             port=int(s.get("port", cfg.server.port)),
             upstream=s.get("upstream", cfg.server.upstream),
             upstream_timeout=float(s.get("upstream_timeout", cfg.server.upstream_timeout)),
+        )
+
+    # Ingestion
+    if "ingestion" in raw:
+        i = raw["ingestion"]
+        cfg.ingestion = IngestionConfig(
+            backend=i.get("backend", cfg.ingestion.backend),
+            splade_enabled=i.get("splade_enabled", cfg.ingestion.splade_enabled),
+            rerank_model=i.get("rerank_model", cfg.ingestion.rerank_model),
+            rerank_enabled=i.get("rerank_enabled", cfg.ingestion.rerank_enabled),
+            colbert_enabled=i.get("colbert_enabled", cfg.ingestion.colbert_enabled),
+            entity_graph=i.get("entity_graph", cfg.ingestion.entity_graph),
         )
 
     # Fix 1: synonym map

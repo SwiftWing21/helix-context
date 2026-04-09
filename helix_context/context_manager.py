@@ -136,7 +136,20 @@ class HelixContextManager:
             path=config.genome.path,
             synonym_map=config.synonym_map,
             sema_codec=self._sema_codec,
+            splade_enabled=config.ingestion.splade_enabled,
+            entity_graph=config.ingestion.entity_graph,
         )
+
+        # Replication manager (distributed genome clones)
+        self._replication_mgr = None
+        if config.genome.replicas:
+            from .replication import ReplicationManager
+            self._replication_mgr = ReplicationManager(
+                master=config.genome.path,
+                replicas=config.genome.replicas,
+                sync_interval=config.genome.replica_sync_interval,
+            )
+            self.genome.set_replication_manager(self._replication_mgr)
 
         # Chunker (deterministic text splitting)
         self.chunker = CodonChunker(max_chars_per_strand=4000)
@@ -168,6 +181,7 @@ class HelixContextManager:
                     splice_threshold=config.ribosome.splice_threshold,
                     nli_splice_bonus=config.ribosome.nli_splice_bonus,
                     nli_splice_penalty=config.ribosome.nli_splice_penalty,
+                    rerank_pretrained=config.ingestion.rerank_model,
                 )
                 log.info("Using DeBERTa hybrid ribosome (re_rank + splice accelerated)")
             except Exception:
@@ -175,6 +189,19 @@ class HelixContextManager:
                 self.ribosome = ollama_ribosome
         else:
             self.ribosome = ollama_ribosome
+
+        # CPU tagger (Phase 1: spaCy + regex, no LLM calls)
+        self._cpu_tagger = None
+        if config.ingestion.backend in ("cpu", "hybrid"):
+            try:
+                from .tagger import CpuTagger
+                self._cpu_tagger = CpuTagger(synonym_map=config.synonym_map)
+                log.info("CpuTagger loaded — CPU-native ingestion enabled (backend=%s)",
+                         config.ingestion.backend)
+            except ImportError:
+                log.warning("spaCy not installed — CpuTagger disabled, falling back to Ollama")
+            except Exception:
+                log.warning("CpuTagger failed to load, falling back to Ollama", exc_info=True)
 
         # Adaptive decoder prompt based on downstream model capability
         self._decoder_mode = config.budget.decoder_mode
@@ -217,8 +244,21 @@ class HelixContextManager:
             except Exception:
                 log.debug("ΣĒMA batch encoding failed, skipping")
 
+        use_cpu = (
+            self._cpu_tagger is not None
+            and self.config.ingestion.backend in ("cpu", "hybrid")
+        )
+
         for i, strand in enumerate(strands):
-            gene = self.ribosome.pack(strand.content, content_type=content_type)
+            if use_cpu:
+                gene = self._cpu_tagger.pack(
+                    strand.content,
+                    content_type=content_type,
+                    source_id=source_path,
+                    sequence_index=strand.sequence_index,
+                )
+            else:
+                gene = self.ribosome.pack(strand.content, content_type=content_type)
             # Preserve sequence index from chunking
             gene.promoter.sequence_index = strand.sequence_index
             gene.is_fragment = strand.is_fragment
@@ -277,11 +317,18 @@ class HelixContextManager:
                 metadata={"query": query, "genes_expressed": 0},
             )
 
-        # Step 3: Trim to budget (FTS5 hybrid scoring already ranks well)
-        # DeBERTa re-rank is disabled — it was trained on limited data and
-        # drops FTS5-matched needle genes. The hybrid retrieval score
-        # (promoter tag + prefix + FTS5 content) is a better signal.
-        if len(candidates) > max_genes:
+        # Step 3: Re-rank + trim to budget
+        if (
+            self.config.ingestion.rerank_enabled
+            and hasattr(self.ribosome, 're_rank')
+            and len(candidates) > max_genes
+        ):
+            try:
+                candidates = self.ribosome.re_rank(query, candidates, k=max_genes)
+            except Exception:
+                log.warning("Re-rank failed, falling back to retrieval order", exc_info=True)
+                candidates = candidates[:max_genes]
+        elif len(candidates) > max_genes:
             candidates = candidates[:max_genes]
 
         # Step 3.5: NLI classification (optional, DeBERTa backend only)

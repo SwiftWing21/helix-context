@@ -204,6 +204,19 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             "upstream": config.server.upstream,
         }
 
+    @app.get("/replicas")
+    async def replicas_endpoint():
+        if helix._replication_mgr is None:
+            return {"enabled": False, "replicas": []}
+        return {"enabled": True, **helix._replication_mgr.status()}
+
+    @app.post("/replicas/sync")
+    async def replicas_sync_endpoint():
+        if helix._replication_mgr is None:
+            return {"synced": 0, "error": "replication not configured"}
+        synced = helix._replication_mgr.sync_now()
+        return {"synced": synced}
+
     return app
 
 

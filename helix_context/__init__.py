@@ -22,6 +22,14 @@ from .exceptions import (
     GenomeFullError,
 )
 
+# CpuTagger is optional (requires spacy)
+try:
+    from .tagger import CpuTagger
+except ImportError:
+    CpuTagger = None
+
+from .replication import ReplicationManager
+
 # ΣĒMA is optional (requires sentence-transformers)
 try:
     from .sema import SemaCodec, SemaPrime, PRIMES, PRIME_COUNT
@@ -61,4 +69,5 @@ __all__ = [
     "SemaPrime",
     "PRIMES",
     "PRIME_COUNT",
+    "CpuTagger",
 ]

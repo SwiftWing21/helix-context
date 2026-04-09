@@ -1,5 +1,5 @@
 [ribosome]
-model = "gemma4:e2b"                    # Ollama model for pack + replicate (generative tasks)
+model = "gemma4:e4b"                    # Ollama model for pack + replicate (lighter, 4.2GB VRAM)
 base_url = "http://localhost:11434"
 timeout = 30                            # seconds — Ollama timeout before fallback
 keep_alive = "30m"                      # keep Ollama model loaded
@@ -17,6 +17,8 @@ decoder_mode = "condensed"              # "full"|"condensed"|"minimal"|"none" (n
 path = "genome.db"
 compact_interval = 3600                 # seconds between source-change checks (hourly)
 cold_start_threshold = 10              # genes needed before history stripping kicks in (Fix 3)
+replicas = []                           # read-only clones: ["C:/helix-cache/genome.db", "E:/helix-cache/genome.db"]
+replica_sync_interval = 100             # sync replicas every N inserts
 # No time-based decay. Genes never expire.
 # Compaction only detects source file changes (mtime vs last_accessed).
 # Irrelevant data is handled by splice (intron/exon) at expression time.
@@ -25,6 +27,14 @@ cold_start_threshold = 10              # genes needed before history stripping k
 host = "127.0.0.1"
 port = 11437
 upstream = "http://localhost:11434"     # Ollama
+
+[ingestion]
+backend = "cpu"                         # "ollama" (LLM, slow) | "cpu" (spaCy+regex, fast) | "hybrid"
+splade_enabled = true                   # Phase 2: SPLADE sparse expansion at index time
+rerank_model = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+rerank_enabled = true                   # Phase 3: enable pretrained cross-encoder reranking
+colbert_enabled = false                 # Phase 4: ColBERT late interaction (optional)
+entity_graph = true                     # Phase 5: entity-based co-activation links
 
 [synonyms]
 # Fix 1: lightweight synonym expansion for promoter queries

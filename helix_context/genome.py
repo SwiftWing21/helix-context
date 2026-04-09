@@ -45,15 +45,33 @@ class Genome:
         path: str,
         synonym_map: Optional[Dict[str, List[str]]] = None,
         sema_codec=None,
+        splade_enabled: bool = False,
+        entity_graph: bool = False,
     ):
         self.path = path
         self.synonym_map = synonym_map or {}
         self._sema_codec = sema_codec  # Optional SemaCodec for Tier 4 retrieval
+        self._replication_mgr = None  # Set by set_replication_manager()
+        self._splade_enabled = splade_enabled
+        self._entity_graph_enabled = entity_graph
 
         self.conn = sqlite3.connect(self.path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA journal_mode=WAL")
         self._init_db()
+
+        # Create SPLADE inverted index if enabled
+        if self._splade_enabled:
+            try:
+                from . import splade_backend
+                splade_backend.create_splade_table(self.conn)
+                log.info("SPLADE inverted index ready")
+            except ImportError:
+                log.warning("SPLADE backend not available (transformers not installed)")
+                self._splade_enabled = False
+            except Exception:
+                log.warning("SPLADE table creation failed", exc_info=True)
+                self._splade_enabled = False
 
     def _init_db(self) -> None:
         cur = self.conn.cursor()
@@ -116,6 +134,23 @@ class Genome:
             PRIMARY KEY (gene_id_a, gene_id_b)
         )
         """)
+
+        # Entity graph — maps entities to genes for graph-based co-activation
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS entity_graph (
+            entity   TEXT NOT NULL,
+            gene_id  TEXT NOT NULL,
+            PRIMARY KEY (entity, gene_id)
+        )
+        """)
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_entity_graph_entity "
+            "ON entity_graph(entity)"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_entity_graph_gene "
+            "ON entity_graph(gene_id)"
+        )
 
         cur.execute(
             "CREATE INDEX IF NOT EXISTS idx_promoter_value "
@@ -186,6 +221,12 @@ class Genome:
 
         self.conn.commit()
 
+    # ── Replication ──────────────────────────────────────────────────
+
+    def set_replication_manager(self, mgr) -> None:
+        """Attach a ReplicationManager for distributed genome clones."""
+        self._replication_mgr = mgr
+
     # ── Gene ID (content-addressable) ───────────────────────────────
 
     @staticmethod
@@ -245,6 +286,32 @@ class Genome:
                 pass  # FTS sync failure is non-fatal
 
         self.conn.commit()
+
+        # Entity graph — index entities for graph-based co-activation
+        if self._entity_graph_enabled and gene.promoter.entities:
+            cur.execute("DELETE FROM entity_graph WHERE gene_id = ?", (gene_id,))
+            for ent in gene.promoter.entities[:15]:
+                cur.execute(
+                    "INSERT OR IGNORE INTO entity_graph (entity, gene_id) VALUES (?, ?)",
+                    (ent.lower(), gene_id),
+                )
+            # Auto-link: find genes sharing 2+ entities with this gene
+            self._auto_link_by_entity(gene_id, gene.promoter.entities, cur)
+            self.conn.commit()
+
+        # SPLADE sparse index (if enabled, non-blocking)
+        if self._splade_enabled:
+            try:
+                from . import splade_backend
+                sparse = splade_backend.encode(gene.content[:1000])
+                splade_backend.upsert_splade_terms(self.conn, gene_id, sparse)
+            except Exception:
+                log.debug("SPLADE indexing failed for gene %s", gene_id, exc_info=True)
+
+        # Notify replication manager (if attached)
+        if self._replication_mgr is not None:
+            self._replication_mgr.notify_write()
+
         return gene_id
 
     # ── Fix 1: synonym expansion ────────────────────────────────────
@@ -370,6 +437,25 @@ class Genome:
                 except Exception:
                     log.warning("FTS5 query failed", exc_info=True)
 
+        # ── Tier 3.5: SPLADE sparse retrieval (weight 2.5) ─────────
+        if self._splade_enabled:
+            try:
+                from . import splade_backend
+                # Check if splade_terms table exists
+                has_table = cur.execute(
+                    "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='splade_terms'"
+                ).fetchone()[0]
+                if has_table:
+                    query_text = " ".join(query_terms)
+                    query_sparse = splade_backend.encode(query_text)
+                    splade_hits = splade_backend.query_splade(self.conn, query_sparse, limit=limit * 2)
+                    for gid, score in splade_hits:
+                        # Normalize SPLADE score to be comparable with other tiers
+                        splade_score = min(score, 20.0) * 2.5 / 20.0  # Cap at 2.5
+                        gene_scores[gid] = gene_scores.get(gid, 0) + splade_score
+            except Exception:
+                log.warning("SPLADE retrieval failed", exc_info=True)
+
         # ── Tier 4: ΣĒMA semantic retrieval (Phase 2 — currently disabled)
         # ΣĒMA vectors are stored on every gene (20D projections via
         # sentence-transformer). Retrieval integration needs tuning to
@@ -433,6 +519,84 @@ class Genome:
 
         return result[:limit]
 
+    # ── Entity graph: auto-link genes sharing entities ───────────────
+
+    def _auto_link_by_entity(self, gene_id: str, entities: List[str], cur) -> None:
+        """
+        Find genes that share 2+ entities with this gene and create
+        co-activation links. This builds the knowledge graph incrementally
+        at ingestion time without any LLM calls.
+        """
+        if len(entities) < 2:
+            return
+
+        ent_lower = [e.lower() for e in entities[:15]]
+        placeholders = ",".join("?" * len(ent_lower))
+
+        # Find genes sharing entities (excluding self)
+        rows = cur.execute(
+            f"SELECT gene_id, COUNT(*) as shared "
+            f"FROM entity_graph "
+            f"WHERE entity IN ({placeholders}) AND gene_id != ? "
+            f"GROUP BY gene_id "
+            f"HAVING shared >= 2 "
+            f"ORDER BY shared DESC "
+            f"LIMIT 10",
+            ent_lower + [gene_id],
+        ).fetchall()
+
+        for r in rows:
+            peer_id = r["gene_id"]
+            shared_count = r["shared"]
+            confidence = min(shared_count / len(ent_lower), 1.0)
+            # Store as COVER relation (overlapping topics)
+            cur.execute(
+                "INSERT OR REPLACE INTO gene_relations "
+                "(gene_id_a, gene_id_b, relation, confidence, updated_at) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (gene_id, peer_id, 5, confidence, time.time()),  # 5 = COVER
+            )
+
+    # ── Entity graph: expand retrieval by entity overlap ──────────
+
+    def _expand_by_entity_graph(
+        self, gene_ids: List[str], limit: int, cur
+    ) -> List[str]:
+        """
+        Given retrieved gene IDs, find additional genes that share
+        entities with them via 1-hop graph traversal.
+        """
+        if not gene_ids:
+            return []
+
+        id_ph = ",".join("?" * len(gene_ids))
+
+        # Get entities of retrieved genes
+        rows = cur.execute(
+            f"SELECT DISTINCT entity FROM entity_graph WHERE gene_id IN ({id_ph})",
+            gene_ids,
+        ).fetchall()
+        entities = [r["entity"] for r in rows]
+
+        if not entities:
+            return []
+
+        ent_ph = ",".join("?" * len(entities))
+
+        # Find genes sharing those entities (1-hop), excluding already retrieved
+        neighbor_rows = cur.execute(
+            f"SELECT gene_id, COUNT(*) as shared "
+            f"FROM entity_graph "
+            f"WHERE entity IN ({ent_ph}) AND gene_id NOT IN ({id_ph}) "
+            f"GROUP BY gene_id "
+            f"HAVING shared >= 2 "
+            f"ORDER BY shared DESC "
+            f"LIMIT ?",
+            entities + gene_ids + [limit],
+        ).fetchall()
+
+        return [r["gene_id"] for r in neighbor_rows]
+
     # ── Co-activation expansion ─────────────────────────────────────
 
     def _expand_coactivated(self, genes: List[Gene], limit: int) -> List[Gene]:
@@ -461,6 +625,18 @@ class Genome:
                 for gid in g.epigenetics.co_activated_with[:3]:
                     if gid not in existing_ids:
                         additional_ids.add(gid)
+
+        # Entity graph expansion (1-hop neighbor pull)
+        if self._entity_graph_enabled:
+            try:
+                graph_ids = self._expand_by_entity_graph(
+                    [g.gene_id for g in genes],
+                    limit=5,
+                    cur=cur,
+                )
+                additional_ids.update(gid for gid in graph_ids if gid not in existing_ids)
+            except Exception:
+                log.debug("Entity graph expansion failed", exc_info=True)
 
         if not additional_ids:
             return genes
