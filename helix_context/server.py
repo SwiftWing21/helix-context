@@ -217,6 +217,48 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
         synced = helix._replication_mgr.sync_now()
         return {"synced": synced}
 
+    # ── Bridge: shared memory between AI assistants ────────────
+    from .bridge import AgentBridge
+    bridge = AgentBridge()
+
+    @app.get("/bridge/status")
+    async def bridge_status():
+        signals = bridge.list_signals()
+        inbox_count = len(list(bridge.inbox.iterdir())) if bridge.inbox.exists() else 0
+        return {
+            "shared_dir": str(bridge.shared_dir),
+            "inbox_pending": inbox_count,
+            "signals": signals,
+        }
+
+    @app.post("/bridge/collect")
+    async def bridge_collect():
+        """Collect inbox files and ingest into genome."""
+        items = bridge.collect_inbox()
+        gene_ids = []
+        for item in items:
+            try:
+                ids = helix.ingest(
+                    item["content"],
+                    content_type="text",
+                    metadata={"path": f"__bridge_{item['source']}__"},
+                )
+                gene_ids.extend(ids)
+            except Exception:
+                log.warning("Bridge ingest failed for %s", item["path"], exc_info=True)
+
+        # Update shared context
+        bridge.update_shared_context(helix.stats())
+        return {"collected": len(items), "genes_created": len(gene_ids)}
+
+    @app.post("/bridge/signal")
+    async def bridge_signal(request: Request):
+        body = await request.json()
+        name = body.get("name", "unnamed")
+        data = body.get("data", {})
+        bridge.write_signal(name, data)
+        return {"ok": True, "signal": name}
+
     return app
 
 
