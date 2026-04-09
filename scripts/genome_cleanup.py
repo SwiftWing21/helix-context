@@ -97,10 +97,14 @@ def run_cleanup(genome_path, dry_run=False):
     print(f"  Orphan conversation genes removed: {orphan_count}")
     print()
 
-    # 4. Backfill source_id via content fingerprinting
+    # 4. Backfill source_id — two passes:
+    #    Pass A: content fingerprint (full-file genes)
+    #    Pass B: chunk-level hash matching (chunked genes)
     fix4 = 0
     if os.path.exists(PROGRESS_FILE):
         paths = open(PROGRESS_FILE, encoding="utf-8").read().splitlines()
+
+        # Pass A: fingerprint match
         for path in paths:
             if not os.path.exists(path):
                 continue
@@ -115,14 +119,36 @@ def run_cleanup(genome_path, dry_run=False):
                         (path, fingerprint + "%"),
                     )
                     fix4 += r.rowcount
-                else:
-                    cnt = cur.execute(
-                        "SELECT COUNT(*) FROM genes WHERE source_id IS NULL AND content LIKE ?",
-                        (fingerprint + "%",),
-                    ).fetchone()[0]
-                    fix4 += cnt
             except Exception:
                 continue
+
+        # Pass B: chunk-level hash matching
+        try:
+            import hashlib
+            from helix_context.codons import CodonChunker
+            chunker = CodonChunker(max_chars_per_strand=4000)
+
+            for path in paths:
+                if not os.path.exists(path):
+                    continue
+                try:
+                    content = open(path, encoding="utf-8", errors="replace").read()
+                    ext = os.path.splitext(path)[1]
+                    ctype = "code" if ext in (".py", ".rs", ".ts", ".js", ".toml") else "text"
+                    strands = chunker.chunk(content, content_type=ctype)
+                    for strand in strands:
+                        gene_id = hashlib.sha256(strand.content.encode("utf-8")).hexdigest()[:16]
+                        if not dry_run:
+                            r = cur.execute(
+                                "UPDATE genes SET source_id = ? WHERE gene_id = ? AND source_id IS NULL",
+                                (path, gene_id),
+                            )
+                            fix4 += r.rowcount
+                except Exception:
+                    continue
+        except ImportError:
+            pass  # CodonChunker not available (running standalone)
+
     print(f"  Source_id backfilled: {fix4}")
     print()
 
