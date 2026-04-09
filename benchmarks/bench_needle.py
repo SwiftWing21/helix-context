@@ -123,7 +123,7 @@ def find_needle(client, needle):
     # Step 2: Full proxy query for answer accuracy
     t1 = time.time()
     proxy_resp = client.post(f"{HELIX_URL}/v1/chat/completions", json={
-        "model": "gemma4:e2b",
+        "model": "gemma4:e4b",
         "messages": [{"role": "user", "content": needle["query"]}],
         "stream": False,
     })

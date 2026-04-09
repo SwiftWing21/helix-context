@@ -11,7 +11,7 @@ ribosome_tokens = 3000                  # fixed decoder prompt
 expression_tokens = 6000                # compressed context
 max_genes_per_turn = 10
 splice_aggressiveness = 0.3             # 0=keep all, 1=ruthless trim (lower preserves more literal detail)
-decoder_mode = "full"                   # "full"|"condensed"|"minimal"|"none" (none saves ~750 tokens for API models)
+decoder_mode = "condensed"              # "full"|"condensed"|"minimal"|"none" (none saves ~750 tokens for API models)
 
 [genome]
 path = "genome.db"

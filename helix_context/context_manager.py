@@ -277,17 +277,19 @@ class HelixContextManager:
             except Exception:
                 log.warning("NLI classification failed, proceeding without", exc_info=True)
 
-        # Step 4: Splice (ribosome, batched single call)
-        # When decoder_mode is "none" (API models, direct context injection),
-        # skip splice to preserve maximum detail — use raw content.
-        # Compressed complement loses specific values (numbers, names, config).
-        if self._decoder_mode == "none":
-            spliced_map = {
-                g.gene_id: g.content[:2000]
-                for g in candidates
-            }
-        else:
-            spliced_map = self.ribosome.splice(query, candidates)
+        # Step 4: Splice — use complement with raw content fallback.
+        # Complement preserves structure while being compact. Raw content
+        # is appended (truncated) to preserve specific values (numbers,
+        # config literals) that complement may compress away.
+        spliced_map = {}
+        for g in candidates:
+            complement = g.complement or ""
+            # Append a raw content snippet to preserve specific values
+            raw_snippet = g.content[:800]
+            if complement and complement != raw_snippet:
+                spliced_map[g.gene_id] = f"{complement}\n---raw---\n{raw_snippet}"
+            else:
+                spliced_map[g.gene_id] = raw_snippet
 
         # Step 5: Assemble
         window = self._assemble(query, candidates, spliced_map, relation_graph)
