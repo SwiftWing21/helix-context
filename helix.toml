@@ -14,7 +14,7 @@ splice_aggressiveness = 0.3             # 0=keep all, 1=ruthless trim (lower pre
 decoder_mode = "condensed"              # "full"|"condensed"|"minimal"|"none" (none saves ~750 tokens for API models)
 
 [genome]
-path = "genome.db"
+path = "F:/Projects/helix-context/genome.db"
 compact_interval = 3600                 # seconds between source-change checks (hourly)
 cold_start_threshold = 10              # genes needed before history stripping kicks in (Fix 3)
 replicas = ["C:/helix-cache/genome.db", "E:/helix-cache/genome.db"]

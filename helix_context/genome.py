@@ -55,6 +55,15 @@ class Genome:
         self._splade_enabled = splade_enabled
         self._entity_graph_enabled = entity_graph
 
+        # Checkpoint WAL BEFORE opening our long-lived connection
+        # so we see the latest state from any external writers
+        try:
+            _tmp = sqlite3.connect(self.path)
+            _tmp.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            _tmp.close()
+        except Exception:
+            pass
+
         self.conn = sqlite3.connect(self.path, check_same_thread=False, timeout=30)
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA journal_mode=WAL")
@@ -500,12 +509,48 @@ class Genome:
             except Exception:
                 log.warning("SPLADE retrieval failed", exc_info=True)
 
-        # ── Tier 4: ΣĒMA semantic retrieval (Phase 2 — currently disabled)
-        # ΣĒMA vectors are stored on every gene (20D projections via
-        # sentence-transformer). Retrieval integration needs tuning to
-        # avoid displacing exact FTS5 content matches.
-        # The codec, vectors, and nearest() are ready — enable when
-        # the boost/weight balance is calibrated against a larger needle set.
+        # ── Tier 4: ΣĒMA semantic re-ranking (Phase 2) ───────────────
+        # Boost existing candidates using 20D semantic similarity.
+        # Only fires when Tiers 1-3 have low confidence (top score < threshold).
+        # Does NOT add new candidates — prevents semantic flood.
+        if self._sema_codec is not None and gene_scores:
+            # Only boost if top-scoring gene has weak confidence
+            top_score = max(gene_scores.values()) if gene_scores else 0
+            if top_score < 20.0:  # Weak confidence — ΣĒMA can help discriminate
+                try:
+                    query_text = " ".join(query_terms)
+                    query_vec = self._sema_codec.encode(query_text)
+
+                    existing_ids = list(gene_scores.keys())
+                    id_ph = ",".join("?" * len(existing_ids))
+                    sema_rows = cur.execute(
+                        f"SELECT gene_id, embedding FROM genes "
+                        f"WHERE gene_id IN ({id_ph}) AND embedding IS NOT NULL",
+                        existing_ids,
+                    ).fetchall()
+
+                    if sema_rows:
+                        candidates_sema = []
+                        for r in sema_rows:
+                            try:
+                                vec = json_loads(r["embedding"])
+                                if isinstance(vec, list) and len(vec) == 20:
+                                    candidates_sema.append((r["gene_id"], vec))
+                            except Exception:
+                                continue
+
+                        if candidates_sema:
+                            nearest = self._sema_codec.nearest(
+                                query_vec, candidates_sema, k=len(candidates_sema),
+                            )
+                            for gid, sim in nearest:
+                                if sim > 0.3:
+                                    # Scale boost by how weak the top score is
+                                    # Weaker top = more ΣĒMA influence
+                                    boost_scale = max(0.5, 1.0 - top_score / 40.0)
+                                    gene_scores[gid] += sim * 2.0 * boost_scale
+                except Exception:
+                    log.debug("ΣĒMA re-ranking failed, continuing without")
 
         if not gene_scores:
             raise PromoterMismatch("Zero genes matched across all tiers")
