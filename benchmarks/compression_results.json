@@ -1,0 +1,401 @@
+{
+  "timestamp": "2026-04-08T16:05:44",
+  "genome": {
+    "total_genes": 3315,
+    "open": 3315,
+    "euchromatin": 0,
+    "heterochromatin": 0,
+    "total_chars_raw": 10855923,
+    "total_chars_compressed": 1504478,
+    "compression_ratio": 7.21574060903516,
+    "pending_replications": 0,
+    "health": {
+      "total_queries": 50,
+      "avg_ellipticity": 0.2575,
+      "avg_coverage": 0.2058,
+      "avg_density": 0.1097,
+      "avg_freshness": 0.9661,
+      "status_counts": {
+        "denatured": 32,
+        "sparse": 18
+      }
+    },
+    "config": {
+      "ribosome_budget": 3000,
+      "expression_budget": 6000,
+      "max_genes_per_turn": 8,
+      "splice_aggressiveness": 0.3,
+      "decoder_mode": "full",
+      "decoder_tokens": 374
+    }
+  },
+  "context_queries": [
+    {
+      "query": "How does the BigEd fleet supervisor manage worker processes?",
+      "latency_s": 31.663,
+      "genes_expressed": 8,
+      "genes_available": 3320,
+      "ellipticity": 0.4331,
+      "coverage": 0.4444,
+      "density": 0.1828,
+      "freshness": 1.0,
+      "status": "sparse",
+      "content_chars": 4429,
+      "decoder_mode": "none"
+    },
+    {
+      "query": "What is the ScoreRift divergence detection threshold?",
+      "latency_s": 31.216,
+      "genes_expressed": 8,
+      "genes_available": 3324,
+      "ellipticity": 0.3575,
+      "coverage": 0.2857,
+      "density": 0.16,
+      "freshness": 1.0,
+      "status": "sparse",
+      "content_chars": 3880,
+      "decoder_mode": "none"
+    },
+    {
+      "query": "How does the Helix expression pipeline work?",
+      "latency_s": 33.789,
+      "genes_expressed": 8,
+      "genes_available": 3329,
+      "ellipticity": 0.2666,
+      "coverage": 0.1429,
+      "density": 0.1327,
+      "freshness": 1.0,
+      "status": "denatured",
+      "content_chars": 3226,
+      "decoder_mode": "none"
+    },
+    {
+      "query": "What database does BookKeeper use for tenant isolation?",
+      "latency_s": 28.564,
+      "genes_expressed": 8,
+      "genes_available": 3333,
+      "ellipticity": 0.2632,
+      "coverage": 0.25,
+      "density": 0.0729,
+      "freshness": 1.0,
+      "status": "denatured",
+      "content_chars": 1791,
+      "decoder_mode": "none"
+    },
+    {
+      "query": "How does the ribosome handle splice failures?",
+      "latency_s": 31.382,
+      "genes_expressed": 8,
+      "genes_available": 3337,
+      "ellipticity": 0.2844,
+      "coverage": 0.1429,
+      "density": 0.161,
+      "freshness": 1.0,
+      "status": "denatured",
+      "content_chars": 3905,
+      "decoder_mode": "none"
+    },
+    {
+      "query": "What happens when a gene's decay score drops below 0.3?",
+      "latency_s": 16.91,
+      "genes_expressed": 5,
+      "genes_available": 3339,
+      "ellipticity": 0.1147,
+      "coverage": 0.1,
+      "density": 0.0151,
+      "freshness": 1.0,
+      "status": "denatured",
+      "content_chars": 403,
+      "decoder_mode": "none"
+    },
+    {
+      "query": "How does the co-activation pull-forward work in genome queries?",
+      "latency_s": 29.06,
+      "genes_expressed": 8,
+      "genes_available": 3343,
+      "ellipticity": 0.2585,
+      "coverage": 0.1111,
+      "density": 0.1555,
+      "freshness": 1.0,
+      "status": "denatured",
+      "content_chars": 3774,
+      "decoder_mode": "none"
+    },
+    {
+      "query": "What is the cold-start bootstrap threshold?",
+      "latency_s": 7.661,
+      "genes_expressed": 1,
+      "genes_available": 3345,
+      "ellipticity": 0.1581,
+      "coverage": 0.1667,
+      "density": 0.0237,
+      "freshness": 1.0,
+      "status": "denatured",
+      "content_chars": 610,
+      "decoder_mode": "none"
+    },
+    {
+      "query": "How does caching invalidation relate to context compression?",
+      "latency_s": 30.121,
+      "genes_expressed": 8,
+      "genes_available": 3348,
+      "ellipticity": 0.1723,
+      "coverage": 0.25,
+      "density": 0.0205,
+      "freshness": 1.0,
+      "status": "denatured",
+      "content_chars": 532,
+      "decoder_mode": "none"
+    },
+    {
+      "query": "What security patterns are shared across BigEd and BookKeeper?",
+      "latency_s": 27.352,
+      "genes_expressed": 8,
+      "genes_available": 3352,
+      "ellipticity": 0.3506,
+      "coverage": 0.2222,
+      "density": 0.194,
+      "freshness": 1.0,
+      "status": "sparse",
+      "content_chars": 4697,
+      "decoder_mode": "none"
+    },
+    {
+      "query": "What is the exact name of the class that handles SQLite gene storage?",
+      "latency_s": 33.764,
+      "genes_expressed": 8,
+      "genes_available": 3357,
+      "ellipticity": 0.2305,
+      "coverage": 0.0769,
+      "density": 0.1592,
+      "freshness": 1.0,
+      "status": "denatured",
+      "content_chars": 3862,
+      "decoder_mode": "none"
+    },
+    {
+      "query": "What port does the Helix proxy server run on?",
+      "latency_s": 22.37,
+      "genes_expressed": 8,
+      "genes_available": 3360,
+      "ellipticity": 0.3298,
+      "coverage": 0.2222,
+      "density": 0.1615,
+      "freshness": 1.0,
+      "status": "sparse",
+      "content_chars": 3916,
+      "decoder_mode": "none"
+    },
+    {
+      "query": "How many audit dimensions does the Python preset in ScoreRift have?",
+      "latency_s": 27.581,
+      "genes_expressed": 8,
+      "genes_available": 3364,
+      "ellipticity": 0.3662,
+      "coverage": 0.3636,
+      "density": 0.135,
+      "freshness": 1.0,
+      "status": "sparse",
+      "content_chars": 3282,
+      "decoder_mode": "none"
+    },
+    {
+      "query": "What is the default splice aggressiveness value?",
+      "latency_s": 6.366,
+      "genes_expressed": 0,
+      "genes_available": 3365,
+      "ellipticity": 0.0,
+      "coverage": 0.0,
+      "density": 0.0,
+      "freshness": 0.0,
+      "status": "denatured",
+      "content_chars": 37,
+      "decoder_mode": "none"
+    },
+    {
+      "query": "What is the capital of France?",
+      "latency_s": 0.108,
+      "genes_expressed": 0,
+      "genes_available": 3365,
+      "ellipticity": 0.0,
+      "coverage": 0.0,
+      "density": 0.0,
+      "freshness": 0.0,
+      "status": "denatured",
+      "content_chars": 37,
+      "decoder_mode": "none"
+    },
+    {
+      "query": "How do I cook pasta?",
+      "latency_s": 0.112,
+      "genes_expressed": 0,
+      "genes_available": 3365,
+      "ellipticity": 0.0,
+      "coverage": 0.0,
+      "density": 0.0,
+      "freshness": 0.0,
+      "status": "denatured",
+      "content_chars": 37,
+      "decoder_mode": "none"
+    }
+  ],
+  "token_savings": [
+    {
+      "query": "How does the BigEd fleet supervisor manage worker processes?",
+      "raw_tokens_est": 6460,
+      "helix_none_tokens": 1107,
+      "helix_full_tokens": 1857,
+      "savings_none_pct": 82.9,
+      "savings_full_pct": 71.3,
+      "status": "sparse"
+    },
+    {
+      "query": "What is the ScoreRift divergence detection threshold?",
+      "raw_tokens_est": 6445,
+      "helix_none_tokens": 970,
+      "helix_full_tokens": 1741,
+      "savings_none_pct": 84.9,
+      "savings_full_pct": 73.0,
+      "status": "sparse"
+    },
+    {
+      "query": "How does the Helix expression pipeline work?",
+      "raw_tokens_est": 6437,
+      "helix_none_tokens": 806,
+      "helix_full_tokens": 1556,
+      "savings_none_pct": 87.5,
+      "savings_full_pct": 75.8,
+      "status": "denatured"
+    },
+    {
+      "query": "What database does BookKeeper use for tenant isolation?",
+      "raw_tokens_est": 6426,
+      "helix_none_tokens": 931,
+      "helix_full_tokens": 1089,
+      "savings_none_pct": 85.5,
+      "savings_full_pct": 83.1,
+      "status": "sparse"
+    },
+    {
+      "query": "How does the ribosome handle splice failures?",
+      "raw_tokens_est": 6415,
+      "helix_none_tokens": 851,
+      "helix_full_tokens": 1601,
+      "savings_none_pct": 86.7,
+      "savings_full_pct": 75.0,
+      "status": "denatured"
+    },
+    {
+      "query": "What happens when a gene's decay score drops below 0.3?",
+      "raw_tokens_est": 4006,
+      "helix_none_tokens": 71,
+      "helix_full_tokens": 814,
+      "savings_none_pct": 98.2,
+      "savings_full_pct": 79.7,
+      "status": "denatured"
+    },
+    {
+      "query": "How does the co-activation pull-forward work in genome queries?",
+      "raw_tokens_est": 4000,
+      "helix_none_tokens": 662,
+      "helix_full_tokens": 1412,
+      "savings_none_pct": 83.5,
+      "savings_full_pct": 64.7,
+      "status": "denatured"
+    },
+    {
+      "query": "What is the cold-start bootstrap threshold?",
+      "raw_tokens_est": 799,
+      "helix_none_tokens": 152,
+      "helix_full_tokens": 902,
+      "savings_none_pct": 81.0,
+      "savings_full_pct": -12.9,
+      "status": "denatured"
+    },
+    {
+      "query": "How does caching invalidation relate to context compression?",
+      "raw_tokens_est": 6384,
+      "helix_none_tokens": 257,
+      "helix_full_tokens": 926,
+      "savings_none_pct": 96.0,
+      "savings_full_pct": 85.5,
+      "status": "denatured"
+    },
+    {
+      "query": "What security patterns are shared across BigEd and BookKeeper?",
+      "raw_tokens_est": 6371,
+      "helix_none_tokens": 1174,
+      "helix_full_tokens": 1924,
+      "savings_none_pct": 81.6,
+      "savings_full_pct": 69.8,
+      "status": "sparse"
+    },
+    {
+      "query": "What is the exact name of the class that handles SQLite gene storage?",
+      "raw_tokens_est": 6360,
+      "helix_none_tokens": 946,
+      "helix_full_tokens": 1696,
+      "savings_none_pct": 85.1,
+      "savings_full_pct": 73.3,
+      "status": "denatured"
+    },
+    {
+      "query": "What port does the Helix proxy server run on?",
+      "raw_tokens_est": 6350,
+      "helix_none_tokens": 1052,
+      "helix_full_tokens": 1729,
+      "savings_none_pct": 83.4,
+      "savings_full_pct": 72.8,
+      "status": "sparse"
+    },
+    {
+      "query": "How many audit dimensions does the Python preset in ScoreRift have?",
+      "raw_tokens_est": 6344,
+      "helix_none_tokens": 164,
+      "helix_full_tokens": 914,
+      "savings_none_pct": 97.4,
+      "savings_full_pct": 85.6,
+      "status": "denatured"
+    },
+    {
+      "query": "What is the default splice aggressiveness value?",
+      "raw_tokens_est": 0,
+      "helix_none_tokens": 9,
+      "helix_full_tokens": 759,
+      "savings_none_pct": -800.0,
+      "savings_full_pct": -75800.0,
+      "status": "denatured"
+    },
+    {
+      "query": "What is the capital of France?",
+      "raw_tokens_est": 0,
+      "helix_none_tokens": 9,
+      "helix_full_tokens": 759,
+      "savings_none_pct": -800.0,
+      "savings_full_pct": -75800.0,
+      "status": "denatured"
+    },
+    {
+      "query": "How do I cook pasta?",
+      "raw_tokens_est": 0,
+      "helix_none_tokens": 9,
+      "helix_full_tokens": 759,
+      "savings_none_pct": -800.0,
+      "savings_full_pct": -75800.0,
+      "status": "denatured"
+    }
+  ],
+  "proxy_queries": [],
+  "summary": {
+    "total_queries": 16,
+    "latency_p50": 28.564,
+    "latency_p95": 33.789,
+    "latency_mean": 22.3761875,
+    "avg_savings_none_pct": -79.14375,
+    "avg_savings_full_pct": -14156.45625,
+    "status_counts": {
+      "sparse": 5,
+      "denatured": 11
+    }
+  }
+}

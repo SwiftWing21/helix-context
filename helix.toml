@@ -1,9 +1,10 @@
 [ribosome]
-model = "gemma4:e2b"                    # e2b for bulk ingest (fast), switch to e4b for Claude Code usage
+model = "gemma4:e2b"                    # Ollama model for pack + replicate (generative tasks)
 base_url = "http://localhost:11434"
-timeout = 30                            # seconds — splice/re_rank timeout before fallback
-keep_alive = "30m"                      # keep ribosome model loaded (eliminates swap latency)
-warmup = true                           # pre-load model on server start
+timeout = 30                            # seconds — Ollama timeout before fallback
+keep_alive = "30m"                      # keep Ollama model loaded
+warmup = true                           # pre-load Ollama model on server start
+backend = "deberta"                     # "deberta" for fast re_rank+splice, "ollama" for all-Ollama
 
 [budget]
 ribosome_tokens = 3000                  # fixed decoder prompt
@@ -41,6 +42,15 @@ biged = ["biged-rs", "rust", "axum", "egui", "pyo3", "supervisor", "fleet"]
 bookkeeper = ["bookkeeping", "financial", "transactions", "xero", "invoices", "tenant"]
 cosmictasha = ["cosmic", "tasha", "novabridge", "biged-rs"]
 error = ["exception", "crash", "failure", "bug", "traceback"]
+port = ["proxy", "server", "configuration", "system_settings", "api"]
+threshold = ["divergence", "scoring", "reconciliation", "configuration"]
+model = ["ollama", "llm", "configuration", "deployment", "agent_frameworks"]
+skills = ["fleet", "agent", "worker", "llm_systems", "systems_architecture"]
+monetary = ["decimal", "financial", "data_processing", "bookkeeping"]
+budget = ["tokens", "configuration", "ribosome", "expression"]
+dimensions = ["audit", "scoring", "preset", "ci_cd"]
+binary = ["rust", "deployment", "packaging", "compatibility"]
+default = ["configuration", "system_settings", "deployment"]
 db = ["database", "sqlite", "postgres", "sql", "query", "schema"]
 api = ["endpoint", "route", "rest", "http", "request", "response"]
 ui = ["frontend", "component", "render", "layout", "css", "style"]

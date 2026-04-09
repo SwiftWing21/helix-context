@@ -1,0 +1,142 @@
+{
+  "timestamp": "2026-04-08T22:09:23",
+  "genome_genes": 3516,
+  "compression_ratio": 7.058640673351768,
+  "needles": [
+    {
+      "name": "helix_port",
+      "query": "What port does the Helix proxy server listen on?",
+      "expected": "11437",
+      "found_in_context": false,
+      "answer_correct": false,
+      "context_latency_s": 0.58,
+      "proxy_latency_s": 3.882,
+      "ellipticity": 0.1505,
+      "status": "denatured",
+      "genes_expressed": 8,
+      "answer_preview": "My context does not cover this"
+    },
+    {
+      "name": "scorerift_threshold",
+      "query": "What is the divergence threshold that triggers alerts in ScoreRift?",
+      "expected": "0.15",
+      "found_in_context": false,
+      "answer_correct": false,
+      "context_latency_s": 0.757,
+      "proxy_latency_s": 5.771,
+      "ellipticity": 0.2025,
+      "status": "denatured",
+      "genes_expressed": 8,
+      "answer_preview": "My context does not cover this"
+    },
+    {
+      "name": "biged_skills_count",
+      "query": "How many skills does the BigEd fleet have?",
+      "expected": "125",
+      "found_in_context": false,
+      "answer_correct": false,
+      "context_latency_s": 0.67,
+      "proxy_latency_s": 5.051,
+      "ellipticity": 0.2113,
+      "status": "denatured",
+      "genes_expressed": 8,
+      "answer_preview": "My context does not cover this"
+    },
+    {
+      "name": "bookkeeper_monetary",
+      "query": "What type should be used for monetary values in BookKeeper instead of float?",
+      "expected": "Decimal",
+      "found_in_context": true,
+      "answer_correct": false,
+      "context_latency_s": 0.63,
+      "proxy_latency_s": 4.673,
+      "ellipticity": 0.1298,
+      "status": "denatured",
+      "genes_expressed": 8,
+      "answer_preview": "My context does not cover this"
+    },
+    {
+      "name": "helix_pipeline_steps",
+      "query": "How many steps are in the Helix expression pipeline?",
+      "expected": "6",
+      "found_in_context": false,
+      "answer_correct": false,
+      "context_latency_s": 0.683,
+      "proxy_latency_s": 4.727,
+      "ellipticity": 0.1576,
+      "status": "denatured",
+      "genes_expressed": 8,
+      "answer_preview": "My context does not cover this"
+    },
+    {
+      "name": "biged_rust_binary_size",
+      "query": "What is the binary size of the Rust BigEd build?",
+      "expected": "11",
+      "found_in_context": false,
+      "answer_correct": false,
+      "context_latency_s": 0.789,
+      "proxy_latency_s": 4.949,
+      "ellipticity": 0.199,
+      "status": "denatured",
+      "genes_expressed": 8,
+      "answer_preview": "My context does not cover this"
+    },
+    {
+      "name": "genome_compression_target",
+      "query": "What is the target compression ratio for Helix Context?",
+      "expected": "5x",
+      "found_in_context": false,
+      "answer_correct": false,
+      "context_latency_s": 0.69,
+      "proxy_latency_s": 5.1,
+      "ellipticity": 0.1569,
+      "status": "denatured",
+      "genes_expressed": 8,
+      "answer_preview": "My context does not cover this"
+    },
+    {
+      "name": "scorerift_preset_dimensions",
+      "query": "How many dimensions does the Python preset in ScoreRift check?",
+      "expected": "8",
+      "found_in_context": false,
+      "answer_correct": false,
+      "context_latency_s": 0.722,
+      "proxy_latency_s": 5.596,
+      "ellipticity": 0.2634,
+      "status": "denatured",
+      "genes_expressed": 8,
+      "answer_preview": "My context does not cover this"
+    },
+    {
+      "name": "helix_ribosome_budget",
+      "query": "How many tokens are allocated for the ribosome decoder prompt?",
+      "expected": "3000",
+      "found_in_context": false,
+      "answer_correct": false,
+      "context_latency_s": 0.757,
+      "proxy_latency_s": 4.784,
+      "ellipticity": 0.193,
+      "status": "denatured",
+      "genes_expressed": 8,
+      "answer_preview": "My context does not cover this"
+    },
+    {
+      "name": "biged_default_model",
+      "query": "What is the default local model used by BigEd for conductor tasks?",
+      "expected": "qwen3",
+      "found_in_context": false,
+      "answer_correct": false,
+      "context_latency_s": 0.851,
+      "proxy_latency_s": 5.143,
+      "ellipticity": 0.1516,
+      "status": "denatured",
+      "genes_expressed": 8,
+      "answer_preview": "My context does not cover this"
+    }
+  ],
+  "summary": {
+    "context_retrieval_rate": 0.1,
+    "answer_accuracy_rate": 0.0,
+    "avg_context_latency_s": 0.713
+  }
+}

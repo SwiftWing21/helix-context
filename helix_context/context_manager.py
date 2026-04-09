@@ -124,18 +124,35 @@ class HelixContextManager:
         self.encoder = CodonEncoder()
 
         # Ribosome (small model codec)
-        backend = OllamaBackend(
+        ollama_backend = OllamaBackend(
             model=config.ribosome.model,
             base_url=config.ribosome.base_url,
             timeout=config.ribosome.timeout,
             keep_alive=config.ribosome.keep_alive,
             warmup=config.ribosome.warmup,
         )
-        self.ribosome = Ribosome(
-            backend=backend,
+        ollama_ribosome = Ribosome(
+            backend=ollama_backend,
             encoder=self.encoder,
             splice_aggressiveness=config.budget.splice_aggressiveness,
         )
+
+        if config.ribosome.backend == "deberta":
+            try:
+                from .deberta_backend import DeBERTaRibosome
+                self.ribosome = DeBERTaRibosome(
+                    rerank_model_path=config.ribosome.rerank_model_path,
+                    splice_model_path=config.ribosome.splice_model_path,
+                    ollama_ribosome=ollama_ribosome,
+                    device=config.ribosome.device,
+                    splice_threshold=config.ribosome.splice_threshold,
+                )
+                log.info("Using DeBERTa hybrid ribosome (re_rank + splice accelerated)")
+            except Exception:
+                log.warning("DeBERTa backend failed to load, falling back to Ollama", exc_info=True)
+                self.ribosome = ollama_ribosome
+        else:
+            self.ribosome = ollama_ribosome
 
         # Adaptive decoder prompt based on downstream model capability
         self._decoder_mode = config.budget.decoder_mode

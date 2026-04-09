@@ -169,8 +169,10 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
     @app.get("/health")
     async def health_endpoint():
         ribosome_model = "unknown"
-        if hasattr(helix.ribosome.backend, "model"):
+        if hasattr(helix.ribosome, "backend") and hasattr(helix.ribosome.backend, "model"):
             ribosome_model = helix.ribosome.backend.model
+        elif hasattr(helix.ribosome, "ollama_ribosome"):
+            ribosome_model = f"deberta+{helix.ribosome.ollama_ribosome.backend.model}"
 
         return {
             "status": "ok",

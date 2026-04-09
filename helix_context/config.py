@@ -28,6 +28,11 @@ class RibosomeConfig:
     timeout: float = 10.0
     keep_alive: str = "30m"     # How long Ollama keeps the ribosome model loaded
     warmup: bool = True         # Pre-load model on server start
+    backend: str = "ollama"     # "ollama" or "deberta" (hybrid: DeBERTa for re_rank/splice)
+    rerank_model_path: str = "training/models/rerank"
+    splice_model_path: str = "training/models/splice"
+    splice_threshold: float = 0.5
+    device: str = "auto"        # "auto", "cpu", "cuda"
 
 
 @dataclass
@@ -90,6 +95,11 @@ def load_config(path: Optional[str] = None) -> HelixConfig:
             timeout=float(r.get("timeout", cfg.ribosome.timeout)),
             keep_alive=r.get("keep_alive", cfg.ribosome.keep_alive),
             warmup=r.get("warmup", cfg.ribosome.warmup),
+            backend=r.get("backend", cfg.ribosome.backend),
+            rerank_model_path=r.get("rerank_model_path", cfg.ribosome.rerank_model_path),
+            splice_model_path=r.get("splice_model_path", cfg.ribosome.splice_model_path),
+            splice_threshold=float(r.get("splice_threshold", cfg.ribosome.splice_threshold)),
+            device=r.get("device", cfg.ribosome.device),
         )
 
     # Budget

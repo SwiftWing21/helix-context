@@ -35,7 +35,8 @@ SKIP_SUFFIXES = ("_test.py",)
 
 # Size limits (bytes)
 MIN_SIZE = 500
-MAX_SIZE = 50_000
+MAX_SIZE = 100_000      # Accept larger files now (chunking handles them)
+CHUNK_THRESHOLD = 15_000  # Files above this get split into chunks
 
 
 def find_files(root):
@@ -67,8 +68,79 @@ def find_files(root):
     return files
 
 
+PROGRESS_FILE = os.path.join(os.path.dirname(__file__), ".ingest_progress")
+
+
+def _chunk_content(content, content_type):
+    """Split large content into chunks under CHUNK_THRESHOLD."""
+    if content_type == "code":
+        # Split on top-level definitions
+        import re
+        blocks = re.split(
+            r"(^(?:def |class |async def |struct |impl |fn |pub fn |export ))",
+            content,
+            flags=re.MULTILINE,
+        )
+        # Re-stitch split delimiters with their content
+        stitched = []
+        if blocks and not re.match(
+            r"^(?:def |class |async def |struct |impl |fn |pub fn |export )", blocks[0]
+        ):
+            stitched.append(blocks[0])
+            blocks = blocks[1:]
+        for j in range(0, len(blocks), 2):
+            if j + 1 < len(blocks):
+                stitched.append(blocks[j] + blocks[j + 1])
+            elif blocks[j].strip():
+                stitched.append(blocks[j])
+
+        # Merge small blocks into chunks under the threshold
+        chunks = []
+        current = ""
+        for block in stitched:
+            if len(current) + len(block) < CHUNK_THRESHOLD:
+                current += block
+            else:
+                if current.strip():
+                    chunks.append(current.strip())
+                current = block
+        if current.strip():
+            chunks.append(current.strip())
+        return chunks if chunks else [content]
+    else:
+        # Text: split on paragraph breaks
+        import re
+        paragraphs = re.split(r"\n\s*\n", content)
+        chunks = []
+        current = ""
+        for p in paragraphs:
+            if len(current) + len(p) < CHUNK_THRESHOLD:
+                current += p + "\n\n"
+            else:
+                if current.strip():
+                    chunks.append(current.strip())
+                current = p + "\n\n"
+        if current.strip():
+            chunks.append(current.strip())
+        return chunks if chunks else [content]
+
+
+def _load_progress():
+    """Load set of already-ingested file paths."""
+    if os.path.exists(PROGRESS_FILE):
+        return set(open(PROGRESS_FILE, encoding="utf-8").read().splitlines())
+    return set()
+
+
+def _save_progress(path):
+    """Append a completed file path to the progress tracker."""
+    with open(PROGRESS_FILE, "a", encoding="utf-8") as f:
+        f.write(path + "\n")
+
+
 def ingest(files, client):
-    """Ingest files into the Helix genome."""
+    """Ingest files into the Helix genome, resumable via progress file."""
+    done = _load_progress()
     total_genes = 0
     total_time = 0
     errors = 0
@@ -83,28 +155,61 @@ def ingest(files, client):
             skipped += 1
             continue
 
-        print(f"  [{i+1}/{len(files)}] {rel} ({size:,} bytes)...", end=" ", flush=True)
+        # Skip already-ingested files (resume support)
+        if os.path.abspath(path) in done:
+            skipped += 1
+            continue
 
-        try:
-            t0 = time.time()
-            resp = client.post(f"{HELIX_URL}/ingest", json={
-                "content": content,
-                "content_type": content_type,
-                "metadata": {"path": os.path.abspath(path)},
-            })
-            dt = time.time() - t0
-            total_time += dt
+        # Chunk large files into smaller pieces
+        if size > CHUNK_THRESHOLD:
+            chunks = _chunk_content(content, content_type)
+            print(f"  [{i+1}/{len(files)}] {rel} ({size:,} bytes, {len(chunks)} chunks)...", end=" ", flush=True)
+        else:
+            chunks = [content]
+            print(f"  [{i+1}/{len(files)}] {rel} ({size:,} bytes)...", end=" ", flush=True)
 
-            if resp.status_code == 200:
-                count = resp.json().get("count", 0)
-                total_genes += count
-                print(f"{count} genes ({dt:.1f}s)")
-            else:
-                print(f"HTTP {resp.status_code} ({dt:.1f}s)")
+        file_genes = 0
+        file_ok = True
+        t0 = time.time()
+
+        for ci, chunk in enumerate(chunks):
+            try:
+                resp = client.post(f"{HELIX_URL}/ingest", json={
+                    "content": chunk,
+                    "content_type": content_type,
+                    "metadata": {"path": os.path.abspath(path), "chunk": ci},
+                })
+
+                if resp.status_code == 200:
+                    file_genes += resp.json().get("count", 0)
+                elif resp.status_code == 422:
+                    pass  # Ribosome fail on this chunk, continue with next
+                else:
+                    file_ok = False
+            except httpx.ReadTimeout:
+                pass  # Skip this chunk
+            except httpx.ConnectError:
+                print(f"SERVER DOWN — waiting 10s")
+                file_ok = False
                 errors += 1
-        except Exception as e:
-            print(f"ERROR: {e}")
+                time.sleep(10)
+                break
+            except Exception:
+                pass  # Skip this chunk
+
+        dt = time.time() - t0
+        total_time += dt
+
+        if file_genes > 0:
+            total_genes += file_genes
+            print(f"{file_genes} genes ({dt:.1f}s)")
+            _save_progress(os.path.abspath(path))
+        elif not file_ok:
+            print(f"FAILED ({dt:.1f}s)")
             errors += 1
+        else:
+            print(f"0 genes ({dt:.1f}s)")
+            _save_progress(os.path.abspath(path))  # Don't retry empty results
 
         # Progress checkpoint every 50 files
         if (i + 1) % 50 == 0:

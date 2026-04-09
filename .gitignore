@@ -20,6 +20,13 @@ helix.log
 dist/
 *.egg-info/
 
+# Trained models (users train their own)
+training/models/
+training/data/
+
+# Ingest logs
+deep_ingest*.log
+
 # OS
 Thumbs.db
 .DS_Store

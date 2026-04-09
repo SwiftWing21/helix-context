@@ -26,16 +26,17 @@ Instead of stuffing your entire codebase into the prompt, Helix compresses it in
 ## Quick Start
 
 ```bash
-# Install
-pip install -e .
+# Install from PyPI (beta)
+pip install helix-context --pre
 
 # Pull a small model for the ribosome (context codec)
 ollama pull gemma4:e2b
 
 # Start the proxy
-python -m uvicorn helix_context.server:app --host 127.0.0.1 --port 11437
+helix
+# or: python -m uvicorn helix_context.server:app --host 127.0.0.1 --port 11437
 
-# Seed the genome with your project files
+# Seed the genome with your own project files
 python examples/seed_genome.py path/to/your/project/
 
 # Check genome health
@@ -179,7 +180,7 @@ export_genome(helix.genome, "project.helix", description="Auth system knowledge"
 
 ## ScoreRift Integration
 
-Helix includes a bridge to [ScoreRift](https://github.com/SwiftWing21/two-brain-audit) for divergence-based context health monitoring:
+Helix includes a bridge to [ScoreRift](https://github.com/SwiftWing21/scorerift) for divergence-based context health monitoring:
 
 ```python
 from helix_context.integrations.scorerift import GenomeHealthProbe, cd_signal
@@ -240,7 +241,7 @@ pytest tests/ -m live -v -s
 pytest tests/ -v
 ```
 
-165 tests across 7 test files, 18 diverse fixtures (code, essays, poems, science).
+183 tests across 7 test files, 18 diverse fixtures (code, essays, poems, science).
 
 ## Architecture
 
