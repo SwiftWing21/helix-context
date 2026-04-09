@@ -1061,6 +1061,24 @@ class Genome:
         log.info("FTS5 index rebuilt: %d genes indexed in %.1fs", count, elapsed)
         return count
 
+    # ── WAL refresh ────────────────────────────────────────────────
+
+    def refresh(self) -> None:
+        """Reopen connection to see changes from external writers.
+
+        SQLite WAL mode gives each connection a snapshot. External writers
+        (ingest, thinning) commit to the WAL but this connection won't see
+        the changes until we close and reopen. This is the only reliable
+        way to see deletions made by other processes.
+        """
+        try:
+            self.conn.close()
+            self.conn = sqlite3.connect(self.path, check_same_thread=False)
+            self.conn.row_factory = sqlite3.Row
+            self.conn.execute("PRAGMA journal_mode=WAL")
+        except Exception:
+            log.warning("Connection refresh failed", exc_info=True)
+
     # ── Close ───────────────────────────────────────────────────────
 
     def close(self) -> None:

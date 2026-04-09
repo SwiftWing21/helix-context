@@ -557,6 +557,7 @@ class HelixContextManager:
     # -- Stats ---------------------------------------------------------
 
     def stats(self) -> Dict:
+        self.genome.refresh()  # See latest gene count from external writers
         genome_stats = self.genome.stats()
         health_summary = self.genome.health_summary()
         return {
@@ -778,6 +779,7 @@ class HelixContextManager:
     def _maybe_compact(self) -> None:
         now = time.time()
         if now - self._last_compact > self.config.genome.compact_interval:
+            self.genome.refresh()  # See changes from external writers
             self.genome.compact()
             self._last_compact = now
 
