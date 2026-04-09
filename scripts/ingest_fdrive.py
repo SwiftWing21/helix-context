@@ -8,6 +8,10 @@ import re
 import sys
 import time
 import sqlite3
+
+# Force unbuffered output
+sys.stdout.reconfigure(line_buffering=True)
+sys.stderr.reconfigure(line_buffering=True)
 import json
 import urllib.request
 import urllib.error
@@ -322,7 +326,7 @@ def main():
                 print(f"  ERROR: {fpath} -> {status}")
 
         # Progress
-        if i % 50 == 0 or i == len(new_files):
+        if i % 10 == 0 or i == len(new_files):
             elapsed = time.time() - start
             rate = i / elapsed if elapsed > 0 else 0
             print(f"  [{i}/{len(new_files)}] ok={stats['ok']} err={stats['errors']} "

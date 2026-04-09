@@ -4,11 +4,11 @@ base_url = "http://localhost:11434"
 timeout = 30                            # seconds — Ollama timeout before fallback
 keep_alive = "30m"                      # keep Ollama model loaded
 warmup = true                           # pre-load Ollama model on server start
-backend = "deberta"                     # "deberta" for fast re_rank+splice, "ollama" for all-Ollama
+backend = "ollama"                      # "ollama" for all-Ollama (DeBERTa re-rank disabled in pipeline)
 
 [budget]
 ribosome_tokens = 3000                  # fixed decoder prompt
-expression_tokens = 8000                # compressed context
+expression_tokens = 12000               # 1:10 ratio at 128K = ~12.8K total context budget
 max_genes_per_turn = 12
 splice_aggressiveness = 0.3             # 0=keep all, 1=ruthless trim (lower preserves more literal detail)
 decoder_mode = "condensed"              # "full"|"condensed"|"minimal"|"none" (none saves ~750 tokens for API models)
@@ -17,8 +17,7 @@ decoder_mode = "condensed"              # "full"|"condensed"|"minimal"|"none" (n
 path = "genome.db"
 compact_interval = 3600                 # seconds between source-change checks (hourly)
 cold_start_threshold = 10              # genes needed before history stripping kicks in (Fix 3)
-replicas = []  # TEMP: disabled during bulk ingest — re-enable after
-# replicas = ["C:/helix-cache/genome.db", "D:/helix-cache/genome.db", "E:/helix-cache/genome.db"]
+replicas = ["C:/helix-cache/genome.db", "E:/helix-cache/genome.db"]
 replica_sync_interval = 100             # sync replicas every N inserts
 # No time-based decay. Genes never expire.
 # Compaction only detects source file changes (mtime vs last_accessed).
@@ -33,7 +32,7 @@ upstream = "http://localhost:11434"     # Ollama
 backend = "cpu"                         # "ollama" (LLM, slow) | "cpu" (spaCy+regex, fast) | "hybrid"
 splade_enabled = true                   # Phase 2: SPLADE sparse expansion at index time
 rerank_model = "cross-encoder/ms-marco-MiniLM-L-6-v2"
-rerank_enabled = true                   # Phase 3: enable pretrained cross-encoder reranking
+rerank_enabled = false                  # Phase 3: enable pretrained cross-encoder reranking
 colbert_enabled = false                 # Phase 4: ColBERT late interaction (optional)
 entity_graph = true                     # Phase 5: entity-based co-activation links
 
@@ -48,7 +47,8 @@ tree = ["btree", "b-tree", "data_structures", "index", "binary_tree"]
 helix = ["genome", "ribosome", "codons", "splice", "chromatin", "promoter", "context compression"]
 pipeline = ["steps", "expression", "workflow", "process", "stages"]
 scoring = ["scorerift", "divergence", "audit", "grades", "ratchet", "dimensions"]
-compress = ["compression", "context", "codons", "splice", "tokens", "budget"]
+compress = ["compression", "context", "codons", "splice", "tokens", "budget", "ratio", "target"]
+ratio = ["compression", "ratio", "target", "factor"]
 biged = ["biged-rs", "rust", "axum", "egui", "pyo3", "supervisor", "fleet"]
 bookkeeper = ["bookkeeping", "financial", "transactions", "xero", "invoices", "tenant"]
 cosmictasha = ["cosmic", "tasha", "novabridge", "biged-rs"]

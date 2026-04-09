@@ -37,9 +37,10 @@ Issues = "https://github.com/SwiftWing21/helix-context/issues"
 [project.optional-dependencies]
 accel = ["orjson>=3.9"]
 embeddings = ["numpy", "sentence-transformers"]
+cpu = ["spacy>=3.7"]
 scorerift = ["scorerift"]
 dev = ["pytest", "pytest-asyncio"]
-all = ["orjson>=3.9", "numpy", "sentence-transformers"]
+all = ["orjson>=3.9", "numpy", "sentence-transformers", "spacy>=3.7"]
 
 [project.scripts]
 helix = "helix_context.server:main"

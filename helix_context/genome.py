@@ -55,9 +55,10 @@ class Genome:
         self._splade_enabled = splade_enabled
         self._entity_graph_enabled = entity_graph
 
-        self.conn = sqlite3.connect(self.path, check_same_thread=False)
+        self.conn = sqlite3.connect(self.path, check_same_thread=False, timeout=30)
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA journal_mode=WAL")
+        self.conn.execute("PRAGMA busy_timeout=30000")  # 30s retry on lock
         self._init_db()
 
         # Create SPLADE inverted index if enabled
@@ -227,6 +228,20 @@ class Genome:
         """Attach a ReplicationManager for distributed genome clones."""
         self._replication_mgr = mgr
 
+    @property
+    def read_conn(self) -> sqlite3.Connection:
+        """
+        Connection for read operations. Routes to a replica if available,
+        falls back to master. This prevents readers from blocking writers
+        during bulk ingestion.
+        """
+        if self._replication_mgr is not None:
+            try:
+                return self._replication_mgr.get_reader()
+            except Exception:
+                pass
+        return self.conn
+
     # ── Gene ID (content-addressable) ───────────────────────────────
 
     @staticmethod
@@ -285,8 +300,6 @@ class Genome:
             except Exception:
                 pass  # FTS sync failure is non-fatal
 
-        self.conn.commit()
-
         # Entity graph — index entities for graph-based co-activation
         if self._entity_graph_enabled and gene.promoter.entities:
             cur.execute("DELETE FROM entity_graph WHERE gene_id = ?", (gene_id,))
@@ -297,16 +310,24 @@ class Genome:
                 )
             # Auto-link: find genes sharing 2+ entities with this gene
             self._auto_link_by_entity(gene_id, gene.promoter.entities, cur)
-            self.conn.commit()
 
         # SPLADE sparse index (if enabled, non-blocking)
         if self._splade_enabled:
             try:
                 from . import splade_backend
                 sparse = splade_backend.encode(gene.content[:1000])
-                splade_backend.upsert_splade_terms(self.conn, gene_id, sparse)
+                # Inline the upsert without a separate commit
+                cur.execute("DELETE FROM splade_terms WHERE gene_id = ?", (gene_id,))
+                if sparse:
+                    cur.executemany(
+                        "INSERT INTO splade_terms (gene_id, term, weight) VALUES (?, ?, ?)",
+                        [(gene_id, term, weight) for term, weight in sparse.items()],
+                    )
             except Exception:
                 log.debug("SPLADE indexing failed for gene %s", gene_id, exc_info=True)
+
+        # Single atomic commit — gene + promoter + FTS5 + entity graph + SPLADE
+        self.conn.commit()
 
         # Notify replication manager (if attached)
         if self._replication_mgr is not None:
@@ -350,7 +371,7 @@ class Genome:
         if not query_terms:
             raise PromoterMismatch("No query terms after expansion")
 
-        cur = self.conn.cursor()
+        cur = self.read_conn.cursor()
         limit = max_genes * 2
 
         # Gene scores: gene_id → float (accumulated across tiers)
@@ -396,7 +417,7 @@ class Genome:
             prefix_score = r["match_count"] * 1.5
             gene_scores[gid] = gene_scores.get(gid, 0) + prefix_score
 
-        # ── Tier 3: FTS5 content search (weight 2.0) ───────────────
+        # ── Tier 3: FTS5 content search (weight 3.0) ───────────────
         if self._fts_available:
             # Build FTS5 query: OR-join all terms
             fts_query = " OR ".join(
@@ -431,8 +452,8 @@ class Genome:
                             if gid not in valid_ids:
                                 continue
                             # FTS5 rank is negative (lower = better match)
-                            # Normalize: -rank gives positive, cap at 10
-                            fts_score = min(-fts_ranks[gid], 10.0) * 2.0
+                            # Normalize: -rank gives positive, cap at 15
+                            fts_score = min(-fts_ranks[gid], 15.0) * 3.0
                             gene_scores[gid] = gene_scores.get(gid, 0) + fts_score
                 except Exception:
                     log.warning("FTS5 query failed", exc_info=True)
@@ -600,7 +621,7 @@ class Genome:
     # ── Co-activation expansion ─────────────────────────────────────
 
     def _expand_coactivated(self, genes: List[Gene], limit: int) -> List[Gene]:
-        cur = self.conn.cursor()
+        cur = self.read_conn.cursor()
 
         existing_ids = {g.gene_id for g in genes}
         additional_ids: set[str] = set()
@@ -869,7 +890,7 @@ class Genome:
     # ── Stats ───────────────────────────────────────────────────────
 
     def stats(self) -> Dict:
-        cur = self.conn.cursor()
+        cur = self.read_conn.cursor()
 
         total = cur.execute("SELECT COUNT(*) FROM genes").fetchone()[0]
         by_chromatin = cur.execute(

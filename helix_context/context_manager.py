@@ -75,16 +75,12 @@ DO NOT:
 - Generate generic architectural advice that ignores the actual context
 - Mention codons, genes, splicing, or DNA unless the user asks about memory internals"""
 
-DECODER_CONDENSED = """The <expressed_context> below contains project knowledge selected for your query.
-Each section between --- dividers is one knowledge unit. Each starts with [Source: path] showing where it came from.
+DECODER_CONDENSED = """The <expressed_context> below contains project data selected for your query.
+Each <GENE> block is one knowledge unit with its source file path.
 
-To answer, follow these steps:
-1. LOCATE: Find the section most relevant to the question. Look for specific values, names, and numbers.
-2. QUOTE: Identify the exact line or value that answers the question.
-3. ANSWER: State the answer using the specific value from the context.
-
-If the context truly does not contain the answer, say so. But LOOK CAREFULLY first — the answer
-is usually a specific number, name, or value buried in one of the sections."""
+Extract the SPECIFIC value that answers the question. Look for exact numbers, names, and identifiers.
+If a Facts: line is present, check it FIRST — it contains pre-extracted key-value pairs.
+Answer with the exact value, not a description."""
 
 DECODER_MINIMAL = """Answer using ONLY the <expressed_context> below. Do not guess beyond what it states."""
 
@@ -355,10 +351,16 @@ class HelixContextManager:
                 prefix = f"[Source: {short}]\n"
             else:
                 prefix = ""
-            kv_line = ""
+            # Dense XML gene format — structured for small model extraction
+            kv_attrs = ""
             if g.key_values:
-                kv_line = "Facts: " + ", ".join(g.key_values[:10]) + "\n"
-            spliced_map[g.gene_id] = kv_line + prefix + g.content[:1400]
+                # Top 5 KVs as XML attributes for instant scanning
+                kv_pairs = " ".join(g.key_values[:5])
+                kv_attrs = f' facts="{kv_pairs}"'
+            src_attr = f' src="{short}"' if src and not src.startswith("_") else ""
+            # Compact content — first 1000 chars (less noise than 1400)
+            content = g.content[:1000].strip()
+            spliced_map[g.gene_id] = f"<GENE{src_attr}{kv_attrs}>\n{content}\n</GENE>"
 
         # Step 5: Assemble
         window = self._assemble(query, candidates, spliced_map, relation_graph)

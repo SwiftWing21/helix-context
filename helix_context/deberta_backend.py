@@ -53,6 +53,7 @@ class DeBERTaRibosome:
         splice_threshold: float = 0.5,
         nli_splice_bonus: float = 0.15,
         nli_splice_penalty: float = 0.15,
+        rerank_pretrained: str = "",
     ):
         from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
@@ -61,10 +62,13 @@ class DeBERTaRibosome:
         else:
             self._device = torch.device(device)
 
-        log.info("Loading DeBERTa rerank model from %s", rerank_model_path)
-        self._rerank_tokenizer = AutoTokenizer.from_pretrained(rerank_model_path)
+        # Use pretrained cross-encoder if specified, else use local fine-tuned model
+        rerank_source = rerank_pretrained if rerank_pretrained else rerank_model_path
+        self._rerank_pretrained = bool(rerank_pretrained)
+        log.info("Loading rerank model from %s (pretrained=%s)", rerank_source, self._rerank_pretrained)
+        self._rerank_tokenizer = AutoTokenizer.from_pretrained(rerank_source)
         self._rerank_model = AutoModelForSequenceClassification.from_pretrained(
-            rerank_model_path
+            rerank_source
         ).to(self._device)
         self._rerank_model.train(False)
 
@@ -127,18 +131,18 @@ class DeBERTaRibosome:
         if isinstance(scores, float):
             scores = [scores]
 
-        # Blend DeBERTa score with retrieval position bonus.
-        # Candidates arrive pre-sorted by hybrid retrieval score (promoter + FTS5).
-        # A gene ranked #1 by retrieval gets a 0.3 bonus, #16 gets ~0.02.
-        # This prevents the re-ranker from discarding genes that matched
-        # on content but have vague tag summaries.
-        n = len(candidates)
-        blended = []
-        for i, (score, gene) in enumerate(zip(scores, candidates)):
-            position_bonus = 0.3 * (1.0 - i / max(n, 1))
-            blended.append((score + position_bonus, gene))
-
-        scored = sorted(blended, key=lambda x: x[0], reverse=True)
+        # For pretrained cross-encoders (e.g. MS MARCO), skip position bonus —
+        # they produce calibrated relevance scores that don't need retrieval-order bias.
+        # For custom fine-tuned models, blend with retrieval position bonus.
+        if self._rerank_pretrained:
+            scored = sorted(zip(scores, candidates), key=lambda x: x[0], reverse=True)
+        else:
+            n = len(candidates)
+            blended = []
+            for i, (score, gene) in enumerate(zip(scores, candidates)):
+                position_bonus = 0.3 * (1.0 - i / max(n, 1))
+                blended.append((score + position_bonus, gene))
+            scored = sorted(blended, key=lambda x: x[0], reverse=True)
 
         elapsed_ms = (time.perf_counter() - t0) * 1000
         log.info(
