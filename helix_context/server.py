@@ -15,9 +15,10 @@ Endpoints:
 
 from __future__ import annotations
 
-import json
 import logging
 from typing import Optional
+
+from .accel import json_loads
 
 import httpx
 import uvicorn
@@ -270,20 +271,20 @@ async def _stream_and_tee(
                 # Forward to client immediately
                 yield f"{line}\n"
 
-                # Parse SSE data for accumulation
+                # Parse SSE data for accumulation (orjson when available)
                 if line.startswith("data: "):
                     data_str = line[6:].strip()
                     if data_str == "[DONE]":
                         continue
                     try:
-                        chunk = json.loads(data_str)
+                        chunk = json_loads(data_str)
                         choices = chunk.get("choices", [])
                         if choices:
                             delta = choices[0].get("delta", {})
                             content = delta.get("content", "")
                             if content:
                                 accumulated.append(content)
-                    except json.JSONDecodeError:
+                    except (ValueError, TypeError):
                         pass
 
     # Stream is complete -- fire background replication
