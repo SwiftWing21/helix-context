@@ -71,9 +71,17 @@ class Genome:
             embedding    TEXT,     -- JSON list[float] | NULL
             source_id    TEXT,
             version      INTEGER,
-            supersedes   TEXT
+            supersedes   TEXT,
+            key_values   TEXT     -- JSON list[str] | NULL
         )
         """)
+
+        # Auto-add key_values column if upgrading from older schema
+        try:
+            cur.execute("SELECT key_values FROM genes LIMIT 1")
+        except sqlite3.OperationalError:
+            cur.execute("ALTER TABLE genes ADD COLUMN key_values TEXT")
+            log.info("Added key_values column to genes table")
 
         cur.execute("""
         CREATE TABLE IF NOT EXISTS promoter_index (
@@ -191,7 +199,7 @@ class Genome:
         cur = self.conn.cursor()
 
         cur.execute(
-            "INSERT OR REPLACE INTO genes VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            "INSERT OR REPLACE INTO genes VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (
                 gene_id,
                 gene.content,
@@ -205,6 +213,7 @@ class Genome:
                 gene.source_id,
                 gene.version,
                 gene.supersedes,
+                json_dumps(gene.key_values) if gene.key_values else None,
             ),
         )
         # Invalidate parse cache for this gene's promoter/epigenetics
@@ -389,8 +398,10 @@ class Genome:
             boost = min(idf * 1.5, 5.0)
             if boost > 1.0:
                 anchor_genes = cur.execute(
-                    "SELECT gene_id FROM promoter_index WHERE tag_value = ?",
-                    (term,),
+                    "SELECT pi.gene_id FROM promoter_index pi "
+                    "JOIN genes g ON pi.gene_id = g.gene_id "
+                    "WHERE pi.tag_value = ? AND g.chromatin < ?",
+                    (term, int(ChromatinState.HETEROCHROMATIN)),
                 ).fetchall()
                 for r in anchor_genes:
                     gene_scores[r["gene_id"]] = gene_scores.get(r["gene_id"], 0) + boost
@@ -484,6 +495,13 @@ class Genome:
         except (ValueError, TypeError):
             chromatin = ChromatinState.OPEN
 
+        # key_values may not exist in older databases before ALTER TABLE runs
+        try:
+            kv_raw = row["key_values"]
+            key_values = json_loads(kv_raw) if kv_raw else []
+        except (IndexError, KeyError):
+            key_values = []
+
         return Gene(
             gene_id=row["gene_id"],
             content=row["content"],
@@ -497,6 +515,7 @@ class Genome:
             source_id=row["source_id"],
             version=row["version"] if row["version"] is not None else 1,
             supersedes=row["supersedes"],
+            key_values=key_values,
         )
 
     # ── Touch (update epigenetics on access) ────────────────────────

@@ -210,6 +210,27 @@ For genes marked [fragment], do not force closure — these are continuations.
 If a gene has no relevant codons at all, return an empty array for it."""
 
 
+_KV_EXTRACT_SYSTEM = """You are a fact extraction engine. Extract specific key-value facts from the content.
+You must respond ONLY with a JSON array of strings, no markdown fences, no explanation.
+
+Extract:
+- Port numbers: "port=8080"
+- Model names: "model=qwen3"
+- Counts/quantities: "skills=125", "workers=8"
+- File paths that are config entry points: "config=fleet/fleet.toml"
+- Version numbers: "version=0.400.00b"
+- Named identifiers: "default_backend=ollama"
+- Thresholds/limits: "max_workers=20", "timeout=30s"
+- URLs: "base_url=http://localhost:11434"
+
+Rules:
+- Only extract CONCRETE values — no descriptions or explanations
+- Use short keys in snake_case: "max_workers=20" not "maximum number of workers=20"
+- Skip vague or subjective facts — only extract specific, queryable values
+- Return an empty array [] if no concrete facts are found
+- Maximum 15 facts per content block"""
+
+
 _REPLICATE_SYSTEM = """You are a context replication engine. You receive a query+response exchange
 and produce structured JSON capturing the INTENT and STATE CHANGES, not just raw facts.
 
@@ -302,7 +323,7 @@ class Ribosome:
         gene_id = Genome.make_gene_id(content)
         promoter_data = parsed.get("promoter", {})
 
-        return Gene(
+        gene = Gene(
             gene_id=gene_id,
             content=content,
             complement=parsed.get("complement", content[:500]),
@@ -315,6 +336,41 @@ class Ribosome:
             ),
             epigenetics=EpigeneticMarkers(),
         )
+
+        # KV extraction — extract concrete facts for downstream small models
+        gene.key_values = self._extract_key_values(content)
+
+        return gene
+
+    # ── KV extraction: pull concrete facts from content ────────────
+
+    def _extract_key_values(self, content: str) -> List[str]:
+        """
+        Extract key-value facts from content via a second ribosome call.
+        Returns a list of short fact strings like ["port=11437", "model=qwen3"].
+        Best-effort — returns empty list on failure.
+        """
+        # Truncate content to avoid blowing the small model's context
+        truncated = content[:2000]
+        prompt = f"Extract key-value facts from this content:\n\n{truncated}"
+
+        try:
+            raw = self.backend.complete(prompt, system=_KV_EXTRACT_SYSTEM)
+            parsed = _parse_json(raw)
+        except Exception:
+            log.debug("KV extraction failed (non-fatal)", exc_info=True)
+            return []
+
+        if not isinstance(parsed, list):
+            log.debug("KV extraction returned non-list: %s", type(parsed))
+            return []
+
+        # Validate: each item must be a non-empty string containing '='
+        kvs = []
+        for item in parsed[:15]:
+            if isinstance(item, str) and "=" in item and len(item) < 200:
+                kvs.append(item.strip())
+        return kvs
 
     # ── Re-rank: score candidates against query ─────────────────────
 

@@ -186,6 +186,12 @@ class HelixContextManager:
         self._pending: List[Gene] = []
         self._pending_lock = threading.Lock()
 
+        # Session buffer -- accumulates query+response pairs for consolidation
+        self._session_buffer: List[Tuple[str, str]] = []
+        self._session_buffer_lock = threading.Lock()
+        self._session_learn_count = 0
+        self._consolidation_threshold = 10  # auto-consolidate every N learns
+
         # Compaction timer
         self._last_compact = time.time()
 
@@ -306,7 +312,11 @@ class HelixContextManager:
                 prefix = f"[Source: {short}]\n"
             else:
                 prefix = ""
-            spliced_map[g.gene_id] = prefix + g.content[:1400]
+            # Prepend pre-extracted key-value facts if available
+            kv_line = ""
+            if g.key_values:
+                kv_line = "Facts: " + ", ".join(g.key_values[:10]) + "\n"
+            spliced_map[g.gene_id] = kv_line + prefix + g.content[:1400]
 
         # Step 5: Assemble
         window = self._assemble(query, candidates, spliced_map, relation_graph)
@@ -349,10 +359,22 @@ class HelixContextManager:
 
     def learn(self, query: str, response: str) -> Optional[str]:
         """
-        Pack a query+response exchange and store in genome.
-        Called as a background task after the stream completes.
+        Buffer a query+response exchange for later consolidation.
+
+        Appends to the session buffer (last 10 exchanges) and triggers
+        auto-consolidation every N learns. The exchange is also immediately
+        replicated to the genome for pending-buffer retrieval continuity.
+
         Returns gene_id or None on failure.
         """
+        # Buffer the exchange for consolidation
+        with self._session_buffer_lock:
+            self._session_buffer.append((query, response))
+            # Keep only last 10 exchanges
+            if len(self._session_buffer) > 10:
+                self._session_buffer = self._session_buffer[-10:]
+            self._session_learn_count += 1
+
         try:
             gene = self.ribosome.replicate(query, response)
 
@@ -374,6 +396,14 @@ class HelixContextManager:
                 self._pending = [g for g in self._pending if g.gene_id != gid]
 
             log.info("Replicated exchange into gene %s", gid)
+
+            # Auto-consolidation trigger
+            if self._session_learn_count >= self._consolidation_threshold:
+                try:
+                    self.consolidate_session()
+                except Exception:
+                    log.warning("Auto-consolidation failed (non-fatal)", exc_info=True)
+
             return gid
 
         except Exception:
@@ -385,6 +415,101 @@ class HelixContextManager:
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(_executor, self.learn, query, response)
 
+    # -- Session consolidation (Synaptic Plasticity) ---------------------
+
+    def consolidate_session(self) -> List[str]:
+        """
+        Distill the session buffer into consolidated knowledge genes.
+
+        Sends buffered exchanges to the ribosome with a "distill facts" prompt.
+        Extracts only new knowledge -- facts, config changes, decisions, discoveries.
+        Skips greetings, acknowledgments, and trivial exchanges.
+
+        Returns list of gene_ids created from distilled facts.
+        """
+        with self._session_buffer_lock:
+            if not self._session_buffer:
+                log.info("Session buffer empty, nothing to consolidate")
+                return []
+            # Snapshot and clear
+            exchanges = list(self._session_buffer)
+            self._session_buffer.clear()
+            self._session_learn_count = 0
+
+        # Format exchanges for the distillation prompt
+        formatted = []
+        for i, (q, r) in enumerate(exchanges, 1):
+            formatted.append(f"[Exchange {i}]\nUser: {q[:500]}\nAssistant: {r[:800]}")
+        conversation_text = "\n\n".join(formatted)
+
+        distill_prompt = (
+            "Extract ONLY new facts, decisions, or discoveries from this conversation.\n"
+            "Skip greetings, acknowledgments, thinking-out-loud, and trivial exchanges.\n"
+            "Output as a JSON list of short fact strings. If nothing is worth keeping, "
+            "return an empty list [].\n\n"
+            f"Conversation ({len(exchanges)} exchanges):\n\n{conversation_text}"
+        )
+
+        distill_system = (
+            "You are a knowledge distillation engine. You receive conversation exchanges "
+            "and extract ONLY load-bearing facts. Respond with a JSON list of strings. "
+            "Each string should be a single, self-contained fact. No markdown fences."
+        )
+
+        try:
+            raw = self.ribosome.backend.complete(
+                distill_prompt, system=distill_system, temperature=0.0
+            )
+            from .ribosome import _parse_json
+            facts = _parse_json(raw)
+        except Exception:
+            log.warning("Session consolidation distillation failed", exc_info=True)
+            return []
+
+        if not isinstance(facts, list):
+            log.warning("Consolidation returned non-list: %s", type(facts))
+            return []
+
+        # Filter to strings only
+        facts = [f for f in facts if isinstance(f, str) and len(f.strip()) > 5]
+
+        if not facts:
+            log.info("No facts extracted from session buffer (%d exchanges)", len(exchanges))
+            return []
+
+        gene_ids = []
+        for fact in facts:
+            try:
+                gene = self.ribosome.pack(fact, content_type="text")
+                gene.source_id = "__session__"
+                # Add session_memory and chat_context to domains
+                existing_domains = set(gene.promoter.domains)
+                existing_domains.update(["session_memory", "chat_context"])
+                gene.promoter.domains = list(existing_domains)
+
+                # Attach ΣĒMA vector if available
+                if self._sema_codec is not None:
+                    try:
+                        gene.embedding = self._sema_codec.encode(gene.content[:1000])
+                    except Exception:
+                        pass
+
+                gid = self.genome.upsert_gene(gene)
+                gene_ids.append(gid)
+            except Exception:
+                log.warning("Failed to create gene from fact: %s", fact[:100], exc_info=True)
+
+        log.info(
+            "Session consolidation: %d facts extracted from %d exchanges -> %d genes",
+            len(facts), len(exchanges), len(gene_ids),
+        )
+        return gene_ids
+
+    async def consolidate_session_async(self) -> List[str]:
+        """Async wrapper for consolidate_session."""
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(_executor, self.consolidate_session)
+
     # -- Stats ---------------------------------------------------------
 
     def stats(self) -> Dict:
@@ -393,6 +518,8 @@ class HelixContextManager:
         return {
             **genome_stats,
             "pending_replications": len(self._pending),
+            "session_buffer_size": len(self._session_buffer),
+            "session_learn_count": self._session_learn_count,
             "health": health_summary,
             "config": {
                 "ribosome_budget": self.config.budget.ribosome_tokens,

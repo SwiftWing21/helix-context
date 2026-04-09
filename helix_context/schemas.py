@@ -68,6 +68,8 @@ class Gene(BaseModel):
     promoter: PromoterTags = Field(default_factory=PromoterTags)
     epigenetics: EpigeneticMarkers = Field(default_factory=EpigeneticMarkers)
 
+    key_values: List[str] = Field(default_factory=list)  # Pre-extracted facts: "port=11437", "model=qwen3"
+
     chromatin: ChromatinState = ChromatinState.OPEN
     is_fragment: bool = False
 

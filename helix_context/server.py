@@ -165,6 +165,28 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
     async def health_history_endpoint(limit: int = 50):
         return helix.genome.health_history(limit=limit)
 
+    # -- Consolidate endpoint (session memory) ----------------------------
+
+    @app.post("/consolidate")
+    async def consolidate_endpoint():
+        """Trigger session memory consolidation.
+
+        Distills the session buffer into consolidated knowledge genes,
+        extracting only new facts, decisions, and discoveries.
+        """
+        try:
+            gene_ids = await helix.consolidate_session_async()
+            return {
+                "facts_extracted": len(gene_ids),
+                "gene_ids": gene_ids,
+            }
+        except Exception as exc:
+            log.warning("Consolidation endpoint failed: %s", exc, exc_info=True)
+            return JSONResponse(
+                {"error": f"Consolidation failed: {exc}", "facts_extracted": 0, "gene_ids": []},
+                status_code=500,
+            )
+
     # -- Health endpoint -----------------------------------------------
 
     @app.get("/health")
