@@ -96,6 +96,17 @@ class Genome:
         )
         """)
 
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS gene_relations (
+            gene_id_a  TEXT,
+            gene_id_b  TEXT,
+            relation   INTEGER,
+            confidence REAL,
+            updated_at REAL,
+            PRIMARY KEY (gene_id_a, gene_id_b)
+        )
+        """)
+
         cur.execute(
             "CREATE INDEX IF NOT EXISTS idx_promoter_value "
             "ON promoter_index(tag_value)"
@@ -231,9 +242,25 @@ class Genome:
         additional_ids: set[str] = set()
 
         for g in genes:
-            for gid in g.epigenetics.co_activated_with[:3]:
-                if gid not in existing_ids:
-                    additional_ids.add(gid)
+            # Prefer typed relations if available
+            if g.epigenetics.typed_co_activated:
+                for link in g.epigenetics.typed_co_activated[:5]:
+                    if link.gene_id in existing_ids:
+                        continue
+                    # Entailment/equivalence: always pull forward
+                    if link.relation in (0, 1, 2):  # ENTAILMENT, REVERSE_ENTAILMENT, EQUIVALENCE
+                        additional_ids.add(link.gene_id)
+                    # Alternation: skip (mutually exclusive)
+                    elif link.relation == 3:  # ALTERNATION
+                        pass
+                    # Independence/cover/negation: pull only if high confidence
+                    elif link.confidence > 0.7:
+                        additional_ids.add(link.gene_id)
+            else:
+                # Fall back to untyped co-activation
+                for gid in g.epigenetics.co_activated_with[:3]:
+                    if gid not in existing_ids:
+                        additional_ids.add(gid)
 
         if not additional_ids:
             return genes
@@ -337,6 +364,49 @@ class Genome:
 
         self.conn.commit()
         clear_parse_caches()
+
+    # ── Typed gene relations (NLI) ───────────────────────────────────
+
+    def store_relation(
+        self, gene_id_a: str, gene_id_b: str,
+        relation: int, confidence: float,
+    ) -> None:
+        """Store a typed logical relation between two genes."""
+        import time as _time
+        self.conn.execute(
+            "INSERT OR REPLACE INTO gene_relations "
+            "(gene_id_a, gene_id_b, relation, confidence, updated_at) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (gene_id_a, gene_id_b, relation, confidence, _time.time()),
+        )
+        self.conn.commit()
+
+    def store_relations_batch(
+        self, relations: list,
+    ) -> None:
+        """Store multiple typed relations. Each item: (id_a, id_b, relation, confidence)."""
+        import time as _time
+        now = _time.time()
+        self.conn.executemany(
+            "INSERT OR REPLACE INTO gene_relations "
+            "(gene_id_a, gene_id_b, relation, confidence, updated_at) "
+            "VALUES (?, ?, ?, ?, ?)",
+            [(a, b, r, c, now) for a, b, r, c in relations],
+        )
+        self.conn.commit()
+
+    def get_relations(self, gene_id: str) -> list:
+        """Get all typed relations for a gene. Returns [(other_id, relation, confidence)]."""
+        cur = self.conn.cursor()
+        rows = cur.execute(
+            "SELECT gene_id_b AS other, relation, confidence "
+            "FROM gene_relations WHERE gene_id_a = ? "
+            "UNION "
+            "SELECT gene_id_a AS other, relation, confidence "
+            "FROM gene_relations WHERE gene_id_b = ?",
+            (gene_id, gene_id),
+        ).fetchall()
+        return [(r["other"], r["relation"], r["confidence"]) for r in rows]
 
     # ── Compaction (decay stale genes) ──────────────────────────────
 

@@ -29,7 +29,7 @@ from typing import Dict, List, Optional
 
 import torch
 
-from .schemas import Gene
+from .schemas import Gene, NLRelation
 
 log = logging.getLogger("helix.ribosome.deberta")
 
@@ -47,9 +47,12 @@ class DeBERTaRibosome:
         self,
         rerank_model_path: str = "training/models/rerank",
         splice_model_path: str = "training/models/splice",
+        nli_model_path: str = "training/models/nli",
         ollama_ribosome=None,
         device: str = "auto",
         splice_threshold: float = 0.5,
+        nli_splice_bonus: float = 0.15,
+        nli_splice_penalty: float = 0.15,
     ):
         from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
@@ -73,7 +76,13 @@ class DeBERTaRibosome:
         self._splice_model.train(False)
 
         self.splice_threshold = splice_threshold
+        self.nli_splice_bonus = nli_splice_bonus
+        self.nli_splice_penalty = nli_splice_penalty
         self._ollama = ollama_ribosome
+
+        # NLI model — lazy-loaded (optional, may not exist yet)
+        self._nli = None
+        self._nli_model_path = nli_model_path
 
         log.info("DeBERTa ribosome ready on %s", self._device)
 
@@ -205,6 +214,30 @@ class DeBERTaRibosome:
         )
 
         return result
+
+    # ── NLI Classification ───────────────────────────────────────────────
+
+    def _load_nli(self):
+        """Lazy-load the NLI classifier on first use."""
+        if self._nli is not None:
+            return self._nli
+        try:
+            from .nli_backend import NLIClassifier
+            self._nli = NLIClassifier(
+                model_path=self._nli_model_path,
+                device=str(self._device),
+            )
+        except Exception:
+            log.warning("NLI model not available at %s", self._nli_model_path, exc_info=True)
+            self._nli = None
+        return self._nli
+
+    def classify_relations(self, genes: List[Gene]) -> Dict:
+        """Classify NLI relations between expressed genes. Returns relation graph."""
+        nli = self._load_nli()
+        if nli is None:
+            return {}
+        return nli.build_relation_graph(genes)
 
     # ── Delegated to Ollama ────────────────────────────────────────────
 

@@ -14,6 +14,17 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 
 
+class NLRelation(IntEnum):
+    """MacCartney-Manning natural logic relations (7-class)."""
+    ENTAILMENT = 0          # A ⊂ B (A implies B)
+    REVERSE_ENTAILMENT = 1  # A ⊃ B (B implies A)
+    EQUIVALENCE = 2         # A = B
+    ALTERNATION = 3         # A ∩ B = ∅, A ∪ B ≠ D (mutually exclusive)
+    NEGATION = 4            # A ∩ B = ∅, A ∪ B = D (exhaustive opposites)
+    COVER = 5               # A ∩ B ≠ ∅, A ∪ B = D (overlap + exhaust)
+    INDEPENDENCE = 6        # no reliable relation
+
+
 class ChromatinState(IntEnum):
     """Gene accessibility state — mirrors biological chromatin compaction."""
     OPEN = 0            # Recently accessed, hot
@@ -30,12 +41,20 @@ class PromoterTags(BaseModel):
     sequence_index: Optional[int] = None
 
 
+class TypedCoActivation(BaseModel):
+    """A co-activation link with a typed logical relation."""
+    gene_id: str
+    relation: NLRelation = NLRelation.INDEPENDENCE
+    confidence: float = 0.0
+
+
 class EpigeneticMarkers(BaseModel):
     """Usage and association metadata — how the gene evolves over time."""
     created_at: float = Field(default_factory=lambda: time.time())
     last_accessed: float = Field(default_factory=lambda: time.time())
     access_count: int = 0
     co_activated_with: List[str] = Field(default_factory=list)
+    typed_co_activated: List[TypedCoActivation] = Field(default_factory=list)
     decay_score: float = 1.0
 
 
@@ -66,6 +85,7 @@ class ContextHealth(BaseModel):
     coverage: float = 0.0               # Fraction of query terms that matched genes
     density: float = 0.0                # Fraction of expression budget used
     freshness: float = 1.0              # Average decay score of expressed genes
+    logical_coherence: float = 0.0      # Pairwise relation coherence of expressed genes
     genes_available: int = 0            # Total genes in genome
     genes_expressed: int = 0            # Genes expressed for this query
     status: str = "unmeasured"          # aligned | sparse | stale | denatured

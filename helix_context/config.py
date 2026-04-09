@@ -32,6 +32,9 @@ class RibosomeConfig:
     rerank_model_path: str = "training/models/rerank"
     splice_model_path: str = "training/models/splice"
     splice_threshold: float = 0.5
+    nli_model_path: str = "training/models/nli"
+    nli_splice_bonus: float = 0.15       # Prob bonus for entailment-linked codons
+    nli_splice_penalty: float = 0.15     # Prob penalty for alternation-linked codons
     device: str = "auto"        # "auto", "cpu", "cuda"
 
 
@@ -99,6 +102,9 @@ def load_config(path: Optional[str] = None) -> HelixConfig:
             rerank_model_path=r.get("rerank_model_path", cfg.ribosome.rerank_model_path),
             splice_model_path=r.get("splice_model_path", cfg.ribosome.splice_model_path),
             splice_threshold=float(r.get("splice_threshold", cfg.ribosome.splice_threshold)),
+            nli_model_path=r.get("nli_model_path", cfg.ribosome.nli_model_path),
+            nli_splice_bonus=float(r.get("nli_splice_bonus", cfg.ribosome.nli_splice_bonus)),
+            nli_splice_penalty=float(r.get("nli_splice_penalty", cfg.ribosome.nli_splice_penalty)),
             device=r.get("device", cfg.ribosome.device),
         )
 

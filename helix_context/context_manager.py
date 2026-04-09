@@ -144,9 +144,12 @@ class HelixContextManager:
                 self.ribosome = DeBERTaRibosome(
                     rerank_model_path=config.ribosome.rerank_model_path,
                     splice_model_path=config.ribosome.splice_model_path,
+                    nli_model_path=config.ribosome.nli_model_path,
                     ollama_ribosome=ollama_ribosome,
                     device=config.ribosome.device,
                     splice_threshold=config.ribosome.splice_threshold,
+                    nli_splice_bonus=config.ribosome.nli_splice_bonus,
+                    nli_splice_penalty=config.ribosome.nli_splice_penalty,
                 )
                 log.info("Using DeBERTa hybrid ribosome (re_rank + splice accelerated)")
             except Exception:
@@ -242,16 +245,33 @@ class HelixContextManager:
         if len(candidates) > max_genes:
             candidates = self.ribosome.re_rank(query, candidates, k=max_genes)
 
+        # Step 3.5: NLI classification (optional, DeBERTa backend only)
+        relation_graph = {}
+        if hasattr(self.ribosome, 'classify_relations'):
+            try:
+                relation_graph = self.ribosome.classify_relations(candidates)
+            except Exception:
+                log.warning("NLI classification failed, proceeding without", exc_info=True)
+
         # Step 4: Splice (ribosome, batched single call)
         spliced_map = self.ribosome.splice(query, candidates)
 
         # Step 5: Assemble
-        window = self._assemble(query, candidates, spliced_map)
+        window = self._assemble(query, candidates, spliced_map, relation_graph)
 
         # Touch expressed genes (update epigenetics)
         expressed_ids = [g.gene_id for g in candidates]
         self.genome.touch_genes(expressed_ids)
         self.genome.link_coactivated(expressed_ids)
+
+        # Store typed relations in genome (if available)
+        if relation_graph:
+            batch = []
+            for (gid_a, gid_b), (relation, confidence) in relation_graph.items():
+                if confidence >= 0.6:
+                    batch.append((gid_a, gid_b, int(relation), confidence))
+            if batch:
+                self.genome.store_relations_batch(batch)
 
         # Log health signal for historical tracking
         health = window.context_health
@@ -368,7 +388,7 @@ class HelixContextManager:
 
     # -- Internal: Step 5 (assemble) -----------------------------------
 
-    def _assemble(self, query: str, candidates: List[Gene], spliced_map: Dict[str, str]) -> ContextWindow:
+    def _assemble(self, query: str, candidates: List[Gene], spliced_map: Dict[str, str], relation_graph: Optional[Dict] = None) -> ContextWindow:
         """
         Sort spliced parts by sequence_index, join with dividers,
         wrap in expressed_context tags, prepend decoder prompt.
@@ -409,7 +429,7 @@ class HelixContextManager:
 
         # Delta-epsilon health signal
         query_terms = query.lower().split()
-        health = self._compute_health(query_terms, candidates, compressed_chars)
+        health = self._compute_health(query_terms, candidates, compressed_chars, relation_graph)
 
         return ContextWindow(
             ribosome_prompt=self._decoder_prompt,
@@ -433,6 +453,7 @@ class HelixContextManager:
         query_terms: List[str],
         candidates: List[Gene],
         compressed_chars: int,
+        relation_graph: Optional[Dict] = None,
     ) -> ContextHealth:
         """
         Compute the delta-epsilon context health signal.
@@ -479,12 +500,27 @@ class HelixContextManager:
         else:
             freshness = 0.0
 
-        # Ellipticity: geometric mean of the three signals
+        # Logical coherence (from NLI relation graph, if available)
+        logical_coherence = 0.0
+        if relation_graph:
+            try:
+                from .nli_backend import compute_logical_coherence
+                logical_coherence = compute_logical_coherence(relation_graph)
+            except Exception:
+                pass
+
+        # Ellipticity: geometric mean of signals
         # Clamp inputs to avoid log(0)
         c = max(coverage, 0.01)
         d = max(density, 0.01)
         f = max(freshness, 0.01)
-        ellipticity = (c * d * f) ** (1.0 / 3.0)
+        if logical_coherence > 0:
+            # 4-factor ellipticity when NLI is available
+            lc = max(logical_coherence, 0.01)
+            ellipticity = (c * d * f * lc) ** (1.0 / 4.0)
+        else:
+            # 3-factor ellipticity (backward compat)
+            ellipticity = (c * d * f) ** (1.0 / 3.0)
 
         # Status classification
         if freshness < 0.4 and genes_expressed > 0:
@@ -501,6 +537,7 @@ class HelixContextManager:
             coverage=round(coverage, 4),
             density=round(density, 4),
             freshness=round(freshness, 4),
+            logical_coherence=round(logical_coherence, 4),
             genes_available=total_genes,
             genes_expressed=genes_expressed,
             status=status,
