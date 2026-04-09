@@ -204,18 +204,35 @@ class Genome:
             """)
             self._fts_available = True
 
-            # Auto-sync FTS5 if out of date
+            # Incremental FTS5 sync — only add missing genes, don't rebuild
+            # Full rebuild is O(N) and blocks startup. At 100K+ genes it takes
+            # 30+ seconds. Incremental sync is O(delta) — typically <100 genes.
             gene_count = cur.execute("SELECT COUNT(*) FROM genes").fetchone()[0]
             fts_count = cur.execute("SELECT COUNT(*) FROM genes_fts").fetchone()[0]
-            if abs(gene_count - fts_count) > 0:
-                log.info("FTS5 out of sync (%d genes, %d fts) — rebuilding", gene_count, fts_count)
-                cur.execute("DELETE FROM genes_fts")
+            delta = gene_count - fts_count
+            if delta > 0:
+                # Add only genes missing from FTS5
                 cur.execute(
                     "INSERT INTO genes_fts(gene_id, content, complement) "
-                    "SELECT gene_id, COALESCE(source_id,'') || ' ' || content, "
-                    "COALESCE(complement, '') FROM genes"
+                    "SELECT g.gene_id, "
+                    "  COALESCE(g.source_id,'') || ' ' || "
+                    "  COALESCE((SELECT GROUP_CONCAT(pi.tag_value, ' ') "
+                    "    FROM promoter_index pi WHERE pi.gene_id = g.gene_id), '') "
+                    "  || ' ' || g.content, "
+                    "  COALESCE(g.complement, '') "
+                    "FROM genes g "
+                    "WHERE g.gene_id NOT IN (SELECT gene_id FROM genes_fts)"
                 )
                 self.conn.commit()
+                log.info("FTS5 incremental sync: +%d genes (total: %d)", delta, gene_count)
+            elif delta < 0:
+                # FTS5 has orphan entries — remove them
+                cur.execute(
+                    "DELETE FROM genes_fts "
+                    "WHERE gene_id NOT IN (SELECT gene_id FROM genes)"
+                )
+                self.conn.commit()
+                log.info("FTS5 cleanup: removed %d orphan entries", -delta)
         except Exception:
             log.warning("FTS5 not available — content search disabled")
             self._fts_available = False
@@ -289,13 +306,19 @@ class Genome:
                 (gene_id, e.lower()),
             )
 
-        # Sync FTS5 index
+        # Sync FTS5 index — include source_id + promoter tags in searchable content
+        # so tag-based knowledge survives FTS5 rebuilds
         if self._fts_available:
             try:
+                tag_text = " ".join(
+                    [d.lower() for d in gene.promoter.domains]
+                    + [e.lower() for e in gene.promoter.entities]
+                )
+                fts_content = f"{gene.source_id or ''} {tag_text} {gene.content}"
                 cur.execute(
                     "INSERT OR REPLACE INTO genes_fts(gene_id, content, complement) "
                     "VALUES (?, ?, ?)",
-                    (gene_id, gene.content, gene.complement or ""),
+                    (gene_id, fts_content, gene.complement or ""),
                 )
             except Exception:
                 pass  # FTS sync failure is non-fatal
@@ -1006,22 +1029,36 @@ class Genome:
     # ── FTS5 index rebuild ────────────────────────────────────────────
 
     def rebuild_fts(self) -> int:
-        """Rebuild the FTS5 index from all genes. Returns count indexed."""
+        """Rebuild the FTS5 index from all genes. Returns count indexed.
+
+        Includes source_id + promoter tags in the searchable content so
+        tag-based knowledge survives rebuilds. At 100K+ genes this takes
+        several seconds — prefer incremental sync for normal operation.
+        """
         if not self._fts_available:
             log.warning("FTS5 not available — cannot rebuild")
             return 0
 
+        import time as _time
+        t0 = _time.time()
         cur = self.conn.cursor()
-        # Clear and repopulate
+
+        # Clear and repopulate with enriched content
         cur.execute("DELETE FROM genes_fts")
         cur.execute(
             "INSERT INTO genes_fts(gene_id, content, complement) "
-            "SELECT gene_id, COALESCE(source_id,'') || ' ' || content, "
-            "COALESCE(complement, '') FROM genes"
+            "SELECT g.gene_id, "
+            "  COALESCE(g.source_id,'') || ' ' || "
+            "  COALESCE((SELECT GROUP_CONCAT(pi.tag_value, ' ') "
+            "    FROM promoter_index pi WHERE pi.gene_id = g.gene_id), '') "
+            "  || ' ' || g.content, "
+            "  COALESCE(g.complement, '') "
+            "FROM genes g"
         )
         self.conn.commit()
         count = cur.execute("SELECT COUNT(*) FROM genes_fts").fetchone()[0]
-        log.info("FTS5 index rebuilt: %d genes indexed", count)
+        elapsed = _time.time() - t0
+        log.info("FTS5 index rebuilt: %d genes indexed in %.1fs", count, elapsed)
         return count
 
     # ── Close ───────────────────────────────────────────────────────
