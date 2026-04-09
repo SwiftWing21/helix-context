@@ -17,13 +17,20 @@ Includes:
 from __future__ import annotations
 
 import hashlib
-import json
 import logging
 import os
 import sqlite3
 import time
 from typing import Dict, List, Optional
 
+from .accel import (
+    json_loads,
+    json_dumps,
+    parse_promoter,
+    parse_epigenetics,
+    clear_parse_caches,
+    batch_update_epigenetics,
+)
 from .exceptions import PromoterMismatch
 from .schemas import ChromatinState, EpigeneticMarkers, Gene, PromoterTags
 
@@ -118,17 +125,19 @@ class Genome:
                 gene_id,
                 gene.content,
                 gene.complement,
-                json.dumps(gene.codons),
+                json_dumps(gene.codons),
                 gene.promoter.model_dump_json(),
                 gene.epigenetics.model_dump_json(),
                 int(gene.chromatin),
                 int(gene.is_fragment),
-                json.dumps(gene.embedding) if gene.embedding else None,
+                json_dumps(gene.embedding) if gene.embedding else None,
                 gene.source_id,
                 gene.version,
                 gene.supersedes,
             ),
         )
+        # Invalidate parse cache for this gene's promoter/epigenetics
+        clear_parse_caches()
 
         # Rebuild promoter index for this gene
         cur.execute("DELETE FROM promoter_index WHERE gene_id = ?", (gene_id,))
@@ -249,12 +258,12 @@ class Genome:
             gene_id=row["gene_id"],
             content=row["content"],
             complement=row["complement"],
-            codons=json.loads(row["codons"]),
-            promoter=PromoterTags.model_validate_json(row["promoter"]),
-            epigenetics=EpigeneticMarkers.model_validate_json(row["epigenetics"]),
+            codons=json_loads(row["codons"]),
+            promoter=parse_promoter(row["promoter"]),
+            epigenetics=parse_epigenetics(row["epigenetics"]),
             chromatin=ChromatinState(row["chromatin"]),
             is_fragment=bool(row["is_fragment"]),
-            embedding=json.loads(row["embedding"]) if row["embedding"] else None,
+            embedding=json_loads(row["embedding"]) if row["embedding"] else None,
             source_id=row["source_id"],
             version=row["version"],
             supersedes=row["supersedes"],
@@ -263,27 +272,35 @@ class Genome:
     # ── Touch (update epigenetics on access) ────────────────────────
 
     def touch_genes(self, gene_ids: List[str]) -> None:
+        if not gene_ids:
+            return
+
         cur = self.conn.cursor()
         now = time.time()
 
-        for gid in gene_ids:
-            row = cur.execute(
-                "SELECT epigenetics FROM genes WHERE gene_id = ?", (gid,)
-            ).fetchone()
-            if not row:
-                continue
+        # Batch fetch all epigenetics in one query
+        placeholders = ",".join("?" * len(gene_ids))
+        rows = cur.execute(
+            f"SELECT gene_id, epigenetics FROM genes WHERE gene_id IN ({placeholders})",
+            gene_ids,
+        ).fetchall()
 
-            epi = EpigeneticMarkers.model_validate_json(row["epigenetics"])
+        # Prepare batch update
+        updates = []
+        for row in rows:
+            if not row["epigenetics"]:
+                continue
+            epi = parse_epigenetics(row["epigenetics"], use_cache=False)
             epi.last_accessed = now
             epi.access_count += 1
-            epi.decay_score = min(1.0, epi.decay_score + 0.1)  # Refresh on access
+            epi.decay_score = min(1.0, epi.decay_score + 0.1)
+            updates.append((row["gene_id"], epi.model_dump_json(), int(ChromatinState.OPEN)))
 
-            cur.execute(
-                "UPDATE genes SET epigenetics = ?, chromatin = ? WHERE gene_id = ?",
-                (epi.model_dump_json(), int(ChromatinState.OPEN), gid),
-            )
-
-        self.conn.commit()
+        if updates:
+            sql, params = batch_update_epigenetics(updates)
+            cur.execute(sql, params)
+            self.conn.commit()
+            clear_parse_caches()
 
     # ── Update co-activation links (mutual) ─────────────────────────
 
@@ -293,17 +310,22 @@ class Genome:
             return
 
         cur = self.conn.cursor()
-        for gid in gene_ids:
-            row = cur.execute(
-                "SELECT epigenetics FROM genes WHERE gene_id = ?", (gid,)
-            ).fetchone()
-            if not row:
-                continue
 
-            epi = EpigeneticMarkers.model_validate_json(row["epigenetics"])
+        # Batch fetch all epigenetics in one query
+        placeholders = ",".join("?" * len(gene_ids))
+        rows = cur.execute(
+            f"SELECT gene_id, epigenetics FROM genes WHERE gene_id IN ({placeholders})",
+            gene_ids,
+        ).fetchall()
+
+        # Build individual updates (epigenetics only, preserve chromatin)
+        for row in rows:
+            if not row["epigenetics"]:
+                continue
+            epi = parse_epigenetics(row["epigenetics"], use_cache=False)
+            gid = row["gene_id"]
             peers = [other for other in gene_ids if other != gid]
 
-            # Merge, keeping most recent 10
             existing = set(epi.co_activated_with)
             existing.update(peers)
             epi.co_activated_with = list(existing)[:10]
@@ -314,6 +336,7 @@ class Genome:
             )
 
         self.conn.commit()
+        clear_parse_caches()
 
     # ── Compaction (decay stale genes) ──────────────────────────────
 
@@ -356,7 +379,7 @@ class Genome:
             except OSError:
                 continue
 
-            epi = EpigeneticMarkers.model_validate_json(row["epigenetics"])
+            epi = parse_epigenetics(row["epigenetics"], use_cache=False)
 
             if file_mtime > epi.last_accessed:
                 # Source changed — gene is outdated but NOT removed

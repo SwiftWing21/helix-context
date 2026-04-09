@@ -16,10 +16,17 @@ Biology:
 
 from __future__ import annotations
 
-import re
 import hashlib
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional
+
+from .accel import (
+    RE_PARAGRAPH_SPLIT,
+    RE_SENTENCE_SPLIT,
+    RE_CODE_BOUNDARY,
+    RE_CODE_BOUNDARY_MATCH,
+    RE_CODE_BLOCK_SPLIT,
+)
 
 
 # ── Pre-gene chunk (output of chunking, input to ribosome) ──────────
@@ -77,7 +84,7 @@ class CodonChunker:
     # ── Text chunking (paragraph-first, sentence fallback) ──────────
 
     def _chunk_text(self, text: str, metadata: Dict) -> List[RawStrand]:
-        paragraphs = re.split(r"\n\s*\n", text)
+        paragraphs = RE_PARAGRAPH_SPLIT.split(text)
         strands: List[RawStrand] = []
         current = ""
         seq = 0
@@ -125,17 +132,11 @@ class CodonChunker:
 
     def _chunk_code(self, code: str, metadata: Dict) -> List[RawStrand]:
         # Split on top-level definitions (MVP heuristic — swap for tree-sitter later)
-        blocks = re.split(
-            r"(^(?:def |class |async def |struct |interface |type |export ))",
-            code,
-            flags=re.MULTILINE,
-        )
+        blocks = RE_CODE_BOUNDARY.split(code)
 
         # Re-stitch split delimiters with their content
         stitched: List[str] = []
-        if blocks and not re.match(
-            r"^(?:def |class |async def |struct |interface |type |export )", blocks[0]
-        ):
+        if blocks and not RE_CODE_BOUNDARY_MATCH.match(blocks[0]):
             stitched.append(blocks[0])
             blocks = blocks[1:]
 
@@ -255,13 +256,12 @@ class CodonEncoder:
 
     @staticmethod
     def _split_sentences(text: str) -> List[str]:
-        raw = re.split(r"(?<=[.!?])\s+", text.strip())
+        raw = RE_SENTENCE_SPLIT.split(text.strip())
         return [s.strip() for s in raw if s.strip()]
 
     @staticmethod
     def _split_code_blocks(code: str) -> List[str]:
-        pattern = r"^(?=(?:def |class |async def |function |const |export ))"
-        blocks = re.split(pattern, code, flags=re.MULTILINE)
+        blocks = RE_CODE_BLOCK_SPLIT.split(code)
         return [b.strip() for b in blocks if b.strip()]
 
 

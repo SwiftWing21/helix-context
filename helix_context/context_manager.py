@@ -24,6 +24,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Optional, Tuple
 
+from .accel import extract_query_signals, estimate_tokens
 from .codons import CodonChunker, CodonEncoder
 from .config import HelixConfig
 from .exceptions import PromoterMismatch
@@ -214,7 +215,7 @@ class HelixContextManager:
             return ContextWindow(
                 ribosome_prompt=self._decoder_prompt,
                 expressed_context="(no relevant context found in genome)",
-                total_estimated_tokens=len(self._decoder_prompt) // 4,
+                total_estimated_tokens=estimate_tokens(self._decoder_prompt),
                 compression_ratio=1.0,
                 context_health=empty_health,
                 metadata={"query": query, "genes_expressed": 0},
@@ -312,35 +313,9 @@ class HelixContextManager:
     def _extract_query_signals(self, query: str) -> Tuple[List[str], List[str]]:
         """
         Lightweight keyword extraction from the query for promoter matching.
-        No model call -- just stop-word removal and heuristics.
+        No model call -- uses pre-built frozenset from accel module.
         """
-        stop_words = {
-            "the", "a", "an", "is", "are", "was", "were", "be", "been",
-            "have", "has", "had", "do", "does", "did", "will", "would",
-            "could", "should", "may", "might", "can", "shall", "to",
-            "of", "in", "for", "on", "with", "at", "by", "from", "as",
-            "into", "about", "like", "after", "before", "between",
-            "and", "or", "but", "not", "no", "if", "then", "than",
-            "what", "which", "who", "whom", "this", "that", "these",
-            "how", "when", "where", "why", "all", "each", "every",
-            "it", "its", "i", "me", "my", "we", "our", "you", "your",
-            "he", "she", "they", "them", "his", "her", "their",
-        }
-
-        words = query.lower().split()
-        keywords = [w.strip("?.,!;:'\"()[]{}") for w in words
-                     if w.lower() not in stop_words and len(w) > 2]
-
-        # Heuristic: longer or capitalized words are more likely entities
-        entities = []
-        for w in keywords:
-            if len(w) > 4:
-                entities.append(w)
-            elif w and w[0].isupper():
-                entities.append(w)
-
-        domains = keywords[:5]
-        return domains, entities
+        return extract_query_signals(query)
 
     # -- Internal: Step 2 (express) ------------------------------------
 
@@ -402,7 +377,7 @@ class HelixContextManager:
         )
 
         # Budget enforcement: if over token budget, drop lowest-scored genes
-        est_tokens = (len(self._decoder_prompt) + len(expressed_wrapped)) // 4
+        est_tokens = estimate_tokens(self._decoder_prompt) + estimate_tokens(expressed_wrapped)
         budget = self.config.budget.ribosome_tokens + self.config.budget.expression_tokens
 
         if est_tokens > budget and len(parts) > 1:
@@ -411,7 +386,7 @@ class HelixContextManager:
                 parts.pop()
                 expressed = "\n---\n".join(parts)
                 expressed_wrapped = f"<expressed_context>\n{expressed}\n</expressed_context>"
-                est_tokens = (len(self._decoder_prompt) + len(expressed_wrapped)) // 4
+                est_tokens = estimate_tokens(self._decoder_prompt) + estimate_tokens(expressed_wrapped)
 
         compressed_chars = len(expressed)
 

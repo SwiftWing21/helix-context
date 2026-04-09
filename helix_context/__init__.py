@@ -5,6 +5,7 @@ Makes 9k tokens of context window feel like 600k by treating
 context like a genome instead of a flat text buffer.
 """
 
+from .accel import accel_info, JSON_BACKEND
 from .config import HelixConfig, load_config
 from .schemas import Gene, ContextWindow, ContextHealth, ChromatinState, PromoterTags, EpigeneticMarkers
 from .genome import Genome
@@ -22,6 +23,8 @@ from .exceptions import (
 )
 
 __all__ = [
+    "accel_info",
+    "JSON_BACKEND",
     "HelixConfig",
     "load_config",
     "Gene",
