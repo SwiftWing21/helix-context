@@ -312,8 +312,8 @@ def batch_update_epigenetics(gene_updates: List[Tuple[str, str, int]]) -> Tuple[
 
     sql = (
         f"UPDATE genes SET "
-        f"epigenetics = CASE {' '.join(epi_cases)} END, "
-        f"chromatin = CASE {' '.join(chrom_cases)} END "
+        f"epigenetics = CASE {' '.join(epi_cases)} ELSE epigenetics END, "
+        f"chromatin = CASE {' '.join(chrom_cases)} ELSE chromatin END "
         f"WHERE gene_id IN ({placeholders})"
     )
 
