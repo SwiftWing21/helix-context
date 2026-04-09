@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-04-09T01:11:54",
-  "genome_genes": 3530,
-  "compression_ratio": 7.025310379340131,
+  "timestamp": "2026-04-09T01:42:16",
+  "genome_genes": 3483,
+  "compression_ratio": 7.070872912862847,
   "needles": [
     {
       "name": "helix_port",
@@ -9,25 +9,25 @@
       "expected": "11437",
       "found_in_context": true,
       "answer_correct": true,
-      "context_latency_s": 0.528,
-      "proxy_latency_s": 23.181,
-      "ellipticity": 0.494,
+      "context_latency_s": 0.466,
+      "proxy_latency_s": 21.876,
+      "ellipticity": 0.4478,
       "status": "sparse",
       "genes_expressed": 10,
-      "answer_preview": "The Helix proxy server listens on port **11437**."
+      "answer_preview": "The Helix proxy server listens on port **11437**.\n\nThis is shown in the \"Quick Start\" instructions:\n```bash\npython -m uvicorn helix_context.server:app --host 127.0.0.1 --port 11437\n```"
     },
     {
       "name": "scorerift_threshold",
       "query": "What is the divergence threshold that triggers alerts in ScoreRift?",
       "expected": "0.15",
-      "found_in_context": false,
-      "answer_correct": false,
-      "context_latency_s": 0.505,
-      "proxy_latency_s": 33.123,
-      "ellipticity": 0.3645,
+      "found_in_context": true,
+      "answer_correct": true,
+      "context_latency_s": 0.477,
+      "proxy_latency_s": 25.01,
+      "ellipticity": 0.3434,
       "status": "sparse",
       "genes_expressed": 10,
-      "answer_preview": "The provided context mentions the `divergence_threshold` as a factor used when creating a `DimensionResult`, but it does not specify the actual numerical value of the divergence threshold that trigger"
+      "answer_preview": "The divergence threshold that triggers alerts in ScoreRift is **0.15**.\n\nThis value is mentioned in several contexts:\n\n1.  **Two-Brain Audit System Design:** Divergence is flagged when the score diffe"
     },
     {
       "name": "biged_skills_count",
@@ -35,12 +35,12 @@
       "expected": "125",
       "found_in_context": false,
       "answer_correct": false,
-      "context_latency_s": 0.481,
-      "proxy_latency_s": 26.906,
-      "ellipticity": 0.4187,
+      "context_latency_s": 0.583,
+      "proxy_latency_s": 32.666,
+      "ellipticity": 0.3761,
       "status": "sparse",
       "genes_expressed": 10,
-      "answer_preview": "The BigEd system has **130+** skills, including over 130+ Python skills which are executed via PyO3."
+      "answer_preview": "The provided context does not specify the total number of skills the BigEd fleet has."
     },
     {
       "name": "bookkeeper_monetary",
@@ -48,12 +48,12 @@
       "expected": "Decimal",
       "found_in_context": true,
       "answer_correct": true,
-      "context_latency_s": 0.528,
-      "proxy_latency_s": 16.307,
-      "ellipticity": 0.3482,
+      "context_latency_s": 0.496,
+      "proxy_latency_s": 37.078,
+      "ellipticity": 0.3188,
       "status": "sparse",
       "genes_expressed": 10,
-      "answer_preview": "BookKeeper requires using the **`decimal.Decimal`** type for all monetary values instead of `float`.\n\nKey details regarding its use include:\n\n*   **Storage:** In SQLite, monetary values must be stored"
+      "answer_preview": "Monetary values in BookKeeper should use the **`Decimal` type** from Python's `decimal` module, rather than `float`.\n\nSpecifically, the context indicates the following rules for handling these values:"
     },
     {
       "name": "helix_pipeline_steps",
@@ -61,12 +61,12 @@
       "expected": "6",
       "found_in_context": true,
       "answer_correct": true,
-      "context_latency_s": 0.47,
-      "proxy_latency_s": 26.179,
-      "ellipticity": 0.3958,
+      "context_latency_s": 0.488,
+      "proxy_latency_s": 29.51,
+      "ellipticity": 0.3518,
       "status": "sparse",
       "genes_expressed": 10,
-      "answer_preview": "The Helix expression pipeline consists of **6 steps**:\n\n1. **Extract** \u2014 heuristic keyword extraction from the query (no model call)\n2. **Express** \u2014 (using SQLite promoter-tag lookup)\n3. **Re-rank**\n"
+      "answer_preview": "The Helix expression pipeline consists of **6** steps per turn. These steps are:\n\n1.  **Extract** \u2014 heuristic keyword extraction from the query.\n2.  **Express** \u2014 querying the SQLite promoter-tag look"
     },
     {
       "name": "biged_rust_binary_size",
@@ -74,12 +74,12 @@
       "expected": "11",
       "found_in_context": true,
       "answer_correct": true,
-      "context_latency_s": 0.538,
-      "proxy_latency_s": 28.863,
-      "ellipticity": 0.4886,
+      "context_latency_s": 0.568,
+      "proxy_latency_s": 26.648,
+      "ellipticity": 0.4372,
       "status": "sparse",
       "genes_expressed": 10,
-      "answer_preview": "The binary size of the optimized, release build of the Rust BigEd is **11 MB**.\n\nThis size is specified in the \"BigEd CC \u2014 Rust Production Track\" quick start section:\n```bash\ncargo build --release   #"
+      "answer_preview": "The Rust BigEd build results in an **11MB** single-binary service."
     },
     {
       "name": "genome_compression_target",
@@ -87,38 +87,38 @@
       "expected": "5x",
       "found_in_context": true,
       "answer_correct": true,
-      "context_latency_s": 0.476,
-      "proxy_latency_s": 20.827,
-      "ellipticity": 0.3914,
+      "context_latency_s": 0.444,
+      "proxy_latency_s": 20.188,
+      "ellipticity": 0.3556,
       "status": "sparse",
       "genes_expressed": 10,
-      "answer_preview": "The target compression ratio for Helix Context, according to the criteria established in Gate 3, is **>5x** while maintaining **>80% information retention**."
+      "answer_preview": "The target compression ratio for Helix Context is **>5x** with an expectation of retaining more than 80% of the information."
     },
     {
       "name": "scorerift_preset_dimensions",
       "query": "How many dimensions does the Python preset in ScoreRift check?",
       "expected": "8",
-      "found_in_context": true,
+      "found_in_context": false,
       "answer_correct": false,
-      "context_latency_s": 0.509,
-      "proxy_latency_s": 23.703,
-      "ellipticity": 0.4641,
+      "context_latency_s": 0.482,
+      "proxy_latency_s": 36.072,
+      "ellipticity": 0.4239,
       "status": "sparse",
       "genes_expressed": 10,
-      "answer_preview": "The Python preset in ScoreRift checks **eight** dimensions (real checks, with 0 stubs)."
+      "answer_preview": "The API endpoint `/api/audit/scores` is documented to return the most recent audit scores for all **12 dimensions**."
     },
     {
       "name": "helix_ribosome_budget",
       "query": "How many tokens are allocated for the ribosome decoder prompt?",
       "expected": "3000",
-      "found_in_context": true,
-      "answer_correct": true,
-      "context_latency_s": 0.488,
-      "proxy_latency_s": 22.956,
-      "ellipticity": 0.3634,
+      "found_in_context": false,
+      "answer_correct": false,
+      "context_latency_s": 0.455,
+      "proxy_latency_s": 22.283,
+      "ellipticity": 0.3397,
       "status": "sparse",
       "genes_expressed": 10,
-      "answer_preview": "The token budget allocated for the ribosome decoder prompt is **3k** (or 3000)."
+      "answer_preview": "The token budget allocated for the ribosome decoder prompt is **3k**."
     },
     {
       "name": "biged_default_model",
@@ -126,17 +126,17 @@
       "expected": "qwen3",
       "found_in_context": false,
       "answer_correct": false,
-      "context_latency_s": 0.515,
-      "proxy_latency_s": 31.845,
-      "ellipticity": 0.364,
+      "context_latency_s": 0.588,
+      "proxy_latency_s": 31.49,
+      "ellipticity": 0.3297,
       "status": "sparse",
       "genes_expressed": 10,
-      "answer_preview": "The provided context does not mention the default local model used by BigEd for any specific function or task."
+      "answer_preview": "The provided context mentions the use of **Ollama management** and a PyO3 skill bridge for tasks like \"Ollama inference,\" but it does not specify what the default local model used by BigEd for conduct"
     }
   ],
   "summary": {
-    "context_retrieval_rate": 0.7,
+    "context_retrieval_rate": 0.6,
     "answer_accuracy_rate": 0.6,
-    "avg_context_latency_s": 0.504
+    "avg_context_latency_s": 0.505
   }
 }

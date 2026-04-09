@@ -118,6 +118,36 @@ class Genome:
             "ON promoter_index(gene_id)"
         )
 
+        # ── Auto-repair corrupt data on startup ──────────────────
+        repaired = 0
+        bad = cur.execute(
+            "SELECT COUNT(*) FROM genes WHERE typeof(chromatin) != 'integer' "
+            "OR chromatin IS NULL OR chromatin NOT IN (0, 1, 2)"
+        ).fetchone()[0]
+        if bad:
+            cur.execute(
+                "UPDATE genes SET chromatin = 0 "
+                "WHERE typeof(chromatin) != 'integer' "
+                "OR chromatin IS NULL OR chromatin NOT IN (0, 1, 2)"
+            )
+            repaired += bad
+            log.warning("Auto-repaired %d genes with corrupt chromatin", bad)
+
+        null_epi = cur.execute(
+            "SELECT COUNT(*) FROM genes WHERE epigenetics IS NULL"
+        ).fetchone()[0]
+        if null_epi:
+            default_epi = '{"created_at":0,"last_accessed":0,"access_count":0,"co_activated_with":[],"typed_co_activated":[],"decay_score":1.0}'
+            cur.execute(
+                "UPDATE genes SET epigenetics = ? WHERE epigenetics IS NULL",
+                (default_epi,),
+            )
+            repaired += null_epi
+            log.warning("Auto-repaired %d genes with NULL epigenetics", null_epi)
+
+        if repaired:
+            self.conn.commit()
+
         # FTS5 full-text index on gene content + complement
         # Standalone table (not content-synced) for simplicity
         try:
@@ -129,6 +159,18 @@ class Genome:
             )
             """)
             self._fts_available = True
+
+            # Auto-sync FTS5 if out of date
+            gene_count = cur.execute("SELECT COUNT(*) FROM genes").fetchone()[0]
+            fts_count = cur.execute("SELECT COUNT(*) FROM genes_fts").fetchone()[0]
+            if abs(gene_count - fts_count) > 0:
+                log.info("FTS5 out of sync (%d genes, %d fts) — rebuilding", gene_count, fts_count)
+                cur.execute("DELETE FROM genes_fts")
+                cur.execute(
+                    "INSERT INTO genes_fts(gene_id, content, complement) "
+                    "SELECT gene_id, content, COALESCE(complement, '') FROM genes"
+                )
+                self.conn.commit()
         except Exception:
             log.warning("FTS5 not available — content search disabled")
             self._fts_available = False
@@ -448,8 +490,8 @@ class Genome:
             gene_ids,
         ).fetchall()
 
-        # Prepare batch update
-        updates = []
+        # Individual UPDATEs — safe against column-swap corruption
+        # (CASE WHEN batch was causing epigenetics JSON to land in chromatin)
         for row in rows:
             if not row["epigenetics"]:
                 continue
@@ -457,13 +499,13 @@ class Genome:
             epi.last_accessed = now
             epi.access_count += 1
             epi.decay_score = min(1.0, epi.decay_score + 0.1)
-            updates.append((row["gene_id"], epi.model_dump_json(), int(ChromatinState.OPEN)))
+            cur.execute(
+                "UPDATE genes SET epigenetics = ?, chromatin = ? WHERE gene_id = ?",
+                (epi.model_dump_json(), int(ChromatinState.OPEN), row["gene_id"]),
+            )
 
-        if updates:
-            sql, params = batch_update_epigenetics(updates)
-            cur.execute(sql, params)
-            self.conn.commit()
-            clear_parse_caches()
+        self.conn.commit()
+        clear_parse_caches()
 
     # ── Update co-activation links (mutual) ─────────────────────────
 
