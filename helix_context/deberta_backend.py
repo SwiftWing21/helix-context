@@ -127,8 +127,18 @@ class DeBERTaRibosome:
         if isinstance(scores, float):
             scores = [scores]
 
-        # Sort by score
-        scored = sorted(zip(scores, candidates), key=lambda x: x[0], reverse=True)
+        # Blend DeBERTa score with retrieval position bonus.
+        # Candidates arrive pre-sorted by hybrid retrieval score (promoter + FTS5).
+        # A gene ranked #1 by retrieval gets a 0.3 bonus, #16 gets ~0.02.
+        # This prevents the re-ranker from discarding genes that matched
+        # on content but have vague tag summaries.
+        n = len(candidates)
+        blended = []
+        for i, (score, gene) in enumerate(zip(scores, candidates)):
+            position_bonus = 0.3 * (1.0 - i / max(n, 1))
+            blended.append((score + position_bonus, gene))
+
+        scored = sorted(blended, key=lambda x: x[0], reverse=True)
 
         elapsed_ms = (time.perf_counter() - t0) * 1000
         log.info(
@@ -186,10 +196,17 @@ class DeBERTaRibosome:
         if isinstance(probs, float):
             probs = [probs]
 
+        # Extract query keywords for content-match preservation
+        query_lower = query.lower().split()
+        query_keywords = {w.strip("?.,!;:'\"()[]{}") for w in query_lower if len(w) > 2}
+
         # Reconstruct per-gene decisions
         gene_keep: Dict[int, List[int]] = {i: [] for i in range(len(genes))}
         for (gi, ci), prob in zip(pair_index, probs):
-            if prob >= self.splice_threshold:
+            # Always keep codons that contain query terms (content-match preservation)
+            codon_lower = genes[gi].codons[ci].lower() if ci < len(genes[gi].codons) else ""
+            content_match = any(kw in codon_lower for kw in query_keywords)
+            if prob >= self.splice_threshold or content_match:
                 gene_keep[gi].append(ci)
 
         # Build spliced text

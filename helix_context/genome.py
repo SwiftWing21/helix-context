@@ -116,6 +116,21 @@ class Genome:
             "ON promoter_index(gene_id)"
         )
 
+        # FTS5 full-text index on gene content + complement
+        # Standalone table (not content-synced) for simplicity
+        try:
+            cur.execute("""
+            CREATE VIRTUAL TABLE IF NOT EXISTS genes_fts USING fts5(
+                gene_id,
+                content,
+                complement
+            )
+            """)
+            self._fts_available = True
+        except Exception:
+            log.warning("FTS5 not available — content search disabled")
+            self._fts_available = False
+
         self.conn.commit()
 
     # ── Gene ID (content-addressable) ───────────────────────────────
@@ -164,6 +179,17 @@ class Genome:
                 (gene_id, e.lower()),
             )
 
+        # Sync FTS5 index
+        if self._fts_available:
+            try:
+                cur.execute(
+                    "INSERT OR REPLACE INTO genes_fts(gene_id, content, complement) "
+                    "VALUES (?, ?, ?)",
+                    (gene_id, gene.content, gene.complement or ""),
+                )
+            except Exception:
+                pass  # FTS sync failure is non-fatal
+
         self.conn.commit()
         return gene_id
 
@@ -177,7 +203,7 @@ class Genome:
                 expanded.update(self.synonym_map[key])
         return list(expanded)
 
-    # ── Core retrieval (Step 2) ─────────────────────────────────────
+    # ── Core retrieval (Step 2) — hybrid promoter + FTS5 ────────────
 
     def query_genes(
         self,
@@ -188,8 +214,13 @@ class Genome:
         """
         Find genes matching the given promoter signals.
 
-        Applies synonym expansion (Fix 1) and co-activation pull-forward (Fix 1).
-        Returns up to max_genes * 2 candidates for downstream re-ranking.
+        Three-tier retrieval:
+            1. Exact promoter tag match (highest confidence)
+            2. Prefix tag match — "server" matches "serverconfig" (medium)
+            3. FTS5 content search — searches gene text directly (fallback)
+
+        Results are merged with weighted scoring, then expanded via
+        co-activation pull-forward. Returns up to max_genes * 2 candidates.
         """
         domains = self._expand_terms(domains)
         entities = self._expand_terms(entities)
@@ -199,29 +230,111 @@ class Genome:
             raise PromoterMismatch("No query terms after expansion")
 
         cur = self.conn.cursor()
-        placeholders = ",".join("?" * len(query_terms))
+        limit = max_genes * 2
 
+        # Gene scores: gene_id → float (accumulated across tiers)
+        gene_scores: Dict[str, float] = {}
+
+        # ── Tier 1: exact promoter tag match (weight 3.0) ──────────
+        placeholders = ",".join("?" * len(query_terms))
         rows = cur.execute(
             f"""
-            SELECT g.*, COUNT(pi.tag_value) AS match_score
+            SELECT g.gene_id, COUNT(pi.tag_value) AS match_count
             FROM genes g
             JOIN promoter_index pi ON g.gene_id = pi.gene_id
             WHERE pi.tag_value IN ({placeholders})
               AND g.chromatin < ?
             GROUP BY g.gene_id
-            ORDER BY match_score DESC
-            LIMIT ?
             """,
-            (*query_terms, int(ChromatinState.HETEROCHROMATIN), max_genes * 2),
+            (*query_terms, int(ChromatinState.HETEROCHROMATIN)),
         ).fetchall()
 
-        if not rows:
-            raise PromoterMismatch("Zero genes matched query terms")
+        for r in rows:
+            gene_scores[r["gene_id"]] = r["match_count"] * 3.0
 
-        genes = [self._row_to_gene(r) for r in rows]
+        # ── Tier 2: prefix tag match (weight 1.5) ──────────────────
+        # "server" matches "serverconfig", "server_api", etc.
+        prefix_conditions = " OR ".join(
+            "pi.tag_value LIKE ?" for _ in query_terms
+        )
+        prefix_params = [f"{t}%" for t in query_terms]
+        rows = cur.execute(
+            f"""
+            SELECT g.gene_id, COUNT(pi.tag_value) AS match_count
+            FROM genes g
+            JOIN promoter_index pi ON g.gene_id = pi.gene_id
+            WHERE ({prefix_conditions})
+              AND g.chromatin < ?
+            GROUP BY g.gene_id
+            """,
+            (*prefix_params, int(ChromatinState.HETEROCHROMATIN)),
+        ).fetchall()
 
-        # Fix 1: co-activation pull-forward
-        expanded = self._expand_coactivated(genes, limit=max_genes * 2)
+        for r in rows:
+            gid = r["gene_id"]
+            prefix_score = r["match_count"] * 1.5
+            gene_scores[gid] = gene_scores.get(gid, 0) + prefix_score
+
+        # ── Tier 3: FTS5 content search (weight 2.0) ───────────────
+        if self._fts_available:
+            # Build FTS5 query: OR-join all terms
+            fts_query = " OR ".join(
+                f'"{t}"' for t in query_terms if len(t) > 2
+            )
+            if fts_query:
+                try:
+                    fts_rows = cur.execute(
+                        """
+                        SELECT gene_id, rank
+                        FROM genes_fts
+                        WHERE genes_fts MATCH ?
+                        ORDER BY rank
+                        LIMIT ?
+                        """,
+                        (fts_query, limit * 2),
+                    ).fetchall()
+
+                    # Filter by chromatin state (batch lookup)
+                    if fts_rows:
+                        fts_ids = [r["gene_id"] for r in fts_rows]
+                        fts_ranks = {r["gene_id"]: r["rank"] for r in fts_rows}
+                        id_ph = ",".join("?" * len(fts_ids))
+                        valid = cur.execute(
+                            f"SELECT gene_id FROM genes "
+                            f"WHERE gene_id IN ({id_ph}) AND chromatin < ?",
+                            (*fts_ids, int(ChromatinState.HETEROCHROMATIN)),
+                        ).fetchall()
+                        valid_ids = {r["gene_id"] for r in valid}
+
+                        for gid in fts_ids:
+                            if gid not in valid_ids:
+                                continue
+                            # FTS5 rank is negative (lower = better match)
+                            # Normalize: -rank gives positive, cap at 10
+                            fts_score = min(-fts_ranks[gid], 10.0) * 2.0
+                            gene_scores[gid] = gene_scores.get(gid, 0) + fts_score
+                except Exception:
+                    log.warning("FTS5 query failed", exc_info=True)
+
+        if not gene_scores:
+            raise PromoterMismatch("Zero genes matched across all tiers")
+
+        # Sort by combined score, fetch top genes
+        ranked_ids = sorted(gene_scores, key=gene_scores.get, reverse=True)[:limit]
+
+        # Batch fetch gene rows
+        id_placeholders = ",".join("?" * len(ranked_ids))
+        rows = cur.execute(
+            f"SELECT * FROM genes WHERE gene_id IN ({id_placeholders})",
+            ranked_ids,
+        ).fetchall()
+
+        # Preserve ranked order
+        row_map = {r["gene_id"]: r for r in rows}
+        genes = [self._row_to_gene(row_map[gid]) for gid in ranked_ids if gid in row_map]
+
+        # Co-activation pull-forward
+        expanded = self._expand_coactivated(genes, limit=limit)
 
         # Dedupe while preserving order
         seen: set[str] = set()
@@ -231,7 +344,7 @@ class Genome:
                 seen.add(g.gene_id)
                 result.append(g)
 
-        return result[: max_genes * 2]
+        return result[:limit]
 
     # ── Co-activation expansion ─────────────────────────────────────
 
@@ -281,18 +394,32 @@ class Genome:
     # ── Row → Gene ──────────────────────────────────────────────────
 
     def _row_to_gene(self, row: sqlite3.Row) -> Gene:
+        # Guard against NULL/corrupt metadata fields
+        try:
+            promoter = parse_promoter(row["promoter"]) if row["promoter"] else PromoterTags()
+        except Exception:
+            promoter = PromoterTags()
+        try:
+            epigenetics = parse_epigenetics(row["epigenetics"]) if row["epigenetics"] else EpigeneticMarkers()
+        except Exception:
+            epigenetics = EpigeneticMarkers()
+        try:
+            chromatin = ChromatinState(row["chromatin"]) if row["chromatin"] is not None else ChromatinState.OPEN
+        except (ValueError, TypeError):
+            chromatin = ChromatinState.OPEN
+
         return Gene(
             gene_id=row["gene_id"],
             content=row["content"],
             complement=row["complement"],
-            codons=json_loads(row["codons"]),
-            promoter=parse_promoter(row["promoter"]),
-            epigenetics=parse_epigenetics(row["epigenetics"]),
-            chromatin=ChromatinState(row["chromatin"]),
-            is_fragment=bool(row["is_fragment"]),
+            codons=json_loads(row["codons"]) if row["codons"] else [],
+            promoter=promoter,
+            epigenetics=epigenetics,
+            chromatin=chromatin,
+            is_fragment=bool(row["is_fragment"]) if row["is_fragment"] is not None else False,
             embedding=json_loads(row["embedding"]) if row["embedding"] else None,
             source_id=row["source_id"],
-            version=row["version"],
+            version=row["version"] if row["version"] is not None else 1,
             supersedes=row["supersedes"],
         )
 
@@ -478,7 +605,13 @@ class Genome:
             "SELECT chromatin, COUNT(*) FROM genes GROUP BY chromatin"
         ).fetchall()
 
-        chromatin_counts = {ChromatinState(r[0]).name: r[1] for r in by_chromatin}
+        chromatin_counts = {}
+        for r in by_chromatin:
+            try:
+                key = ChromatinState(int(r[0])).name if r[0] is not None else "UNKNOWN"
+            except (ValueError, TypeError):
+                key = "UNKNOWN"
+            chromatin_counts[key] = chromatin_counts.get(key, 0) + r[1]
 
         total_raw = cur.execute(
             "SELECT COALESCE(SUM(LENGTH(content)), 0) FROM genes"
@@ -577,6 +710,26 @@ class Genome:
             "avg_freshness": round(avg[3], 4),
             "status_counts": status_counts,
         }
+
+    # ── FTS5 index rebuild ────────────────────────────────────────────
+
+    def rebuild_fts(self) -> int:
+        """Rebuild the FTS5 index from all genes. Returns count indexed."""
+        if not self._fts_available:
+            log.warning("FTS5 not available — cannot rebuild")
+            return 0
+
+        cur = self.conn.cursor()
+        # Clear and repopulate
+        cur.execute("DELETE FROM genes_fts")
+        cur.execute(
+            "INSERT INTO genes_fts(gene_id, content, complement) "
+            "SELECT gene_id, content, COALESCE(complement, '') FROM genes"
+        )
+        self.conn.commit()
+        count = cur.execute("SELECT COUNT(*) FROM genes_fts").fetchone()[0]
+        log.info("FTS5 index rebuilt: %d genes indexed", count)
+        return count
 
     # ── Close ───────────────────────────────────────────────────────
 
