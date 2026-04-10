@@ -19,6 +19,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
+import re
 import sqlite3
 import time
 from typing import Dict, List, Optional
@@ -35,6 +36,96 @@ from .exceptions import PromoterMismatch
 from .schemas import ChromatinState, EpigeneticMarkers, Gene, PromoterTags
 
 log = logging.getLogger(__name__)
+
+
+# ── Struggle 1 fix: source-path deny list ───────────────────────────────
+#
+# Paths that are structurally noise regardless of content. Any gene whose
+# source_id matches one of these patterns goes directly to HETEROCHROMATIN
+# without computing a density score — it's cheaper and more reliable than
+# relying on the scorer for content types we already know are noise.
+#
+# Categories covered:
+#   - Steam / game content (localization, assets, maps, subtitles, levels)
+#   - Build artifacts (.next, node_modules, __pycache__, dist, build, target)
+#   - Lockfiles and minified bundles
+#   - Web manifest files (app-paths-manifest.json, reference-manifest.js)
+#   - Non-English locale directories (game translations are high-volume noise)
+#
+# NOT in this list (deliberate):
+#   - *.csv — business CSVs (customer data, financial records, invoice exports)
+#     are legitimate ingest targets. Game-localization CSVs are caught by
+#     the Hades/Factorio path patterns. Generic low-density CSVs will be
+#     caught by the score gate instead.
+#   - *.json — JSON is everywhere, most of it is config/data with signal
+#   - *.md — markdown is primary signal content
+#   - Cargo.toml / pyproject.toml — project metadata is signal
+#
+# Patterns are anchored to directory boundaries to avoid false positives
+# on legitimate files that happen to contain the substring.
+_DENY_PATTERNS = [
+    # Steam / game content
+    r"[\\/]SteamLibrary[\\/]",
+    r"[\\/]steamapps[\\/]common[\\/]",
+    r"[\\/]BeamNG\.drive[\\/]",
+    r"[\\/]Hades[\\/]Content[\\/]",
+    r"[\\/]Factorio[\\/]data[\\/]base[\\/]",
+    r"[\\/]Dyson Sphere",
+    # Build artifacts
+    r"[\\/]\.next[\\/]",
+    r"[\\/]node_modules[\\/]",
+    r"[\\/]__pycache__[\\/]",
+    r"[\\/]dist[\\/]",
+    r"[\\/]build[\\/](?!\.(bat|ps1|sh)$)",  # keep build.bat/build.sh etc.
+    r"[\\/]target[\\/]debug[\\/]",
+    r"[\\/]target[\\/]release[\\/]",
+    # Lockfiles / manifests
+    r"[\\/]package-lock\.json$",
+    r"[\\/]yarn\.lock$",
+    r"[\\/]Cargo\.lock$",
+    r"[\\/]uv\.lock$",
+    r"[\\/]poetry\.lock$",
+    r"[\\/]Pipfile\.lock$",
+    r"[\\/]composer\.lock$",
+    # Minified bundles / source maps
+    r"\.min\.(js|css|mjs)$",
+    r"\.map$",
+    # Next.js / web-framework manifests
+    r"app-paths-manifest\.json$",
+    r"app-build-manifest\.json$",
+    r"_buildManifest\.js$",
+    r"_ssgManifest\.js$",
+    r"client-reference-manifest\.(js|json)$",
+    r"server-reference-manifest\.(js|json)$",
+    # Binary / compiled artifacts
+    r"\.(pyc|pyo|so|dll|dylib|exe|wasm|bin|pack|idx)$",
+    # Non-English game locales (English is kept; other locales are
+    # high-volume low-signal for the current English-speaking user base)
+    r"[\\/]locale[\\/](?!en[\\/])[a-z]{2,3}[\\/]",
+    r"[\\/]Subtitles[\\/](?!en[\\/])[a-z]{2,3}[\\/]",
+]
+
+_DENY_RE = re.compile("|".join(_DENY_PATTERNS), re.IGNORECASE)
+
+
+def is_denied_source(source_id: Optional[str]) -> bool:
+    """Return True iff source_id matches the structural noise deny list.
+
+    Exposed as a module-level function so tests and scripts can reuse it
+    without constructing a full Genome instance.
+    """
+    if not source_id:
+        return False
+    return bool(_DENY_RE.search(source_id))
+
+
+# Thresholds for the score-based gate. Calibrated against the 2026-04-10
+# noise-diluted genome (8,063 genes, ~42% structural noise). See
+# scripts/simulate_density_gate_v2.py for the empirical basis.
+_DENSITY_HETEROCHROMATIN_THRESHOLD = 0.50
+_DENSITY_EUCHROMATIN_THRESHOLD = 1.00
+_DENSITY_CONTENT_LENGTH_FLOOR = 100  # chars — prevents tiny-content score explosion
+_DENSITY_ACCESS_OVERRIDE = 5         # access_count >= this keeps gene OPEN regardless
 
 
 class Genome:
@@ -268,7 +359,92 @@ class Genome:
             log.warning("FTS5 not available — content search disabled")
             self._fts_available = False
 
+        # ── Session registry tables (see docs/SESSION_REGISTRY.md) ──
+        # Purely additive — presence, attribution, and the BM25 bypass for
+        # `GET /sessions/{handle}/recent`. Schema creation is idempotent;
+        # skipping this block would leave older databases unable to use
+        # the registry endpoints but would not break anything else.
+        try:
+            self._ensure_registry_schema(cur)
+        except Exception:
+            log.warning("Session registry schema init failed", exc_info=True)
+
         self.conn.commit()
+
+    def _ensure_registry_schema(self, cur: sqlite3.Cursor) -> None:
+        """Create session registry tables + indexes. Idempotent.
+
+        Adds three tables:
+            - parties:           atomic trust identities
+            - participants:      live runtime actors under a party
+            - gene_attribution:  links genes to the party/participant that wrote them
+
+        See docs/SESSION_REGISTRY.md for the full design.
+        """
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS parties (
+            party_id      TEXT PRIMARY KEY,
+            display_name  TEXT NOT NULL,
+            trust_domain  TEXT NOT NULL DEFAULT 'local',
+            created_at    REAL NOT NULL,
+            metadata      TEXT
+        )
+        """)
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_parties_trust_domain "
+            "ON parties(trust_domain)"
+        )
+
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS participants (
+            participant_id   TEXT PRIMARY KEY,
+            party_id         TEXT NOT NULL REFERENCES parties(party_id),
+            handle           TEXT NOT NULL,
+            workspace        TEXT,
+            pid              INTEGER,
+            started_at       REAL NOT NULL,
+            last_heartbeat   REAL NOT NULL,
+            status           TEXT NOT NULL DEFAULT 'active',
+            capabilities     TEXT,
+            metadata         TEXT
+        )
+        """)
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_participants_party "
+            "ON participants(party_id)"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_participants_heartbeat "
+            "ON participants(last_heartbeat)"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_participants_handle "
+            "ON participants(handle)"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_participants_status "
+            "ON participants(status)"
+        )
+
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS gene_attribution (
+            gene_id         TEXT PRIMARY KEY
+                            REFERENCES genes(gene_id) ON DELETE CASCADE,
+            party_id        TEXT NOT NULL
+                            REFERENCES parties(party_id),
+            participant_id  TEXT
+                            REFERENCES participants(participant_id) ON DELETE SET NULL,
+            authored_at     REAL NOT NULL
+        )
+        """)
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_attribution_party_time "
+            "ON gene_attribution(party_id, authored_at DESC)"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_attribution_participant_time "
+            "ON gene_attribution(participant_id, authored_at DESC)"
+        )
 
     # ── WAL snapshot management ──────────────────────────────────────
 
@@ -387,8 +563,52 @@ class Genome:
 
     # ── Upsert ──────────────────────────────────────────────────────
 
-    def upsert_gene(self, gene: Gene) -> str:
+    def upsert_gene(self, gene: Gene, apply_gate: bool = True) -> str:
+        """
+        Insert or replace a gene in the genome.
+
+        If ``apply_gate`` is True (the default), the density gate runs
+        before storage and may override the gene's chromatin state. Callers
+        that have a reason to bypass the gate — HGT imports, benchmark
+        setup scripts, explicit backfill tools, manual `compact_genome`
+        re-runs — can pass ``apply_gate=False`` to preserve the incoming
+        chromatin state as-is.
+
+        Returns the gene_id (content-addressed if not pre-populated).
+        """
         gene_id = gene.gene_id or self.make_gene_id(gene.content)
+
+        # Struggle 1 fix: apply density gate at the storage boundary so
+        # that bulk ingest scripts (ingest_steam.py, ingest_fdrive.py,
+        # ingest_all.py) calling upsert_gene directly also respect the
+        # gate. Previously the gate lived in context_manager.ingest() and
+        # was bypassed by every bulk ingest path. See:
+        #   scripts/simulate_density_gate_v2.py for the empirical basis
+        #   (51.6% of the noise-diluted genome demoted, >97% signal retained).
+        #
+        # Crucially, the gate only acts on genes arriving as OPEN — if the
+        # caller has explicitly set EUCHROMATIN or HETEROCHROMATIN, we
+        # trust that decision. This means HGT imports, test fixtures, and
+        # any code that deliberately creates demoted genes retain their
+        # intended state. The gate is admission-control, not state-reset.
+        if apply_gate and gene.chromatin == ChromatinState.OPEN:
+            new_state, reason = self.apply_density_gate(gene)
+            if new_state != gene.chromatin:
+                log.debug(
+                    "Density gate demoted %s: OPEN -> %s (reason=%s)",
+                    gene_id, new_state.name, reason,
+                )
+                gene.chromatin = new_state
+        else:
+            reason = "gate_bypassed" if not apply_gate else "explicit_chromatin_preserved"
+
+        # Compute compression tier from final chromatin state
+        tier = 0  # OPEN
+        if gene.chromatin == ChromatinState.EUCHROMATIN:
+            tier = 1
+        elif gene.chromatin == ChromatinState.HETEROCHROMATIN:
+            tier = 2
+
         cur = self.conn.cursor()
 
         cur.execute(
@@ -411,7 +631,7 @@ class Genome:
                 gene.version,
                 gene.supersedes,
                 json_dumps(gene.key_values) if gene.key_values else None,
-                0,  # compression_tier: OPEN by default
+                tier,
             ),
         )
         # Invalidate parse cache for this gene's promoter/epigenetics
@@ -1012,8 +1232,10 @@ class Genome:
 
         return Gene(
             gene_id=row["gene_id"],
-            content=row["content"],
-            complement=row["complement"],
+            content=row["content"] or "",
+            # Heterochromatin-compressed genes have complement=NULL after
+            # compress_to_heterochromatin(). Fall back to "" for Pydantic.
+            complement=row["complement"] or "",
             codons=json_loads(row["codons"]) if row["codons"] else [],
             promoter=promoter,
             epigenetics=epigenetics,
@@ -1492,14 +1714,20 @@ class Genome:
           - Key-value extraction count (factual density)
           - Content length efficiency (short + rich > long + sparse)
           - Access count (usage signal from epigenetics)
+
+        Uses a content-length floor (100 chars) in the denominator to
+        prevent tiny-content genes from producing nonsensical tag-density
+        scores of 20+. See _DENSITY_CONTENT_LENGTH_FLOOR above.
         """
         tag_count = len(gene.promoter.domains) + len(gene.promoter.entities)
         kv_count = len(gene.key_values) if gene.key_values else 0
-        content_len = max(len(gene.content), 1)
+        # Floor the content length so a 30-char gene with 5 tags doesn't
+        # produce tag_density = 166 and break all downstream thresholds
+        effective_len = max(len(gene.content), _DENSITY_CONTENT_LENGTH_FLOOR)
 
-        # Normalize: tags per KB of content
-        tag_density = tag_count / (content_len / 1000.0)
-        kv_density = kv_count / (content_len / 1000.0)
+        # Normalize: tags per KB of (effective) content
+        tag_density = tag_count / (effective_len / 1000.0)
+        kv_density = kv_count / (effective_len / 1000.0)
         access = gene.epigenetics.access_count
 
         # Weighted combination (tag density dominates)
@@ -1510,6 +1738,45 @@ class Genome:
             + (1.0 if gene.complement and len(gene.complement) > 50 else 0.0) * 0.1
         )
         return score
+
+    def apply_density_gate(self, gene: Gene) -> tuple[ChromatinState, str]:
+        """
+        Decide the chromatin state for a gene at ingest time.
+
+        Returns (chromatin_state, reason) — reason is one of:
+            "deny_list"        : source path matches structural deny list
+            "low_score_hetero" : score below heterochromatin threshold
+            "low_score_euchro" : score below euchromatin threshold
+            "access_override"  : accessed >=5 times, gate bypassed
+            "open"             : high score or unknown source, keep OPEN
+
+        Never raises. Never touches the database. Pure decision function.
+
+        The gate has three stages:
+          1. Path deny list (fast-reject for structural noise)
+          2. Access-count override (never demote frequently-used genes)
+          3. Score-based demotion (tag + KV density with recalibrated thresholds)
+
+        The access override runs BEFORE the score check so that a gene
+        that's been touched multiple times can't be killed by a batch
+        compact_genome sweep just because its static content is sparse.
+        """
+        # Stage 1: structural deny list
+        if is_denied_source(gene.source_id):
+            return ChromatinState.HETEROCHROMATIN, "deny_list"
+
+        # Stage 2: access-count override (meaningful usage history wins)
+        access = gene.epigenetics.access_count if gene.epigenetics else 0
+        if access >= _DENSITY_ACCESS_OVERRIDE:
+            return ChromatinState.OPEN, "access_override"
+
+        # Stage 3: score-based demotion
+        score = self.compute_density_score(gene)
+        if score < _DENSITY_HETEROCHROMATIN_THRESHOLD:
+            return ChromatinState.HETEROCHROMATIN, "low_score_hetero"
+        if score < _DENSITY_EUCHROMATIN_THRESHOLD:
+            return ChromatinState.EUCHROMATIN, "low_score_euchro"
+        return ChromatinState.OPEN, "open"
 
     def compress_to_euchromatin(self, gene_id: str) -> bool:
         """
@@ -1569,16 +1836,32 @@ class Genome:
         log.debug("Compressed gene %s to HETEROCHROMATIN", gene_id)
         return True
 
-    def compact_genome(
-        self,
-        density_threshold: float = 0.3,
-        access_threshold: int = 5,
-        dry_run: bool = False,
-    ) -> Dict:
+    def compact_genome(self, dry_run: bool = False) -> Dict:
         """
-        Run a compaction sweep: demote low-density, low-access genes.
+        Run a compaction sweep: apply the density gate to every currently-OPEN
+        gene and demote those that fail it.
 
-        Returns dict with counts of genes moved to each tier.
+        Shares gate logic with ingest-time `apply_density_gate()`, so a gene
+        that would be demoted by a fresh ingest will also be demoted by a
+        retroactive sweep. The three stages are the same:
+          1. Structural deny list (Steam, build artifacts, lockfiles, etc.)
+          2. Access-count override (access_count >= 5 keeps gene OPEN)
+          3. Score-based thresholds (< 0.5 hetero, < 1.0 euchro, else open)
+
+        Only operates on genes currently at compression_tier = 0 (OPEN).
+        Already-demoted genes are left alone.
+
+        When ``dry_run=True``, returns the same stats without writing to
+        the DB. Useful for previewing the impact before running the sweep
+        against a live genome.
+
+        Returns a dict with:
+            scanned               : number of OPEN genes examined
+            to_heterochromatin    : count that would go to HETEROCHROMATIN
+            to_euchromatin        : count that would go to EUCHROMATIN
+            kept_open             : count that would stay OPEN
+            skipped_no_embedding  : count skipped because no ΣĒMA vector exists
+            by_reason             : dict of reason counts (deny_list, low_score_*, etc.)
         """
         cur = self.conn.cursor()
         rows = cur.execute(
@@ -1588,45 +1871,93 @@ class Genome:
             "FROM genes WHERE compression_tier = 0"
         ).fetchall()
 
-        stats = {"scanned": len(rows), "to_euchromatin": 0, "to_heterochromatin": 0, "kept_open": 0}
+        stats = {
+            "scanned": len(rows),
+            "to_euchromatin": 0,
+            "to_heterochromatin": 0,
+            "kept_open": 0,
+            "skipped_no_embedding": 0,
+            "by_reason": {},
+        }
 
         for r in rows:
             gene = self._compact_row_to_gene(r)
             if gene is None:
                 continue
 
-            score = self.compute_density_score(gene)
-            access = gene.epigenetics.access_count
-            has_embedding = r["embedding"] is not None
+            new_state, reason = self.apply_density_gate(gene)
+            stats["by_reason"][reason] = stats["by_reason"].get(reason, 0) + 1
 
-            if score < density_threshold and access < access_threshold:
-                if gene.complement and len(gene.complement) > 30 and has_embedding:
-                    # Has summary + ΣĒMA → compress to EUCHROMATIN
+            if new_state == ChromatinState.OPEN:
+                stats["kept_open"] += 1
+                continue
+
+            # Deny-listed genes ALWAYS demote — with or without embedding.
+            # The whole point of the deny list is "this is structural
+            # noise we never want to retrieve again." compress_to_heterochromatin
+            # only needs source_id (it strips content, complement, codons,
+            # SPLADE, and FTS). The pre-existing no-embedding guard below
+            # was a safety for score-based demotions, where a gene might
+            # later turn out to be useful and we want the ΣĒMA vector
+            # available for reactivation. That reasoning doesn't apply
+            # to structural deny-list hits. Previously this guard cost
+            # us ~40% of expected demotions on the 2026-04-10 genome
+            # (3358 genes with no embeddings, mostly from pre-ΣĒMA
+            # bulk ingests like ingest_steam.py).
+            if reason == "deny_list":
+                if not dry_run:
+                    self.compress_to_heterochromatin(gene.gene_id)
+                stats["to_heterochromatin"] += 1
+                continue
+
+            # Score-based demotions keep the embedding guard — these
+            # genes might turn out to be useful later, so we want the
+            # ΣĒMA vector available for reactivation via cosine similarity.
+            has_embedding = r["embedding"] is not None
+            if not has_embedding:
+                stats["skipped_no_embedding"] += 1
+                stats["kept_open"] += 1
+                continue
+
+            if new_state == ChromatinState.EUCHROMATIN:
+                if gene.complement and len(gene.complement) > 30:
                     if not dry_run:
                         self.compress_to_euchromatin(gene.gene_id)
                     stats["to_euchromatin"] += 1
-                elif has_embedding:
-                    # Has ΣĒMA but no useful summary → HETEROCHROMATIN
+                else:
+                    # No summary available to preserve; fall through to
+                    # heterochromatin which doesn't need one
                     if not dry_run:
                         self.compress_to_heterochromatin(gene.gene_id)
                     stats["to_heterochromatin"] += 1
-                else:
-                    stats["kept_open"] += 1  # No embedding, can't cold-store safely
-            else:
-                stats["kept_open"] += 1
+            elif new_state == ChromatinState.HETEROCHROMATIN:
+                if not dry_run:
+                    self.compress_to_heterochromatin(gene.gene_id)
+                stats["to_heterochromatin"] += 1
 
         if not dry_run:
             self.checkpoint("PASSIVE")
 
         log.info(
-            "Compaction sweep: scanned=%d open=%d euchromatin=%d heterochromatin=%d",
+            "Compaction sweep (%s): scanned=%d open=%d euchromatin=%d heterochromatin=%d skipped_no_emb=%d",
+            "dry-run" if dry_run else "applied",
             stats["scanned"], stats["kept_open"],
             stats["to_euchromatin"], stats["to_heterochromatin"],
+            stats["skipped_no_embedding"],
         )
         return stats
 
     def _compact_row_to_gene(self, row) -> Optional[Gene]:
-        """Convert a compact database row to a Gene object. Returns None on error."""
+        """Convert a compact database row to a Gene object. Returns None on error.
+
+        Pre-existing bug fix (2026-04-10): the original version passed
+        key_values=None when the DB column was NULL, but Gene.key_values
+        is declared as list[str] and Pydantic rejects None. Any gene
+        without extracted KVs (~35% of the 2026-04-10 genome sample)
+        silently failed parsing, causing compact_genome to skip them.
+        Now we pass [] as the empty-list fallback, matching how other
+        list fields (codons) are handled.
+        """
         try:
             return Gene(
                 gene_id=row["gene_id"],
@@ -1638,7 +1969,7 @@ class Genome:
                 chromatin=ChromatinState(row["chromatin"]),
                 embedding=json_loads(row["embedding"]) if row["embedding"] else None,
                 source_id=row["source_id"],
-                key_values=json_loads(row["key_values"]) if row["key_values"] else None,
+                key_values=json_loads(row["key_values"]) if row["key_values"] else [],
             )
         except Exception:
             log.debug("Failed to parse gene row %s", row["gene_id"], exc_info=True)

@@ -186,7 +186,13 @@ class TestGenomeStress:
                 ),
                 epigenetics=EpigeneticMarkers(),
             )
-            genome.upsert_gene(gene)
+            # Bypass the density gate for test fixture loading — these
+            # tests care about query/retrieval logic, not gate behavior.
+            # The hand-crafted domains/entities don't reflect what the
+            # real CpuTagger would produce, so the fixtures would be
+            # demoted on per-KB tag density even though their intent is
+            # "signal content worth retrieving".
+            genome.upsert_gene(gene, apply_gate=False)
 
         yield genome
         genome.close()

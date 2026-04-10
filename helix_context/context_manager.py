@@ -309,24 +309,22 @@ class HelixContextManager:
             if sema_vectors is not None and i < len(sema_vectors):
                 gene.embedding = sema_vectors[i]
 
-            # Density gate: score gene before committing
-            # Low-density genes (boilerplate, configs, manifests) go directly
-            # to EUCHROMATIN/HETEROCHROMATIN to prevent retrieval pollution
-            density = self.genome.compute_density_score(gene)
-            if density < 0.15:
-                # Very low density → HETEROCHROMATIN (metadata only)
-                gene.chromatin = ChromatinState.HETEROCHROMATIN
-            elif density < 0.25:
-                # Low density → EUCHROMATIN (summary only)
-                gene.chromatin = ChromatinState.EUCHROMATIN
-
+            # Density gate now lives in genome.upsert_gene() itself so that
+            # bulk ingest scripts (ingest_steam.py, ingest_all.py, etc.)
+            # that call upsert_gene directly also respect it. The gate
+            # reads the final chromatin state back onto the gene object
+            # and sets compression_tier accordingly during the INSERT.
+            # See helix_context/genome.py:apply_density_gate for the logic.
             gid = self.genome.upsert_gene(gene)
             gene_ids.append(gid)
 
-            # Apply compression tier after upsert (matches chromatin demotion)
-            if density < 0.15 and gene.embedding is not None:
+            # If the gate demoted the gene to heterochromatin, the content
+            # column is still populated — compress_to_heterochromatin()
+            # drops it and strips SPLADE/FTS indices. Run this post-insert
+            # for consistency with the historical behavior.
+            if gene.chromatin == ChromatinState.HETEROCHROMATIN and gene.embedding is not None:
                 self.genome.compress_to_heterochromatin(gid)
-            elif density < 0.25:
+            elif gene.chromatin == ChromatinState.EUCHROMATIN:
                 self.genome.compress_to_euchromatin(gid)
 
         log.info("Ingested %d strands from %s content (%d chars)",
