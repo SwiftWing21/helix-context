@@ -189,19 +189,62 @@ A 4th "desperate" tier (ratio < 1.0, 18 genes, ~17K tokens) is designed but not 
 
 ### Run history
 
-| # | N | Model | Budget | Retr | Accuracy | Time | proxy p50 | Notes |
-|---|---:|---|---|---:|---:|---:|---:|---|
-| 1 | 20 | qwen3:4b | static 15K | 55% | 35% | 10.4 min | 26.8s | ⚠ dual-load (e4b + qwen3:4b in VRAM) |
-| 2 | 50 | qwen3:4b | static 15K | 58% | 28% | 20.1 min | 20.3s | ⚠ dual-load (same) |
-| 3 | 20 | qwen3:4b | dynamic | 45% | 30% | 5.0 min | 6.6s | clean VRAM, e4b unloaded |
-| 4 | 20 | qwen3:8b | dynamic | 45% | 35% | 1.4 min | 3.2s | clean VRAM |
-| 5 | 50 | qwen3:8b | dynamic | 44% | 28% | 6.5 min | 4.4s | clean VRAM, reference baseline |
-| 6 | 20 | qwen3:8b + Headroom | dynamic | 45% | 30% | 3.4 min | 4.7s | **avg injected: 399 tokens** |
+| # | N | Model | Harness | Headroom | Retr | Accuracy | Time | proxy p50 | Notes |
+|---|---:|---|---|---|---:|---:|---:|---:|---|
+| 1 | 20 | qwen3:4b | v1 | truncation | 55% | 35% | 10.4 min | 26.8s | ⚠ dual-load (e4b + qwen3:4b in VRAM) |
+| 2 | 50 | qwen3:4b | v1 | truncation | 58% | 28% | 20.1 min | 20.3s | ⚠ dual-load (same) |
+| 3 | 20 | qwen3:4b | v1 | truncation | 45% | 30% | 5.0 min | 6.6s | clean VRAM, e4b unloaded |
+| 4 | 20 | qwen3:8b | v1 | truncation | 45% | 35% | 1.4 min | 3.2s | clean VRAM |
+| 5 | 50 | qwen3:8b | v1 | truncation | 44% | 28% | 6.5 min | 4.4s | clean VRAM, reference baseline |
+| 6 | 20 | qwen3:8b | v1 | Headroom (Kompress) | 45% | 30% | 3.4 min | 4.7s | **avg injected: 399 tokens** (raude's A/B) |
+| 7 | 20 | qwen3:8b | **v2** | Headroom | 20% | 20% | 3.5 min | 8.1s | v2 first run; small-N noise |
+| 8 | 50 | qwen3:8b | **v1 legacy** | Headroom | **38.0%** | **28.0%** | 6.0 min | 4.9s | **v1-vs-v2 reference baseline** (clean triple) |
+| 9 | 50 | qwen3:8b | **v2** | disabled | **16.0%** | **12.0%** | 14.1 min | 8.2s | **v2 honest floor — raw content** |
+| 10 | 50 | qwen3:8b | **v2** | Headroom | **18.0%** | **14.0%** | 12.8 min | 7.8s | **v2 Headroom A/B** |
 
 **⚠ Dual-load warning (runs #1 and #2):** During the initial static-budget runs the
 GPU held both `gemma4:e4b` (ribosome, 3.6 GB) and `qwen3:4b` (downstream, 3.7 GB)
 simultaneously, putting the 3080 Ti at 10.9/12.0 GB VRAM with thermal pressure.
 Subsequent runs unloaded the ribosome via `/admin/ribosome/pause` before execution.
+
+### The v1 vs v2 harness delta (headline finding)
+
+Runs #8, #9, #10 are a single controlled triple: same N (50), same seed (42),
+same model (qwen3:8b), same frozen genome snapshot, same ribosome-paused server
+state. Only the harness version and the Headroom toggle vary.
+
+| Variant | Retrieval | Answer | Δ vs v1 baseline |
+|---|---:|---:|---|
+| v1 legacy + Headroom (run #8, reference) | 38.0% | 28.0% | — |
+| v2 + Headroom (run #10) | 18.0% | 14.0% | **−20pp retr, −14pp ans** |
+| v2 + no Headroom (run #9) | 16.0% | 12.0% | −22pp retr, −16pp ans |
+
+**The v1 → v2 drop is not a regression.** It is the direct measurement of how
+much v1 was being inflated by phantom KVs matching docstring substrings during
+the retrieval check. v2 rejects ~61% of the v1 candidate pool at harvest time,
+and enforces word-boundary matching at the retrieval check — so phantom
+"successes" (docstring fragments happening to appear in the expressed context
+for unrelated reasons) disappear. The v2 floor is the truer measurement.
+
+**v2 Headroom A/B: neutral.** The +2pp delta between runs #9 and #10 is well
+inside the N=50 noise floor (±5pp 1σ on ~9/50). Consistent with raude's v0.3.0b5
+N=20 A/B on the v1 harness (also neutral). Headroom at its default
+`target_chars=1000` neither helps nor hurts retrieval/extraction on the v2
+benchmark.
+
+**Answer-given-retrieval ceiling:** at N=50, qwen3:8b extracts the correct value
+from ~75% of retrieved contexts on v2 (5–7 answered out of 8–9 retrieved). The
+N=20 "100% answer-given-retrieval" result was small-sample luck — the true
+extraction ceiling is lower but still high. **The remaining gap from 75% to
+100% is the real extraction work to do** — partly the Tally-category blind zone
+(retrieval works but qwen3:8b consistently fails to extract), partly needle
+edge cases. Retrieval at ~16% is still the dominant bottleneck by an order of
+magnitude.
+
+**Why v2 runs are ~2x slower than v1 runs** (context p95 11s vs 1.4s) is an
+open question — likely v2 needle selection hitting different gene patterns that
+trigger expensive retrievals. Flagged for investigation; does not affect the
+accuracy numbers.
 The static-budget retrieval numbers (55-58%) may be slightly inflated by a smaller
 score-gating threshold that hadn't been tightened yet — treat as an upper bound, not
 a clean baseline.
