@@ -85,7 +85,7 @@ still hits 10/10 on project-specific needles hidden in the remaining 34%.
 | 🎮 Steam / game data (Hades subtitles, BeamNG configs, Dyson Sphere blueprints, Factorio saves) | 2,905 | ~7.7M | **65.8%** | — |
 | 🌐 [`SwiftWing21/BigEd`](https://github.com/SwiftWing21/BigEd) — BigEd fleet (Education dir) | 2,405 | ~1.8M | 15.4% | **public** (private worktree ahead by 2 commits) |
 | 🔒 [`CosmicTasha/CosmicTasha`](https://github.com/CosmicTasha/CosmicTasha) | 944 | ~1.6M | 13.9% | private |
-| 🔒 [`SwiftWing21/BookKeeper`](https://github.com/SwiftWing21/BookKeeper) | 242 | ~0.2M | 2.0% | private |
+| 🔒 Project Tally (private financial ledger — repo URL withheld) | 242 | ~0.2M | 2.0% | private |
 | 🌐 [`SwiftWing21/helix-context`](https://github.com/SwiftWing21/helix-context) — this repo | 161 | ~0.1M | 1.2% | public |
 | 🌐 [`SwiftWing21/scorerift`](https://github.com/SwiftWing21/scorerift) — ScoreRift / two-brain-audit | 110 | ~0.1M | 0.7% | public |
 | Unclassified / session memory | 497 | ~0.1M | 1.0% | — |
@@ -111,6 +111,56 @@ to survive mixed-domain corpora.
 > uploaded anywhere**. Even the Education directory is split — the bulk lives in the
 > public [`BigEd`](https://github.com/SwiftWing21/BigEd) repo, with a private worktree
 > ahead by 2 unreleased commits.
+
+### Database Storage Breakdown
+
+The on-disk `genome.db` is **752 MB** for 7,264 genes (~46 MB of raw content).
+Why the 16x gap between raw content and DB file? Because the genome isn't just storage —
+it's a **4-tier retrieval engine** (promoter tags → FTS5 → SPLADE → ΣĒMA semantic), and
+each tier carries its own index.
+
+| Component | Size | Purpose |
+|---|---:|---|
+| **Raw content** (`gene.content`) | 44.5 MB | Original source text, verbatim |
+| **Ribosome complements** (`gene.complement`) | 16.5 MB | Small-model compressed summaries (2.69x storage ratio) |
+| **FTS5 posting lists** (`genes_fts_data`) | 187 MB | Full-text inverted index for keyword retrieval |
+| **SPLADE sparse index** (`splade_terms`) | 36 MB | 1.73M term weights for lexical expansion |
+| **Promoter index** (retrieval tags) | 3.8 MB | 73,815 domain/entity tags across all genes |
+| **Entity graph** | 5.6 MB | 117K entity-to-gene edges for co-activation |
+| **Gene relations** (NLI) | 6.6 MB | 108K typed logical relations between genes |
+| **ΣĒMA embeddings** (20D vectors) | 0.34 MB | Semantic primes — 80 bytes per gene |
+| **Key-value facts** (pre-extracted) | 1.4 MB | Pre-parsed `key=value` pairs for answer slate |
+| **Codons + promoter JSON + epigenetics** | 8.2 MB | Gene metadata (tags, access counts, decay) |
+| **SQLite B-tree overhead + free pages** | ~441 MB | Post-thinning fragmentation (7,075 of 11,529 genes deleted, space not reclaimed) |
+| **Total file size** | **752 MB** | |
+
+**Observations:**
+
+- **FTS5 dominates storage** (25% of the file). The full-text index holds position
+  data for every token across all 7K genes — it's what enables the sub-5ms content
+  queries that make the 1s total retrieval latency possible.
+- **Raw content is only 6% of the file**. The rest is indexes. This is the expected
+  tradeoff for a retrieval-optimized database vs a flat text archive.
+- **~440 MB is fragmentation**, not real data. The genome was thinned from 11,529
+  to 7,264 genes during tuning, and SQLite holds those pages until a `VACUUM`. A
+  compacted genome would land around **~310 MB for the same content**.
+- **ΣĒMA embeddings are essentially free** — 20 floats per gene = 80 bytes. A 1M-gene
+  genome would cost only 80MB for the semantic tier.
+- **Inference cost is unchanged by DB size**: the LLM only ever sees ~15K tokens
+  per turn regardless of whether the genome is 50MB or 50GB.
+
+**Compression summary:**
+
+| Metric | Ratio | Meaning |
+|---|---:|---|
+| Storage (raw → complement) | **2.69x** | How much the ribosome compresses each gene's summary |
+| Expression (full corpus → single turn) | **776x** | How much of the genome the LLM sees per query |
+| DB file / raw content | 16x (6x post-VACUUM) | Index overhead for 4-tier retrieval |
+| vs 128K-stuffed context | 8.5x fewer tokens | Baseline "dump everything" approach |
+| vs chunked RAG (25K tokens) | 1.7x fewer tokens | Standard vector-search RAG |
+
+The headline number — **776x inference compression** — is what matters for cost and
+latency. Everything else is a bookkeeping detail of how the Librarian files its books.
 
 **Needle-in-a-haystack on this 7,264-gene genome (~46MB raw knowledge):**
 
