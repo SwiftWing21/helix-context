@@ -41,7 +41,40 @@ def _get_nlp():
         _nlp = spacy.load("en_core_web_sm", disable=["lemmatizer"])
         # Increase max_length for large code files
         _nlp.max_length = 200_000
+
+        # EntityRuler for project-specific terms that statistical NER misses
+        ruler = _nlp.add_pipe("entity_ruler", before="ner")
+        ruler.add_patterns(_build_project_patterns())
     return _nlp
+
+
+# ── Project entity vocabulary (rule-based NER) ──────────────────
+
+_PROJECT_ENTITIES = {
+    "PRODUCT": [
+        "BigEd", "BigEd CC", "Helix Context", "Agentome", "ScoreRift",
+        "BookKeeper", "CosmicTasha", "two-brain", "ModuleHub",
+        "CpuTagger", "SemaCodec", "FleetDB", "Dr. Ders", "DeBERTa",
+        "fleet.toml", "helix.toml", "genome.db",
+        "SPLADE", "FTS5", "MiniLM", "ColBERT", "RaBitQ",
+    ],
+    "ORG": [
+        "SwiftWing21", "Anthropic", "Naver Labs",
+    ],
+}
+
+
+def _build_project_patterns() -> List[Dict]:
+    """Build spaCy EntityRuler patterns from project vocabulary."""
+    patterns = []
+    for label, terms in _PROJECT_ENTITIES.items():
+        for term in terms:
+            patterns.append({"label": label, "pattern": term})
+            # Also add lowercase variant for case-insensitive matching
+            lower = term.lower()
+            if lower != term:
+                patterns.append({"label": label, "pattern": lower})
+    return patterns
 
 
 # ── Tech dictionary for domain classification ─────────────────────
@@ -66,6 +99,13 @@ _TECH_TERMS: Set[str] = {
     "test", "benchmark", "smoke", "unittest", "pytest",
     "security", "audit", "compliance", "soc2", "encryption",
     "deploy", "ci", "cd", "release", "build", "binary",
+    # Project-specific terms (Agentome ecosystem)
+    "biged", "helix", "agentome", "scorerift", "bookkeeper",
+    "cosmictasha", "modulehub", "ribosome", "genome", "chromatin",
+    "ellipticity", "codon", "promoter", "epigenetics", "sema",
+    "splade", "deberta", "colbert", "rabitq", "fts5",
+    "cputagger", "semacodec", "fleetdb", "fleet",
+    "supervisor", "dr ders", "needle", "gene",
 }
 
 # ── Regex patterns for KV extraction ──────────────────────────────

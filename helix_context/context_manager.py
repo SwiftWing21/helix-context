@@ -30,7 +30,7 @@ from .config import HelixConfig
 from .exceptions import PromoterMismatch
 from .genome import Genome
 from .ribosome import Ribosome, OllamaBackend
-from .schemas import ContextHealth, ContextWindow, Gene
+from .schemas import ChromatinState, ContextHealth, ContextWindow, Gene
 
 log = logging.getLogger("helix.context_manager")
 
@@ -265,8 +265,25 @@ class HelixContextManager:
             if sema_vectors is not None and i < len(sema_vectors):
                 gene.embedding = sema_vectors[i]
 
+            # Density gate: score gene before committing
+            # Low-density genes (boilerplate, configs, manifests) go directly
+            # to EUCHROMATIN/HETEROCHROMATIN to prevent retrieval pollution
+            density = self.genome.compute_density_score(gene)
+            if density < 0.15:
+                # Very low density → HETEROCHROMATIN (metadata only)
+                gene.chromatin = ChromatinState.HETEROCHROMATIN
+            elif density < 0.25:
+                # Low density → EUCHROMATIN (summary only)
+                gene.chromatin = ChromatinState.EUCHROMATIN
+
             gid = self.genome.upsert_gene(gene)
             gene_ids.append(gid)
+
+            # Apply compression tier after upsert (matches chromatin demotion)
+            if density < 0.15 and gene.embedding is not None:
+                self.genome.compress_to_heterochromatin(gid)
+            elif density < 0.25:
+                self.genome.compress_to_euchromatin(gid)
 
         log.info("Ingested %d strands from %s content (%d chars)",
                  len(gene_ids), content_type, len(content))
@@ -313,7 +330,10 @@ class HelixContextManager:
                 metadata={"query": query, "genes_expressed": 0},
             )
 
-        # Step 3: Trim to budget
+        # Step 3: Score-gated trimming
+        # Instead of blindly taking max_genes, only express genes with
+        # meaningful retrieval scores. A query with 3 strong matches
+        # should express 3 tight genes, not 12 padded with noise.
         if (
             self.config.ingestion.rerank_enabled
             and hasattr(self.ribosome, 're_rank')
@@ -326,6 +346,22 @@ class HelixContextManager:
                 candidates = candidates[:max_genes]
         elif len(candidates) > max_genes:
             candidates = candidates[:max_genes]
+
+        # Score-gate: drop trailing candidates with weak scores
+        # The genome returns candidates with retrieval scores attached.
+        # Check if the score gap between top and tail is large — if so,
+        # the tail candidates are noise that dilutes density.
+        if len(candidates) > 3:
+            # Use retrieval scores from genome if available
+            scores = self.genome.last_query_scores
+            if scores:
+                top_score = max(scores.values()) if scores else 1.0
+                # Keep candidates scoring at least 20% of top score
+                threshold = top_score * 0.20
+                gated = [g for g in candidates if scores.get(g.gene_id, 0) >= threshold]
+                # Always keep at least 3 genes (minimum viable context)
+                if len(gated) >= 3:
+                    candidates = gated
 
         # Step 3.5: NLI classification (optional, DeBERTa backend only)
         relation_graph = {}
@@ -363,7 +399,7 @@ class HelixContextManager:
             spliced_map[g.gene_id] = f"<GENE{src_attr}{kv_attrs}>\n{content}\n</GENE>"
 
         # Step 5: Assemble
-        window = self._assemble(query, candidates, spliced_map, relation_graph)
+        window = self._assemble(query, candidates, spliced_map, relation_graph, query_signals=(domains, entities))
 
         # Touch expressed genes (update epigenetics)
         expressed_ids = [g.gene_id for g in candidates]
@@ -619,7 +655,7 @@ class HelixContextManager:
 
     # -- Internal: Step 5 (assemble) -----------------------------------
 
-    def _assemble(self, query: str, candidates: List[Gene], spliced_map: Dict[str, str], relation_graph: Optional[Dict] = None) -> ContextWindow:
+    def _assemble(self, query: str, candidates: List[Gene], spliced_map: Dict[str, str], relation_graph: Optional[Dict] = None, query_signals: Optional[Tuple[List[str], List[str]]] = None) -> ContextWindow:
         """
         Sort spliced parts by sequence_index, join with dividers,
         wrap in expressed_context tags, prepend decoder prompt.
@@ -659,7 +695,11 @@ class HelixContextManager:
         compressed_chars = len(expressed)
 
         # Delta-epsilon health signal
-        query_terms = query.lower().split()
+        # Use extracted domain/entity signals (not raw word splits with stop words)
+        if query_signals:
+            query_terms = [t.lower() for t in query_signals[0] + query_signals[1]]
+        else:
+            query_terms = query.lower().split()
         health = self._compute_health(query_terms, candidates, compressed_chars, relation_graph)
 
         return ContextWindow(
@@ -707,23 +747,35 @@ class HelixContextManager:
         total_genes = genome_stats.get("total_genes", 0)
         genes_expressed = len(candidates)
 
-        # Coverage: what fraction of query terms hit the promoter index?
+        # Coverage: what fraction of query terms were found in the genome?
+        # Checks promoter tags, FTS5 content matches, and key-value extracts.
         if query_terms:
             matched = 0
+            # Collect all searchable text from expressed genes
             all_tags: set[str] = set()
+            all_content_lower = ""
             for g in candidates:
                 all_tags.update(d.lower() for d in g.promoter.domains)
                 all_tags.update(e.lower() for e in g.promoter.entities)
+                if g.key_values:
+                    all_tags.update(kv.lower() for kv in g.key_values)
+                # Content presence check (for FTS5/SPLADE-found genes)
+                all_content_lower += " " + (g.content[:2000] or "").lower()
             for term in query_terms:
-                if term.lower() in all_tags:
+                t = term.lower()
+                if t in all_tags or t in all_content_lower:
                     matched += 1
             coverage = matched / len(query_terms)
         else:
             coverage = 0.0
 
-        # Density: how much of the expression budget did we use?
-        budget_chars = self.config.budget.expression_tokens * 4  # ~4 chars/token
-        density = min(1.0, compressed_chars / max(budget_chars, 1))
+        # Density: how much of the effective expression capacity did we use?
+        # Scale budget by genes expressed vs max — a query that correctly
+        # expresses 4 focused genes shouldn't be penalized for not filling 12 slots.
+        max_genes = self.config.budget.max_genes_per_turn
+        expressed_ratio = genes_expressed / max(max_genes, 1)
+        effective_budget = self.config.budget.expression_tokens * 4 * max(expressed_ratio, 0.25)
+        density = min(1.0, compressed_chars / max(effective_budget, 1))
 
         # Freshness: average decay score of expressed genes
         if candidates:

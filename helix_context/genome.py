@@ -68,6 +68,8 @@ class Genome:
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA journal_mode=WAL")
         self.conn.execute("PRAGMA busy_timeout=30000")  # 30s retry on lock
+        self._upsert_count = 0  # WAL checkpoint cadence counter
+        self.last_query_scores: Dict[str, float] = {}  # Retrieval scores from last query
         self._init_db()
 
         # Create SPLADE inverted index if enabled
@@ -110,6 +112,13 @@ class Genome:
         except sqlite3.OperationalError:
             cur.execute("ALTER TABLE genes ADD COLUMN key_values TEXT")
             log.info("Added key_values column to genes table")
+
+        # Auto-add compression_tier column (0=OPEN, 1=EUCHROMATIN, 2=HETEROCHROMATIN)
+        try:
+            cur.execute("SELECT compression_tier FROM genes LIMIT 1")
+        except sqlite3.OperationalError:
+            cur.execute("ALTER TABLE genes ADD COLUMN compression_tier INTEGER DEFAULT 0")
+            log.info("Added compression_tier column to genes table")
 
         cur.execute("""
         CREATE TABLE IF NOT EXISTS promoter_index (
@@ -248,6 +257,24 @@ class Genome:
 
         self.conn.commit()
 
+    # ── WAL snapshot management ──────────────────────────────────────
+
+    def _refresh_snapshot(self) -> None:
+        """Release stale WAL read transaction so next SELECT sees current state.
+
+        In SQLite WAL mode, Python's sqlite3 module starts an implicit
+        transaction on SELECT. That transaction pins a snapshot — external
+        writers (ingest, thinning scripts) commit to the WAL but this
+        connection won't see those changes until the implicit transaction ends.
+
+        Calling commit() ends the implicit transaction. The next SELECT
+        will start a new one with the latest WAL state.
+        """
+        try:
+            self.conn.commit()
+        except Exception:
+            pass  # No active transaction — safe to ignore
+
     # ── Replication ──────────────────────────────────────────────────
 
     def set_replication_manager(self, mgr) -> None:
@@ -281,7 +308,11 @@ class Genome:
         cur = self.conn.cursor()
 
         cur.execute(
-            "INSERT OR REPLACE INTO genes VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "INSERT OR REPLACE INTO genes "
+            "(gene_id, content, complement, codons, promoter, epigenetics, "
+            "chromatin, is_fragment, embedding, source_id, version, supersedes, "
+            "key_values, compression_tier) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (
                 gene_id,
                 gene.content,
@@ -296,6 +327,7 @@ class Genome:
                 gene.version,
                 gene.supersedes,
                 json_dumps(gene.key_values) if gene.key_values else None,
+                0,  # compression_tier: OPEN by default
             ),
         )
         # Invalidate parse cache for this gene's promoter/epigenetics
@@ -361,6 +393,14 @@ class Genome:
         # Single atomic commit — gene + promoter + FTS5 + entity graph + SPLADE
         self.conn.commit()
 
+        # Periodic WAL checkpoint to prevent data loss on crash
+        # PASSIVE every 50 genes (~non-blocking), TRUNCATE every 500 (resets WAL)
+        self._upsert_count += 1
+        if self._upsert_count % 500 == 0:
+            self.checkpoint("TRUNCATE")
+        elif self._upsert_count % 50 == 0:
+            self.checkpoint("PASSIVE")
+
         # Notify replication manager (if attached)
         if self._replication_mgr is not None:
             self._replication_mgr.notify_write()
@@ -403,7 +443,8 @@ class Genome:
         if not query_terms:
             raise PromoterMismatch("No query terms after expansion")
 
-        cur = self.read_conn.cursor()
+        self._refresh_snapshot()  # See latest WAL state (external thinning, deletes)
+        cur = self.conn.cursor()  # Always master — replicas may be stale
         limit = max_genes * 2
 
         # Gene scores: gene_id → float (accumulated across tiers)
@@ -490,7 +531,7 @@ class Genome:
                 except Exception:
                     log.warning("FTS5 query failed", exc_info=True)
 
-        # ── Tier 3.5: SPLADE sparse retrieval (weight 2.5) ─────────
+        # ── Tier 3.5: SPLADE sparse retrieval (weight 3.5) ─────────
         if self._splade_enabled:
             try:
                 from . import splade_backend
@@ -504,23 +545,23 @@ class Genome:
                     splade_hits = splade_backend.query_splade(self.conn, query_sparse, limit=limit * 2)
                     for gid, score in splade_hits:
                         # Normalize SPLADE score to be comparable with other tiers
-                        splade_score = min(score, 20.0) * 2.5 / 20.0  # Cap at 2.5
+                        splade_score = min(score, 20.0) * 3.5 / 20.0  # Cap at 3.5
                         gene_scores[gid] = gene_scores.get(gid, 0) + splade_score
             except Exception:
                 log.warning("SPLADE retrieval failed", exc_info=True)
 
-        # ── Tier 4: ΣĒMA semantic re-ranking (Phase 2) ───────────────
-        # Boost existing candidates using 20D semantic similarity.
-        # Only fires when Tiers 1-3 have low confidence (top score < threshold).
-        # Does NOT add new candidates — prevents semantic flood.
-        if self._sema_codec is not None and gene_scores:
-            # Only boost if top-scoring gene has weak confidence
-            top_score = max(gene_scores.values()) if gene_scores else 0
-            if top_score < 20.0:  # Weak confidence — ΣĒMA can help discriminate
-                try:
-                    query_text = " ".join(query_terms)
-                    query_vec = self._sema_codec.encode(query_text)
+        # ── Tier 4: ΣĒMA semantic retrieval + re-ranking ───────────────
+        # Two modes:
+        #   A) Boost existing candidates (when Tiers 1-3.5 have candidates)
+        #   B) Add new candidates via vector scan (when pool is too small)
+        if self._sema_codec is not None:
+            try:
+                query_text = " ".join(query_terms)
+                query_vec = self._sema_codec.encode(query_text)
+                top_score = max(gene_scores.values()) if gene_scores else 0
 
+                # Mode A: Boost existing candidates when confidence is weak
+                if gene_scores and top_score < 20.0:
                     existing_ids = list(gene_scores.keys())
                     id_ph = ",".join("?" * len(existing_ids))
                     sema_rows = cur.execute(
@@ -545,12 +586,42 @@ class Genome:
                             )
                             for gid, sim in nearest:
                                 if sim > 0.3:
-                                    # Scale boost by how weak the top score is
-                                    # Weaker top = more ΣĒMA influence
                                     boost_scale = max(0.5, 1.0 - top_score / 40.0)
                                     gene_scores[gid] += sim * 2.0 * boost_scale
-                except Exception:
-                    log.debug("ΣĒMA re-ranking failed, continuing without")
+
+                # Mode B: Add new candidates when pool is undersized
+                # Scans all ΣĒMA vectors to find semantically similar genes
+                # that tags/SPLADE/FTS5 missed entirely
+                if len(gene_scores) < limit // 2:
+                    sema_all = cur.execute(
+                        "SELECT gene_id, embedding FROM genes "
+                        "WHERE embedding IS NOT NULL AND chromatin < ? "
+                        "AND COALESCE(compression_tier, 0) < 2",
+                        (int(ChromatinState.HETEROCHROMATIN),),
+                    ).fetchall()
+
+                    all_candidates = []
+                    for r in sema_all:
+                        if r["gene_id"] in gene_scores:
+                            continue  # Already in pool
+                        try:
+                            vec = json_loads(r["embedding"])
+                            if isinstance(vec, list) and len(vec) == 20:
+                                all_candidates.append((r["gene_id"], vec))
+                        except Exception:
+                            continue
+
+                    if all_candidates:
+                        # Find top-k nearest by ΣĒMA similarity
+                        fill_count = limit - len(gene_scores)
+                        nearest_new = self._sema_codec.nearest(
+                            query_vec, all_candidates, k=fill_count,
+                        )
+                        for gid, sim in nearest_new:
+                            if sim > 0.4:  # Higher threshold for new candidates
+                                gene_scores[gid] = sim * 3.0  # Weight 3.0 for ΣĒMA-discovered
+            except Exception:
+                log.debug("ΣĒMA retrieval failed, continuing without")
 
         if not gene_scores:
             raise PromoterMismatch("Zero genes matched across all tiers")
@@ -580,6 +651,9 @@ class Genome:
                 ).fetchall()
                 for r in anchor_genes:
                     gene_scores[r["gene_id"]] = gene_scores.get(r["gene_id"], 0) + boost
+
+        # Expose scores for score-gated expression in context_manager
+        self.last_query_scores = dict(gene_scores)
 
         # Sort by combined score, fetch top genes
         ranked_ids = sorted(gene_scores, key=gene_scores.get, reverse=True)[:limit]
@@ -689,7 +763,7 @@ class Genome:
     # ── Co-activation expansion ─────────────────────────────────────
 
     def _expand_coactivated(self, genes: List[Gene], limit: int) -> List[Gene]:
-        cur = self.read_conn.cursor()
+        cur = self.conn.cursor()  # Always master — replicas may lag
 
         existing_ids = {g.gene_id for g in genes}
         additional_ids: set[str] = set()
@@ -958,7 +1032,8 @@ class Genome:
     # ── Stats ───────────────────────────────────────────────────────
 
     def stats(self) -> Dict:
-        cur = self.read_conn.cursor()
+        self._refresh_snapshot()  # See latest WAL state
+        cur = self.conn.cursor()  # Always master — stats must be authoritative
 
         total = cur.execute("SELECT COUNT(*) FROM genes").fetchone()[0]
         by_chromatin = cur.execute(
@@ -980,6 +1055,18 @@ class Genome:
             "SELECT COALESCE(SUM(LENGTH(complement)), 0) FROM genes"
         ).fetchone()[0]
 
+        # Compression tier distribution
+        tier_counts = {0: 0, 1: 0, 2: 0}
+        try:
+            by_tier = cur.execute(
+                "SELECT COALESCE(compression_tier, 0), COUNT(*) FROM genes "
+                "GROUP BY COALESCE(compression_tier, 0)"
+            ).fetchall()
+            for r in by_tier:
+                tier_counts[int(r[0])] = r[1]
+        except Exception:
+            pass  # Column may not exist yet on old schemas
+
         return {
             "total_genes": total,
             "open": chromatin_counts.get("OPEN", 0),
@@ -988,6 +1075,11 @@ class Genome:
             "total_chars_raw": total_raw,
             "total_chars_compressed": total_compressed,
             "compression_ratio": total_raw / max(total_compressed, 1),
+            "compression_tiers": {
+                "open_full": tier_counts[0],
+                "euchromatin_summary": tier_counts[1],
+                "heterochromatin_cold": tier_counts[2],
+            },
         }
 
     # ── Get single gene ─────────────────────────────────────────────
@@ -1109,22 +1201,219 @@ class Genome:
     # ── WAL refresh ────────────────────────────────────────────────
 
     def refresh(self) -> None:
-        """Reopen connection to see changes from external writers.
+        """Refresh WAL snapshot to see changes from external writers.
 
-        SQLite WAL mode gives each connection a snapshot. External writers
-        (ingest, thinning) commit to the WAL but this connection won't see
-        the changes until we close and reopen. This is the only reliable
-        way to see deletions made by other processes.
+        Primary mechanism: commit() releases the implicit read transaction,
+        forcing the next SELECT to start a new snapshot. This is the
+        lightweight Tier 1 fix — no connection churn.
+
+        Fallback: if the connection is in a bad state, close and reopen.
         """
         try:
-            self.conn.close()
-            self.conn = sqlite3.connect(self.path, check_same_thread=False)
+            self._refresh_snapshot()
+            # Verify the connection is healthy
+            self.conn.execute("SELECT 1").fetchone()
+        except Exception:
+            log.warning("Snapshot refresh failed, reopening connection", exc_info=True)
+            try:
+                self.conn.close()
+            except Exception:
+                pass
+            self.conn = sqlite3.connect(self.path, check_same_thread=False, timeout=30)
             self.conn.row_factory = sqlite3.Row
             self.conn.execute("PRAGMA journal_mode=WAL")
-        except Exception:
-            log.warning("Connection refresh failed", exc_info=True)
+            self.conn.execute("PRAGMA busy_timeout=30000")
 
     # ── Close ───────────────────────────────────────────────────────
 
+    def checkpoint(self, mode: str = "PASSIVE") -> None:
+        """
+        Force a WAL checkpoint to flush data from WAL to main database.
+
+        Modes:
+            PASSIVE  — non-blocking, skips frames held by readers (~5ms)
+            FULL     — blocks until all frames are checkpointed
+            TRUNCATE — like FULL, then truncates WAL file to zero bytes
+
+        Call periodically during bulk ingest to prevent data loss on crash.
+        Recommended cadence: PASSIVE every 50 genes, TRUNCATE every 500.
+        """
+        mode = mode.upper()
+        if mode not in ("PASSIVE", "FULL", "RESTART", "TRUNCATE"):
+            mode = "PASSIVE"
+        try:
+            self.conn.execute(f"PRAGMA wal_checkpoint({mode})")
+            log.debug("WAL checkpoint (%s) completed", mode)
+        except Exception:
+            log.warning("WAL checkpoint (%s) failed", mode, exc_info=True)
+
+    # ── Cold-storage compression (ΣĒMA-based chromatin tiers) ──────
+
+    TIER_OPEN = 0           # Full fidelity — hot retrieval pool
+    TIER_EUCHROMATIN = 1    # Summary + ΣĒMA — warm, reduced storage
+    TIER_HETEROCHROMATIN = 2  # ΣĒMA + metadata only — cold, ~90% smaller
+
+    def compute_density_score(self, gene: Gene) -> float:
+        """
+        Information density score for a gene. Higher = more valuable.
+
+        Combines:
+          - Entity/domain tag count (promoter richness)
+          - Key-value extraction count (factual density)
+          - Content length efficiency (short + rich > long + sparse)
+          - Access count (usage signal from epigenetics)
+        """
+        tag_count = len(gene.promoter.domains) + len(gene.promoter.entities)
+        kv_count = len(gene.key_values) if gene.key_values else 0
+        content_len = max(len(gene.content), 1)
+
+        # Normalize: tags per KB of content
+        tag_density = tag_count / (content_len / 1000.0)
+        kv_density = kv_count / (content_len / 1000.0)
+        access = gene.epigenetics.access_count
+
+        # Weighted combination (tag density dominates)
+        score = (
+            tag_density * 0.4
+            + kv_density * 0.3
+            + min(access / 10.0, 1.0) * 0.2
+            + (1.0 if gene.complement and len(gene.complement) > 50 else 0.0) * 0.1
+        )
+        return score
+
+    def compress_to_euchromatin(self, gene_id: str) -> bool:
+        """
+        Compress a gene to EUCHROMATIN tier: drop raw content, keep summary.
+
+        Keeps: complement, codons, promoter, epigenetics, embedding, key_values
+        Drops: content (replaced with pointer to source_id for unwinding)
+        """
+        cur = self.conn.cursor()
+        row = cur.execute(
+            "SELECT source_id, complement FROM genes WHERE gene_id = ?",
+            (gene_id,),
+        ).fetchone()
+        if not row or not row["complement"]:
+            return False
+
+        cur.execute(
+            "UPDATE genes SET content = ?, compression_tier = 1 WHERE gene_id = ?",
+            (f"[COMPRESSED:euchromatin] source={row['source_id'] or 'unknown'}", gene_id),
+        )
+        self.conn.commit()
+        log.debug("Compressed gene %s to EUCHROMATIN", gene_id)
+        return True
+
+    def compress_to_heterochromatin(self, gene_id: str) -> bool:
+        """
+        Compress a gene to HETEROCHROMATIN tier: keep only ΣĒMA + metadata.
+
+        Keeps: gene_id, source_id, promoter, embedding, key_values
+        Drops: content, complement, codons, SPLADE terms
+        """
+        cur = self.conn.cursor()
+        row = cur.execute(
+            "SELECT source_id FROM genes WHERE gene_id = ?",
+            (gene_id,),
+        ).fetchone()
+        if not row:
+            return False
+
+        cur.execute(
+            "UPDATE genes SET "
+            "content = ?, complement = NULL, codons = '[]', "
+            "chromatin = 2, compression_tier = 2 "
+            "WHERE gene_id = ?",
+            (f"[COMPRESSED:heterochromatin] source={row['source_id'] or 'unknown'}", gene_id),
+        )
+        # Remove SPLADE terms (no longer searchable via sparse retrieval)
+        if self._splade_enabled:
+            cur.execute("DELETE FROM splade_terms WHERE gene_id = ?", (gene_id,))
+        # Remove from FTS5 index
+        if self._fts_available:
+            try:
+                cur.execute("DELETE FROM genes_fts WHERE gene_id = ?", (gene_id,))
+            except Exception:
+                pass
+        self.conn.commit()
+        log.debug("Compressed gene %s to HETEROCHROMATIN", gene_id)
+        return True
+
+    def compact_genome(
+        self,
+        density_threshold: float = 0.3,
+        access_threshold: int = 5,
+        dry_run: bool = False,
+    ) -> Dict:
+        """
+        Run a compaction sweep: demote low-density, low-access genes.
+
+        Returns dict with counts of genes moved to each tier.
+        """
+        cur = self.conn.cursor()
+        rows = cur.execute(
+            "SELECT gene_id, content, complement, codons, promoter, "
+            "epigenetics, chromatin, embedding, source_id, key_values, "
+            "compression_tier "
+            "FROM genes WHERE compression_tier = 0"
+        ).fetchall()
+
+        stats = {"scanned": len(rows), "to_euchromatin": 0, "to_heterochromatin": 0, "kept_open": 0}
+
+        for r in rows:
+            gene = self._compact_row_to_gene(r)
+            if gene is None:
+                continue
+
+            score = self.compute_density_score(gene)
+            access = gene.epigenetics.access_count
+            has_embedding = r["embedding"] is not None
+
+            if score < density_threshold and access < access_threshold:
+                if gene.complement and len(gene.complement) > 30 and has_embedding:
+                    # Has summary + ΣĒMA → compress to EUCHROMATIN
+                    if not dry_run:
+                        self.compress_to_euchromatin(gene.gene_id)
+                    stats["to_euchromatin"] += 1
+                elif has_embedding:
+                    # Has ΣĒMA but no useful summary → HETEROCHROMATIN
+                    if not dry_run:
+                        self.compress_to_heterochromatin(gene.gene_id)
+                    stats["to_heterochromatin"] += 1
+                else:
+                    stats["kept_open"] += 1  # No embedding, can't cold-store safely
+            else:
+                stats["kept_open"] += 1
+
+        if not dry_run:
+            self.checkpoint("PASSIVE")
+
+        log.info(
+            "Compaction sweep: scanned=%d open=%d euchromatin=%d heterochromatin=%d",
+            stats["scanned"], stats["kept_open"],
+            stats["to_euchromatin"], stats["to_heterochromatin"],
+        )
+        return stats
+
+    def _compact_row_to_gene(self, row) -> Optional[Gene]:
+        """Convert a compact database row to a Gene object. Returns None on error."""
+        try:
+            return Gene(
+                gene_id=row["gene_id"],
+                content=row["content"] or "",
+                complement=row["complement"],
+                codons=json_loads(row["codons"]) if row["codons"] else [],
+                promoter=parse_promoter(row["promoter"]),
+                epigenetics=parse_epigenetics(row["epigenetics"]),
+                chromatin=ChromatinState(row["chromatin"]),
+                embedding=json_loads(row["embedding"]) if row["embedding"] else None,
+                source_id=row["source_id"],
+                key_values=json_loads(row["key_values"]) if row["key_values"] else None,
+            )
+        except Exception:
+            log.debug("Failed to parse gene row %s", row["gene_id"], exc_info=True)
+            return None
+
     def close(self) -> None:
+        self.checkpoint("TRUNCATE")  # Flush all WAL data before closing
         self.conn.close()

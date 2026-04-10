@@ -15,7 +15,9 @@ Endpoints:
 
 from __future__ import annotations
 
+import asyncio
 import logging
+from contextlib import asynccontextmanager
 from typing import Optional
 
 from .accel import json_loads
@@ -30,6 +32,18 @@ from .context_manager import HelixContextManager
 
 log = logging.getLogger("helix.server")
 
+_CHECKPOINT_INTERVAL = 60  # seconds between background WAL checkpoints
+
+
+async def _background_checkpoint(helix: HelixContextManager) -> None:
+    """Periodically flush WAL to main database file."""
+    while True:
+        await asyncio.sleep(_CHECKPOINT_INTERVAL)
+        try:
+            helix.genome.checkpoint("PASSIVE")
+        except Exception:
+            log.warning("Background WAL checkpoint failed", exc_info=True)
+
 
 def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
     """Factory -- creates the FastAPI app with a HelixContextManager."""
@@ -39,7 +53,20 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
 
     helix = HelixContextManager(config)
 
-    app = FastAPI(title="Helix Context Proxy", version="0.1.0")
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        """Background WAL checkpoint + clean shutdown."""
+        task = asyncio.create_task(_background_checkpoint(helix))
+        yield
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+        helix.genome.checkpoint("TRUNCATE")
+        log.info("Shutdown: final WAL checkpoint completed")
+
+    app = FastAPI(title="Helix Context Proxy", version="0.1.0", lifespan=lifespan)
     app.state.helix = helix  # Expose for testing
 
     # -- Proxy endpoint (primary integration) --------------------------
@@ -262,6 +289,22 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
         helix.genome.conn.commit()
         return {"backfilled": updated, "total": helix.genome.stats()["total_genes"]}
 
+    @app.post("/admin/compact")
+    async def admin_compact(dry_run: bool = False, density_threshold: float = 0.3, access_threshold: int = 5):
+        """Run compaction sweep: demote low-density genes to compressed tiers."""
+        result = helix.genome.compact_genome(
+            density_threshold=density_threshold,
+            access_threshold=access_threshold,
+            dry_run=dry_run,
+        )
+        return result
+
+    @app.post("/admin/checkpoint")
+    async def admin_checkpoint(mode: str = "PASSIVE"):
+        """Force a WAL checkpoint."""
+        helix.genome.checkpoint(mode)
+        return {"checkpointed": True, "mode": mode}
+
     # ── Bridge: shared memory between AI assistants ────────────
     from .bridge import AgentBridge
     bridge = AgentBridge()
@@ -464,7 +507,9 @@ def main():
 
 
 # Module-level app for `uvicorn helix_context.server:app --reload`
-app = create_app()
+# Only create when imported by uvicorn (not when run via `python -m`)
+if __name__ != "__main__":
+    app = create_app()
 
 if __name__ == "__main__":
     main()
