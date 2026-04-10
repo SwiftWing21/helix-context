@@ -74,7 +74,45 @@ Instead of stuffing your entire codebase into the prompt, Helix compresses it in
 > 💎 **Claude Haiku + Helix matches Opus** — all three API tiers hit 10/10 accuracy
 > 🧠 **Local 4B model beats blind Opus 2.25x** on domain-specific extraction
 
-**Needle-in-a-haystack on a 7,264-gene genome (~46MB raw knowledge):**
+### Test Corpus Composition
+
+The benchmark genome is a real developer's working data, not a curated eval set.
+**65.8% of the corpus is pure noise** — game data, subtitles, blueprints — and Helix
+still hits 10/10 on project-specific needles hidden in the remaining 34%.
+
+| Source Category | Genes | Tokens | % | Repo Visibility |
+|---|---:|---:|---:|:---|
+| 🎮 Steam / game data (Hades subtitles, BeamNG configs, Dyson Sphere blueprints, Factorio saves) | 2,905 | ~7.7M | **65.8%** | — |
+| 🌐 [`SwiftWing21/BigEd`](https://github.com/SwiftWing21/BigEd) — BigEd fleet (Education dir) | 2,405 | ~1.8M | 15.4% | **public** (private worktree ahead by 2 commits) |
+| 🔒 [`CosmicTasha/CosmicTasha`](https://github.com/CosmicTasha/CosmicTasha) | 944 | ~1.6M | 13.9% | private |
+| 🔒 [`SwiftWing21/BookKeeper`](https://github.com/SwiftWing21/BookKeeper) | 242 | ~0.2M | 2.0% | private |
+| 🌐 [`SwiftWing21/helix-context`](https://github.com/SwiftWing21/helix-context) — this repo | 161 | ~0.1M | 1.2% | public |
+| 🌐 [`SwiftWing21/scorerift`](https://github.com/SwiftWing21/scorerift) — ScoreRift / two-brain-audit | 110 | ~0.1M | 0.7% | public |
+| Unclassified / session memory | 497 | ~0.1M | 1.0% | — |
+| **Total** | **7,264** | **~11.6M** | **100%** | |
+
+**Source breakdown (software only, excluding game noise):**
+
+- 🌐 **Public GitHub repos: ~2.0M tokens (50.0%)** — BigEd, helix-context, scorerift
+- 🔒 **Private GitHub repos: ~1.8M tokens (45.6%)** — CosmicTasha, BookKeeper
+- 🔄 **Unclassified / session memory: ~0.2M tokens (4.4%)**
+
+**Signal-to-noise:** Only ~33% of the 11.6M-token corpus is relevant software knowledge.
+The other ~66% is game data the Agentome had to learn to ignore via chromatin state
+(`HETEROCHROMATIN` tier) and promoter-tag discrimination. The 10/10 retrieval holds
+*despite* the noise — arguably *because* of it, since real-world retrieval systems have
+to survive mixed-domain corpora.
+
+> 💡 **How this table was measured:** Claude (co-authoring this repo) had workspace
+> access to the user's local project directories during the benchmark session, including
+> private repos that never leave the machine. The genome file itself is gitignored —
+> only aggregate counts and the benchmark queries are public. This demonstrates a real
+> use case for Helix: **your proprietary code participates in retrieval without being
+> uploaded anywhere**. Even the Education directory is split — the bulk lives in the
+> public [`BigEd`](https://github.com/SwiftWing21/BigEd) repo, with a private worktree
+> ahead by 2 unreleased commits.
+
+**Needle-in-a-haystack on this 7,264-gene genome (~46MB raw knowledge):**
 
 | Model | Params | VRAM | Retrieval | Accuracy |
 |-------|--------|------|-----------|----------|
