@@ -577,6 +577,14 @@ for full SIKE analysis and results across 7 local models + 3 Claude API tiers.
 
 Built as a standalone package extracted from [BigEd CC](https://github.com/SwiftWing21/Education). Implements the "Ribosome Hypothesis" for local LLM context management.
 
+## Acknowledgments
+
+Helix Context uses the following third-party libraries; we are grateful to
+their authors and maintainers.
+
+- **[Headroom](https://github.com/chopratejas/headroom)** by **Tejas Chopra** ([@chopratejas](https://github.com/chopratejas)) — CPU-resident semantic compression for gene content at the retrieval seam. Kompress (ModernBERT ONNX), LogCompressor, DiffCompressor, and CodeAwareCompressor replace the legacy character-level truncation in the expression pipeline. Optional dependency, installed via `pip install helix-context[codec]`. Apache-2.0. See [NOTICE](NOTICE) for full attribution.
+
 ## License
 
 Apache 2.0
+

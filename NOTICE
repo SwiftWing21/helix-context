@@ -1,0 +1,39 @@
+Helix Context
+Copyright 2025-2026 Michael Bachaud and Helix Context contributors
+
+This product includes software developed by Michael Bachaud
+(https://github.com/SwiftWing21/helix-context) and licensed under
+the Apache License, Version 2.0.
+
+================================================================================
+Third-Party Components
+================================================================================
+
+Helix Context optionally uses the following third-party libraries.
+Their copyright notices are reproduced here per their respective licenses.
+
+--------------------------------------------------------------------------------
+Headroom (headroom-ai) — optional, installed via `helix-context[codec]`
+--------------------------------------------------------------------------------
+
+Upstream:  https://github.com/chopratejas/headroom
+PyPI:      https://pypi.org/project/headroom-ai/
+Author:    Tejas Chopra (https://github.com/chopratejas)
+License:   Apache License 2.0
+
+    Headroom
+    Copyright 2025 Headroom Contributors
+
+    This product includes software developed by the Headroom Contributors.
+
+Helix Context uses Headroom's KompressCompressor, LogCompressor,
+DiffCompressor, and CodeAwareCompressor as CPU-resident semantic
+compression backends for gene content at the retrieval seam. See
+helix_context/headroom_bridge.py for the integration layer.
+
+Headroom itself depends on tiktoken (MIT), Pydantic (MIT), FastAPI (MIT),
+onnxruntime (MIT), transformers (Apache-2.0), and magika (Apache-2.0),
+among others. See the upstream NOTICE file for the complete list:
+https://github.com/chopratejas/headroom/blob/main/NOTICE
+
+================================================================================

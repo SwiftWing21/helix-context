@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "helix-context"
-version = "0.3.0b4"
+version = "0.3.0b5"
 description = "Genome-based context compression for local LLMs"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -46,6 +46,9 @@ ast = [
     "tree-sitter-typescript>=0.23",
 ]
 scorerift = ["scorerift"]
+# CPU-resident semantic compression for gene content. Headroom by Tejas Chopra
+# (https://github.com/chopratejas/headroom, Apache-2.0). See NOTICE.
+codec = ["headroom-ai[proxy,code]>=0.5.21"]
 dev = ["pytest", "pytest-asyncio"]
 all = [
     "orjson>=3.9",
@@ -57,6 +60,7 @@ all = [
     "tree-sitter-rust>=0.23",
     "tree-sitter-javascript>=0.23",
     "tree-sitter-typescript>=0.23",
+    "headroom-ai[proxy,code]>=0.5.21",
 ]
 
 [project.scripts]
