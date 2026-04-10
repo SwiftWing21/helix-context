@@ -3,7 +3,7 @@ model = "gemma4:e4b"                    # Ollama model for pack + replicate (lig
 base_url = "http://localhost:11434"
 timeout = 30                            # seconds — Ollama timeout before fallback
 keep_alive = "30m"                      # keep Ollama model loaded
-warmup = true                           # pre-load Ollama model on server start
+warmup = false                          # pre-load Ollama model on server start (disabled for N=1000 bench — qwen3:4b holds VRAM)
 backend = "ollama"                      # "ollama" for all-Ollama (DeBERTa re-rank disabled in pipeline)
 
 [budget]

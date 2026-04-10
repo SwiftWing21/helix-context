@@ -271,6 +271,8 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
                 "total_tokens_est": window.total_estimated_tokens,
                 "compression_ratio": round(window.compression_ratio, 2),
                 "moe_mode": window.metadata.get("moe_mode", False),
+                "budget_tier": window.metadata.get("budget_tier", "broad"),
+                "budget_tokens_est": window.metadata.get("budget_tokens_est", 15000),
             }
         except Exception:
             log.debug("Agent metadata enrichment failed", exc_info=True)

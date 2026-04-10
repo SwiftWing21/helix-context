@@ -411,21 +411,52 @@ class HelixContextManager:
         elif len(candidates) > max_genes:
             candidates = candidates[:max_genes]
 
-        # Score-gate: drop trailing candidates with weak scores
-        # The genome returns candidates with retrieval scores attached.
-        # Check if the score gap between top and tail is large — if so,
-        # the tail candidates are noise that dilutes density.
+        # Dynamic budget tiers — size the expression window based on
+        # retrieval confidence instead of always sending max_genes.
+        #
+        # The insight: on a CURATED query ("what port does helix use?") the
+        # top gene will score 5-10x higher than #12. Sending 12 genes for a
+        # query with an obvious winner wastes 91% of the budget on padding
+        # and dilutes the small model's attention.
+        #
+        # Tiers (confidence = top_score / mean_score ratio):
+        #   - TIGHT   (ratio >= 3.0): top 3 genes   — ~6K total tokens
+        #   - FOCUSED (ratio 1.8-3.0): top 6 genes  — ~9K total tokens
+        #   - BROAD   (ratio < 1.8):  top max_genes — ~15K total tokens
+        #
+        # Score-gate floor: always drop genes scoring < 15% of top score.
+        budget_tier = "broad"  # default
+        budget_tokens_est = 15000
         if len(candidates) > 3:
-            # Use retrieval scores from genome if available
             scores = self.genome.last_query_scores
-            if scores:
-                top_score = max(scores.values()) if scores else 1.0
-                # Keep candidates scoring at least 20% of top score
-                threshold = top_score * 0.20
-                gated = [g for g in candidates if scores.get(g.gene_id, 0) >= threshold]
-                # Always keep at least 3 genes (minimum viable context)
+            if scores and any(scores.values()):
+                top_score = max(scores.values())
+                mean_score = sum(scores.values()) / len(scores) if scores else 1.0
+                ratio = top_score / max(mean_score, 0.01)
+
+                # Hard floor: drop anything below 15% of top
+                floor = top_score * 0.15
+                gated = [g for g in candidates if scores.get(g.gene_id, 0) >= floor]
                 if len(gated) >= 3:
                     candidates = gated
+
+                # Confidence tiering
+                if ratio >= 3.0 and len(candidates) >= 3:
+                    # High confidence — top gene dominates, send 3
+                    candidates = candidates[:3]
+                    budget_tier = "tight"
+                    budget_tokens_est = 6000
+                elif ratio >= 1.8 and len(candidates) >= 6:
+                    # Moderate confidence — narrow to 6
+                    candidates = candidates[:6]
+                    budget_tier = "focused"
+                    budget_tokens_est = 9000
+                # else: broad — keep current up-to-max_genes set
+
+                log.debug(
+                    "Dynamic budget: tier=%s ratio=%.2f top=%.1f mean=%.1f genes=%d",
+                    budget_tier, ratio, top_score, mean_score, len(candidates),
+                )
 
         # Step 3.5: NLI classification (optional, DeBERTa backend only)
         relation_graph = {}
@@ -471,6 +502,11 @@ class HelixContextManager:
             query_signals=(domains, entities),
             answer_slate=answer_slate_lines if use_slate else None,
         )
+
+        # Annotate window with dynamic budget tier (for telemetry/benchmarks)
+        if window.metadata is not None:
+            window.metadata["budget_tier"] = budget_tier
+            window.metadata["budget_tokens_est"] = budget_tokens_est
 
         # Touch expressed genes (update epigenetics)
         expressed_ids = [g.gene_id for g in candidates]
