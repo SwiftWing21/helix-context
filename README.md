@@ -1,13 +1,52 @@
-# Helix Context
+# 🧬 Helix Context
+
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![PyPI version](https://img.shields.io/badge/pypi-v0.1.0b1-orange.svg)](https://pypi.org/project/helix-context/)
+[![SIKE: 10/10](https://img.shields.io/badge/SIKE-10%2F10_retrieval-brightgreen.svg)](docs/RESEARCH.md#benchmark-results--scale-invariant-knowledge-engine-sike)
+[![Compression: 769x](https://img.shields.io/badge/inference_compression-769x-brightgreen.svg)](docs/RESEARCH.md)
+[![Paper: Agentome](https://img.shields.io/badge/paper-Agentome-purple.svg)](https://mbachaud.substack.com/p/agentome)
 
 **Genome-based context compression for local LLMs.**
 **Scale-Invariant Knowledge Engine (SIKE) — 10/10 retrieval from 0.6B to 26B parameters.**
 
-Treats context like a genome instead of a flat text buffer. A 7,200-gene SQLite
-database (44MB raw knowledge) is compressed to ~15K tokens of expressed context
-per turn — a **769x inference compression ratio**. Retrieval is perfectly
-scale-invariant: the same genome delivers 10/10 needle accuracy to qwen3:0.6b
-and Claude Opus alike. The Librarian does the work; the Reader just extracts.
+> Treats context like a genome instead of a flat text buffer. A 7,200-gene SQLite
+> database (44MB raw knowledge) compresses to ~15K tokens of expressed context
+> per turn — a **769x inference compression ratio**. Retrieval is perfectly
+> scale-invariant: the same genome delivers 10/10 needle accuracy to qwen3:0.6b
+> and Claude Opus alike. *The Librarian does the work; the Reader just extracts.*
+
+> **📖 Quick glossary** — If the biological metaphor is new to you:
+> **gene** = one knowledge chunk (content + metadata) · **genome** = the full SQLite store ·
+> **ribosome** = small model that packs/ranks/splices context · **promoter** = retrieval tags ·
+> **expression** = selecting + formatting genes for one query · **chromatin** = gene accessibility tier
+> (open / euchromatin / heterochromatin) · **replication** = packing conversations back into the genome.
+
+<details>
+<summary><b>📑 Table of Contents</b></summary>
+
+- [Benchmark Highlights](#benchmark-highlights)
+- [Quick Start](#quick-start)
+- [What You'll See](#what-youll-see)
+- [How It Works](#how-it-works)
+- [Key Features](#key-features)
+  - [Context Health Monitor (Delta-Epsilon)](#context-health-monitor-delta-epsilon)
+  - [Horizontal Gene Transfer (HGT)](#horizontal-gene-transfer-hgt)
+  - [Associative Memory](#associative-memory)
+  - [Tissue-Specific Expression (MoE + Small Models)](#tissue-specific-expression-moe--small-models)
+  - [Synonym Expansion](#synonym-expansion)
+- [HTTP Endpoints](#http-endpoints)
+- [Continue IDE Integration](#continue-ide-integration)
+- [Python API](#python-api)
+- [ScoreRift Integration](#scorerift-integration)
+- [Configuration](#configuration)
+- [Testing](#testing)
+- [Benchmarks](#benchmarks)
+- [Architecture](#architecture)
+- [Origin](#origin)
+- [License](#license)
+
+</details>
 
 ```
   Client (Continue, Cursor, any OpenAI client)
@@ -29,6 +68,11 @@ and Claude Opus alike. The Librarian does the work; the Reader just extracts.
 Instead of stuffing your entire codebase into the prompt, Helix compresses it into a persistent SQLite genome and expresses only the relevant genes per turn. The model sees compressed context, not raw text. Conversations replicate back into the genome automatically, building institutional memory over time.
 
 ## Benchmark Highlights
+
+> 🎯 **10/10 needle retrieval** from 0.6B to 26B parameters (43x range)
+> 🚀 **769x inference compression** (11.6M-token genome → 15K expressed per turn)
+> 💎 **Claude Haiku + Helix matches Opus** — all three API tiers hit 10/10 accuracy
+> 🧠 **Local 4B model beats blind Opus 2.25x** on domain-specific extraction
 
 **Needle-in-a-haystack on a 7,264-gene genome (~46MB raw knowledge):**
 
@@ -69,6 +113,64 @@ curl http://127.0.0.1:11437/stats
 ```
 
 Point any OpenAI-compatible client at `http://127.0.0.1:11437/v1` and start chatting. Context compression happens transparently.
+
+## What You'll See
+
+After seeding the genome, `/stats` shows the state of your knowledge base:
+
+```bash
+$ curl -s http://127.0.0.1:11437/stats | jq
+{
+  "total_genes": 7264,
+  "open": 7264,
+  "compression_ratio": 2.69,
+  "health": {
+    "total_queries": 503,
+    "avg_ellipticity": 0.62,
+    "status_counts": {"aligned": 143, "sparse": 267, "denatured": 93}
+  }
+}
+```
+
+A `/context` query returns the expressed context window — exactly what gets injected
+into the downstream LLM:
+
+```bash
+$ curl -s http://127.0.0.1:11437/context \
+    -H "Content-Type: application/json" \
+    -d '{"query":"What port does the Helix proxy listen on?"}' | jq '.[0]'
+{
+  "name": "Helix Genome Context",
+  "description": "12 genes expressed, 3.1x compression, health=aligned (Δε=0.66)",
+  "content": "<expressed_context>\n<GENE src=\"helix-context/README.md\" facts=\"port=11437\">\n# Helix Context\n...",
+  "context_health": {
+    "ellipticity": 0.66,
+    "coverage": 0.85,
+    "density": 0.42,
+    "freshness": 1.0,
+    "genes_expressed": 12,
+    "status": "aligned"
+  }
+}
+```
+
+A chat request through the proxy gets the context injected automatically — your
+client doesn't need to know Helix exists:
+
+```bash
+$ curl -s http://127.0.0.1:11437/v1/chat/completions \
+    -H "Content-Type: application/json" \
+    -d '{
+      "model": "qwen3:4b",
+      "messages": [{"role":"user","content":"What port does the Helix proxy use?"}]
+    }' | jq -r '.choices[0].message.content'
+
+The Helix proxy server listens on **port 11437**, as specified in helix.toml
+under [server]. This is configured in the repository at helix-context/README.md.
+```
+
+The model answered from the retrieved genes, not its training data — which doesn't
+contain your project.
 
 ## How It Works
 
