@@ -86,11 +86,29 @@ DECODER_MINIMAL = """Answer using ONLY the <expressed_context> below. Do not gue
 
 DECODER_NONE = ""
 
+# MoE-specific decoder: front-loads extracted facts for sliding-window attention.
+# Gemma 4's 5:1 SWA means only 1-in-6 layers see the full context.
+# By placing a flat answer slate in the first ~200 tokens, every layer
+# (including local SWA with 1024-token window) sees the key facts.
+DECODER_MOE = """Answer the question using the ANSWER SLATE below.
+The slate contains pre-extracted facts from the knowledge base.
+Find the key that matches the question and return its EXACT value.
+
+ANSWER SLATE:
+{answer_slate}
+
+If no slate key matches, check the <GENE> blocks below for the answer.
+Extract and return the LITERAL value. Do NOT reason or speculate."""
+
+# Model families that use MoE / sliding-window attention
+MOE_MODEL_FAMILIES = ("gemma4",)
+
 DECODER_MODES = {
     "full": DECODER_FULL,
     "condensed": DECODER_CONDENSED,
     "minimal": DECODER_MINIMAL,
     "none": DECODER_NONE,
+    "moe": DECODER_MOE,
 }
 
 # Keep backward compatibility
@@ -202,6 +220,13 @@ class HelixContextManager:
         # Adaptive decoder prompt based on downstream model capability
         self._decoder_mode = config.budget.decoder_mode
         self._decoder_prompt = DECODER_MODES.get(self._decoder_mode, DECODER_FULL)
+
+        # MoE model detection — enables answer-slate front-loading
+        # for models with sliding-window attention (gemma4 family)
+        self._is_moe = any(
+            config.ribosome.model.startswith(fam)
+            for fam in MOE_MODEL_FAMILIES
+        )
 
         # Pending replication buffer -- genes from background replication
         # that haven't committed to SQLite yet. Checked during Step 2
@@ -375,8 +400,10 @@ class HelixContextManager:
         # Each gene expressed as: Facts (KV pairs) + Source + Raw content
         # Dense format minimizes prose for small model extraction.
         spliced_map = {}
+        answer_slate_lines = []  # MoE answer slate — flat KV pairs
         for g in candidates:
             src = g.source_id or ""
+            short = ""
             if src and not src.startswith("_"):
                 parts = src.replace("\\", "/").split("/")
                 try:
@@ -384,22 +411,26 @@ class HelixContextManager:
                     short = "/".join(parts[idx + 1:])
                 except ValueError:
                     short = "/".join(parts[-3:]) if len(parts) > 3 else src
-                prefix = f"[Source: {short}]\n"
-            else:
-                prefix = ""
             # Dense XML gene format — structured for small model extraction
             kv_attrs = ""
             if g.key_values:
                 # Top 5 KVs as XML attributes for instant scanning
                 kv_pairs = " ".join(g.key_values[:5])
                 kv_attrs = f' facts="{kv_pairs}"'
-            src_attr = f' src="{short}"' if src and not src.startswith("_") else ""
+                # Collect KVs for MoE answer slate
+                for kv in g.key_values[:5]:
+                    answer_slate_lines.append(kv)
+            src_attr = f' src="{short}"' if short else ""
             # Compact content — first 1000 chars (less noise than 1400)
             content = g.content[:1000].strip()
             spliced_map[g.gene_id] = f"<GENE{src_attr}{kv_attrs}>\n{content}\n</GENE>"
 
-        # Step 5: Assemble
-        window = self._assemble(query, candidates, spliced_map, relation_graph, query_signals=(domains, entities))
+        # Step 5: Assemble (MoE-aware)
+        window = self._assemble(
+            query, candidates, spliced_map, relation_graph,
+            query_signals=(domains, entities),
+            answer_slate=answer_slate_lines if self._is_moe else None,
+        )
 
         # Touch expressed genes (update epigenetics)
         expressed_ids = [g.gene_id for g in candidates]
@@ -655,13 +686,33 @@ class HelixContextManager:
 
     # -- Internal: Step 5 (assemble) -----------------------------------
 
-    def _assemble(self, query: str, candidates: List[Gene], spliced_map: Dict[str, str], relation_graph: Optional[Dict] = None, query_signals: Optional[Tuple[List[str], List[str]]] = None) -> ContextWindow:
+    def _assemble(
+        self, query: str, candidates: List[Gene],
+        spliced_map: Dict[str, str],
+        relation_graph: Optional[Dict] = None,
+        query_signals: Optional[Tuple[List[str], List[str]]] = None,
+        answer_slate: Optional[List[str]] = None,
+    ) -> ContextWindow:
         """
-        Sort spliced parts by sequence_index, join with dividers,
-        wrap in expressed_context tags, prepend decoder prompt.
+        Sort spliced parts, join with dividers, wrap in expressed_context tags.
+
+        MoE mode: sorts genes by retrieval score (highest first) instead of
+        sequence_index, so the best match lands in position 0 — inside every
+        SWA local attention window. Also injects an answer slate into the
+        decoder prompt for front-loaded fact extraction.
         """
-        # Sort by sequence_index if set
-        sorted_genes = sorted(candidates, key=lambda g: g.promoter.sequence_index or 0)
+        if self._is_moe:
+            # MoE: relevance-first ordering — best gene at position 0
+            # so it's within every sliding-window attention layer
+            scores = self.genome.last_query_scores or {}
+            sorted_genes = sorted(
+                candidates,
+                key=lambda g: scores.get(g.gene_id, 0),
+                reverse=True,
+            )
+        else:
+            # Dense: sequence ordering for narrative coherence
+            sorted_genes = sorted(candidates, key=lambda g: g.promoter.sequence_index or 0)
 
         parts: List[str] = []
         total_raw = 0
@@ -680,8 +731,23 @@ class HelixContextManager:
             "</expressed_context>"
         )
 
+        # MoE answer slate: inject pre-extracted KVs into decoder prompt
+        # so they land in the first ~200 tokens (inside every SWA window)
+        if answer_slate and self._is_moe:
+            # Dedupe and limit slate to 20 entries
+            seen_kvs: set[str] = set()
+            unique_slate: list[str] = []
+            for kv in answer_slate:
+                if kv not in seen_kvs:
+                    seen_kvs.add(kv)
+                    unique_slate.append(kv)
+            slate_text = "\n".join(unique_slate[:20])
+            decoder_prompt = DECODER_MOE.replace("{answer_slate}", slate_text)
+        else:
+            decoder_prompt = self._decoder_prompt
+
         # Budget enforcement: if over token budget, drop lowest-scored genes
-        est_tokens = estimate_tokens(self._decoder_prompt) + estimate_tokens(expressed_wrapped)
+        est_tokens = estimate_tokens(decoder_prompt) + estimate_tokens(expressed_wrapped)
         budget = self.config.budget.ribosome_tokens + self.config.budget.expression_tokens
 
         if est_tokens > budget and len(parts) > 1:
@@ -690,7 +756,7 @@ class HelixContextManager:
                 parts.pop()
                 expressed = "\n---\n".join(parts)
                 expressed_wrapped = f"<expressed_context>\n{expressed}\n</expressed_context>"
-                est_tokens = estimate_tokens(self._decoder_prompt) + estimate_tokens(expressed_wrapped)
+                est_tokens = estimate_tokens(decoder_prompt) + estimate_tokens(expressed_wrapped)
 
         compressed_chars = len(expressed)
 
@@ -703,7 +769,7 @@ class HelixContextManager:
         health = self._compute_health(query_terms, candidates, compressed_chars, relation_graph)
 
         return ContextWindow(
-            ribosome_prompt=self._decoder_prompt,
+            ribosome_prompt=decoder_prompt,
             expressed_context=expressed_wrapped,
             expressed_gene_ids=[g.gene_id for g in sorted_genes[:len(parts)]],
             total_estimated_tokens=est_tokens,
@@ -714,6 +780,7 @@ class HelixContextManager:
                 "genes_expressed": len(parts),
                 "raw_chars": total_raw,
                 "compressed_chars": compressed_chars,
+                "moe_mode": bool(answer_slate and self._is_moe),
             },
         )
 

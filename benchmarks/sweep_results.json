@@ -1,0 +1,624 @@
+{
+  "timestamp": "2026-04-09T17:40:09",
+  "genome_genes": 7159,
+  "kv_cache": "q4_0",
+  "expression_budget": 15095,
+  "models": {
+    "qwen3:1.7b": {
+      "params": "1.7B",
+      "size_gb": 1.4,
+      "context_retrieval": "10/10",
+      "answer_accuracy": "3/10",
+      "ctx_rate": 1.0,
+      "ans_rate": 0.3,
+      "avg_proxy_latency_s": 25.4,
+      "needles": [
+        {
+          "name": "helix_port",
+          "query": "What port does the Helix proxy server listen on?",
+          "expected": "11437",
+          "accept": [
+            "11437"
+          ],
+          "found_in_context": true,
+          "answer_correct": false,
+          "context_latency_s": 2.9050755500793457,
+          "proxy_latency_s": 120.01256442070007,
+          "answer_preview": "proxy timeout"
+        },
+        {
+          "name": "scorerift_threshold",
+          "query": "What is the divergence threshold that triggers alerts in ScoreRift?",
+          "expected": "0.15",
+          "accept": [
+            "0.15",
+            ".15"
+          ],
+          "found_in_context": true,
+          "answer_correct": true,
+          "context_latency_s": 0.921,
+          "proxy_latency_s": 8.674,
+          "answer_preview": ".</think>\n\nThe divergence threshold that triggers alerts in ScoreRift is **0.15**. This value is explicitly defined in the `classify_status_rich` function within the `reconciler.py` file as `divergenc"
+        },
+        {
+          "name": "biged_skills_count",
+          "query": "How many skills does the BigEd fleet have?",
+          "expected": "125",
+          "accept": [
+            "125",
+            "129"
+          ],
+          "found_in_context": true,
+          "answer_correct": false,
+          "context_latency_s": 2.225,
+          "proxy_latency_s": 20.517,
+          "answer_preview": "the\n\n the\n\n the\n\n the\n the\n the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the"
+        },
+        {
+          "name": "bookkeeper_monetary",
+          "query": "What type should be used for monetary values in BookKeeper instead of float?",
+          "expected": "Decimal",
+          "accept": [
+            "decimal",
+            "Decimal"
+          ],
+          "found_in_context": true,
+          "answer_correct": true,
+          "context_latency_s": 1.211,
+          "proxy_latency_s": 13.479,
+          "answer_preview": "The type that should be used for monetary values in BookKeeper instead of float is **`Decimal`** from Python's `decimal` module.\n\n**SPECIFIC VALUE:** `Decimal`\n\n<GENE facts=In short=** When storing mo"
+        },
+        {
+          "name": "helix_pipeline_steps",
+          "query": "How many steps are in the Helix expression pipeline?",
+          "expected": "6",
+          "accept": [
+            "6",
+            "six"
+          ],
+          "found_in_context": true,
+          "answer_correct": false,
+          "context_latency_s": 1.362,
+          "proxy_latency_s": 12.603,
+          "answer_preview": "\n</think>\n\nThe assistant is a large language model that compresses its context, like a genome. It compresses its codebases into a persistent SQLite genome and expresses only the relevant genes per tur"
+        },
+        {
+          "name": "biged_rust_binary_size",
+          "query": "What is the binary size of the Rust BigEd build in MB?",
+          "expected": "11",
+          "accept": [
+            "11",
+            "11mb",
+            "11 mb"
+          ],
+          "found_in_context": true,
+          "answer_correct": false,
+          "context_latency_s": 2.567,
+          "proxy_latency_s": 13.674,
+          "answer_preview": "\n</think>\n\n</think>\n\n\n\n</think>\n\n\n\n</think>\n\n\n\n</think>\n\n"
+        },
+        {
+          "name": "genome_compression_target",
+          "query": "What is the target compression ratio for Helix Context?",
+          "expected": "5x",
+          "accept": [
+            "5x",
+            "5:1",
+            "5 to 1"
+          ],
+          "found_in_context": true,
+          "answer_correct": false,
+          "context_latency_s": 1.079,
+          "proxy_latency_s": 26.235,
+          "answer_preview": ""
+        },
+        {
+          "name": "scorerift_preset_dimensions",
+          "query": "How many dimensions does the Python preset in ScoreRift check?",
+          "expected": "8",
+          "accept": [
+            "8",
+            "eight"
+          ],
+          "found_in_context": true,
+          "answer_correct": true,
+          "context_latency_s": 1.795,
+          "proxy_latency_s": 7.877,
+          "answer_preview": " :\n The Python preset in ScoreRift checks 8 dimensions.\n. This is explicitly stated in the context where the \"8-dimensional Python project graph is mentioned as part of the default interaction graph p"
+        },
+        {
+          "name": "helix_ribosome_budget",
+          "query": "How many tokens are allocated for the ribosome decoder prompt?",
+          "expected": "3000",
+          "accept": [
+            "3000",
+            "3k",
+            "3,000"
+          ],
+          "found_in_context": true,
+          "answer_correct": false,
+          "context_latency_s": 1.673,
+          "proxy_latency_s": 18.482,
+          "answer_preview": "</think>\n\n</think>\n\n"
+        },
+        {
+          "name": "biged_default_model",
+          "query": "What is the default local model used by BigEd for conductor tasks?",
+          "expected": "qwen3",
+          "accept": [
+            "qwen3",
+            "qwen3:4b",
+            "qwen"
+          ],
+          "found_in_context": true,
+          "answer_correct": false,
+          "context_latency_s": 2.303,
+          "proxy_latency_s": 12.288,
+          "answer_preview": "\n\n\n\n</think>\n\n</think>\n\nI'm sorry, but I seems like I a misunderstanding. Let me try to explain:\n\nBigEd CC is a Rust binary that runs a production deployment path. It provides hardened,  ,  and,  and,"
+        }
+      ]
+    },
+    "qwen3:4b": {
+      "params": "4B",
+      "size_gb": 2.5,
+      "context_retrieval": "10/10",
+      "answer_accuracy": "7/10",
+      "ctx_rate": 1.0,
+      "ans_rate": 0.7,
+      "avg_proxy_latency_s": 47.2,
+      "needles": [
+        {
+          "name": "helix_port",
+          "query": "What port does the Helix proxy server listen on?",
+          "expected": "11437",
+          "accept": [
+            "11437"
+          ],
+          "found_in_context": true,
+          "answer_correct": true,
+          "context_latency_s": 3.37,
+          "proxy_latency_s": 26.642,
+          "answer_preview": "Based on the information in the context, the Helix proxy server listens on port 11437.\n\nThis is clearly indicated in multiple places in the documentation:\n\n1. In the `CLAUDE.md` file: `url=http://127."
+        },
+        {
+          "name": "scorerift_threshold",
+          "query": "What is the divergence threshold that triggers alerts in ScoreRift?",
+          "expected": "0.15",
+          "accept": [
+            "0.15",
+            ".15"
+          ],
+          "found_in_context": true,
+          "answer_correct": true,
+          "context_latency_s": 1.788,
+          "proxy_latency_s": 24.696,
+          "answer_preview": "The divergence threshold that triggers alerts in ScoreRift is **0.15**. This value is explicitly defined in the `classify_status_rich` function within the `reconciler.py` file as `divergence_threshold"
+        },
+        {
+          "name": "biged_skills_count",
+          "query": "How many skills does the BigEd fleet have?",
+          "expected": "125",
+          "accept": [
+            "125",
+            "129"
+          ],
+          "found_in_context": true,
+          "answer_correct": true,
+          "context_latency_s": 1.504,
+          "proxy_latency_s": 36.151,
+          "answer_preview": "Based on the provided context, the BigEd fleet has 129 skills. This is explicitly stated in multiple sections of the documentation, including:\n\nIn the \"Education/fleet/knowledge/wiki/overview.md\" docu"
+        },
+        {
+          "name": "bookkeeper_monetary",
+          "query": "What type should be used for monetary values in BookKeeper instead of float?",
+          "expected": "Decimal",
+          "accept": [
+            "decimal",
+            "Decimal"
+          ],
+          "found_in_context": true,
+          "answer_correct": false,
+          "context_latency_s": 0.8954465389251709,
+          "proxy_latency_s": 120.01109266281128,
+          "answer_preview": "proxy timeout"
+        },
+        {
+          "name": "helix_pipeline_steps",
+          "query": "How many steps are in the Helix expression pipeline?",
+          "expected": "6",
+          "accept": [
+            "6",
+            "six"
+          ],
+          "found_in_context": true,
+          "answer_correct": false,
+          "context_latency_s": 0.7728335857391357,
+          "proxy_latency_s": 120.0124785900116,
+          "answer_preview": "proxy timeout"
+        },
+        {
+          "name": "biged_rust_binary_size",
+          "query": "What is the binary size of the Rust BigEd build in MB?",
+          "expected": "11",
+          "accept": [
+            "11",
+            "11mb",
+            "11 mb"
+          ],
+          "found_in_context": true,
+          "answer_correct": true,
+          "context_latency_s": 1.283,
+          "proxy_latency_s": 68.272,
+          "answer_preview": "According to the documentation, the Rust BigEd build binary size is 11 MB. This is explicitly stated in the \"BigEd CC \u2014 Rust Production Track\" section where it describes \"The Rust binary is the **prod"
+        },
+        {
+          "name": "genome_compression_target",
+          "query": "What is the target compression ratio for Helix Context?",
+          "expected": "5x",
+          "accept": [
+            "5x",
+            "5:1",
+            "5 to 1"
+          ],
+          "found_in_context": true,
+          "answer_correct": true,
+          "context_latency_s": 0.541,
+          "proxy_latency_s": 15.941,
+          "answer_preview": "Looking at the provided context, I can see that the target compression ratio for Helix Context is specifically stated in the benchmark notes section:\n\nFrom the section \"## Helix Context Benchmark Plan"
+        },
+        {
+          "name": "scorerift_preset_dimensions",
+          "query": "How many dimensions does the Python preset in ScoreRift check?",
+          "expected": "8",
+          "accept": [
+            "8",
+            "eight"
+          ],
+          "found_in_context": true,
+          "answer_correct": true,
+          "context_latency_s": 1.376,
+          "proxy_latency_s": 21.905,
+          "answer_preview": "Based on the provided context, the Python preset in ScoreRift checks **8 dimensions**.\n\nThis is explicitly confirmed through multiple reliable sources:\n1. The code directly states: \"Python Project (8 "
+        },
+        {
+          "name": "helix_ribosome_budget",
+          "query": "How many tokens are allocated for the ribosome decoder prompt?",
+          "expected": "3000",
+          "accept": [
+            "3000",
+            "3k",
+            "3,000"
+          ],
+          "found_in_context": true,
+          "answer_correct": true,
+          "context_latency_s": 0.7,
+          "proxy_latency_s": 13.434,
+          "answer_preview": "The token budget allocated for the ribosome decoder prompt is **3000 tokens**.\n\nThis is explicitly stated in multiple sources within the context:\n- The code snippet from `helix_context_manager.py` sta"
+        },
+        {
+          "name": "biged_default_model",
+          "query": "What is the default local model used by BigEd for conductor tasks?",
+          "expected": "qwen3",
+          "accept": [
+            "qwen3",
+            "qwen3:4b",
+            "qwen"
+          ],
+          "found_in_context": true,
+          "answer_correct": false,
+          "context_latency_s": 2.473,
+          "proxy_latency_s": 24.612,
+          "answer_preview": "Based on the context provided, I can see that in the `helix-context/helix.toml` section, the default model configuration is specified as:\n\n```\n[core.model]\nmodel = \"llama3-8b\"\n```\n\nThis indicates that"
+        }
+      ]
+    },
+    "qwen3:8b": {
+      "params": "8B",
+      "size_gb": 5.2,
+      "context_retrieval": "10/10",
+      "answer_accuracy": "5/10",
+      "ctx_rate": 1.0,
+      "ans_rate": 0.5,
+      "avg_proxy_latency_s": 67.5,
+      "needles": [
+        {
+          "name": "helix_port",
+          "query": "What port does the Helix proxy server listen on?",
+          "expected": "11437",
+          "accept": [
+            "11437"
+          ],
+          "found_in_context": true,
+          "answer_correct": true,
+          "context_latency_s": 0.929,
+          "proxy_latency_s": 4.184,
+          "answer_preview": "The Helix proxy server listens on **port 11437**.\n\nThis is explicitly stated in the Helix Context documentation and confirmed by the `helix_port` needle in the benchmark tests. The port is also used b"
+        },
+        {
+          "name": "scorerift_threshold",
+          "query": "What is the divergence threshold that triggers alerts in ScoreRift?",
+          "expected": "0.15",
+          "accept": [
+            "0.15",
+            ".15"
+          ],
+          "found_in_context": true,
+          "answer_correct": true,
+          "context_latency_s": 0.843,
+          "proxy_latency_s": 15.342,
+          "answer_preview": "The divergence threshold that triggers alerts in ScoreRift is **0.15**. This value is explicitly defined in the `classify_status_rich` function within the `reconciler.py` file, where it is set as a pa"
+        },
+        {
+          "name": "biged_skills_count",
+          "query": "How many skills does the BigEd fleet have?",
+          "expected": "125",
+          "accept": [
+            "125",
+            "129"
+          ],
+          "found_in_context": true,
+          "answer_correct": true,
+          "context_latency_s": 1.093,
+          "proxy_latency_s": 21.272,
+          "answer_preview": "The BigEd fleet has **129 skills** registered across the `fleet/skills/` directory. This is explicitly stated in the architecture.md and overview.md files under the \"Current State\" and \"Architecture\" "
+        },
+        {
+          "name": "bookkeeper_monetary",
+          "query": "What type should be used for monetary values in BookKeeper instead of float?",
+          "expected": "Decimal",
+          "accept": [
+            "decimal",
+            "Decimal"
+          ],
+          "found_in_context": true,
+          "answer_correct": true,
+          "context_latency_s": 0.607,
+          "proxy_latency_s": 17.146,
+          "answer_preview": "The type that should be used for monetary values in BookKeeper instead of `float` is **`Decimal`** from Python's `decimal` module. \n\n### Why `Decimal`?\n- **Precision:** `Decimal` avoids the rounding e"
+        },
+        {
+          "name": "helix_pipeline_steps",
+          "query": "How many steps are in the Helix expression pipeline?",
+          "expected": "6",
+          "accept": [
+            "6",
+            "six"
+          ],
+          "found_in_context": true,
+          "answer_correct": true,
+          "context_latency_s": 0.642,
+          "proxy_latency_s": 29.355,
+          "answer_preview": "The Helix expression pipeline consists of **6 steps**. Here's the breakdown based on the documentation and code fragments:\n\n1. **Extract Promoter Signals**  \n   - Derive domains and entities from the "
+        },
+        {
+          "name": "biged_rust_binary_size",
+          "query": "What is the binary size of the Rust BigEd build in MB?",
+          "expected": "11",
+          "accept": [
+            "11",
+            "11mb",
+            "11 mb"
+          ],
+          "found_in_context": true,
+          "answer_correct": false,
+          "context_latency_s": 1.1127631664276123,
+          "proxy_latency_s": 120.01160097122192,
+          "answer_preview": "proxy timeout"
+        },
+        {
+          "name": "genome_compression_target",
+          "query": "What is the target compression ratio for Helix Context?",
+          "expected": "5x",
+          "accept": [
+            "5x",
+            "5:1",
+            "5 to 1"
+          ],
+          "found_in_context": true,
+          "answer_correct": false,
+          "context_latency_s": 0.5582137107849121,
+          "proxy_latency_s": 120.00285363197327,
+          "answer_preview": "proxy timeout"
+        },
+        {
+          "name": "scorerift_preset_dimensions",
+          "query": "How many dimensions does the Python preset in ScoreRift check?",
+          "expected": "8",
+          "accept": [
+            "8",
+            "eight"
+          ],
+          "found_in_context": true,
+          "answer_correct": false,
+          "context_latency_s": 1.0920836925506592,
+          "proxy_latency_s": 120.00767588615417,
+          "answer_preview": "proxy timeout"
+        },
+        {
+          "name": "helix_ribosome_budget",
+          "query": "How many tokens are allocated for the ribosome decoder prompt?",
+          "expected": "3000",
+          "accept": [
+            "3000",
+            "3k",
+            "3,000"
+          ],
+          "found_in_context": true,
+          "answer_correct": false,
+          "context_latency_s": 0.5489401817321777,
+          "proxy_latency_s": 120.01326751708984,
+          "answer_preview": "proxy timeout"
+        },
+        {
+          "name": "biged_default_model",
+          "query": "What is the default local model used by BigEd for conductor tasks?",
+          "expected": "qwen3",
+          "accept": [
+            "qwen3",
+            "qwen3:4b",
+            "qwen"
+          ],
+          "found_in_context": true,
+          "answer_correct": false,
+          "context_latency_s": 1.287,
+          "proxy_latency_s": 107.859,
+          "answer_preview": "The default local model used by BigEd for conductor tasks is **`gemma4:e4b`**, as specified in the `helix.toml` configuration file under the `[ribosome]` section. This model is associated with the Oll"
+        }
+      ]
+    },
+    "gemma4:e4b": {
+      "params": "4B",
+      "size_gb": 9.6,
+      "context_retrieval": "10/10",
+      "answer_accuracy": "5/10",
+      "ctx_rate": 1.0,
+      "ans_rate": 0.5,
+      "avg_proxy_latency_s": 18.9,
+      "needles": [
+        {
+          "name": "helix_port",
+          "query": "What port does the Helix proxy server listen on?",
+          "expected": "11437",
+          "accept": [
+            "11437"
+          ],
+          "found_in_context": true,
+          "answer_correct": false,
+          "context_latency_s": 1.87,
+          "proxy_latency_s": 11.042,
+          "answer_preview": "The service runs on **port 8080**."
+        },
+        {
+          "name": "scorerift_threshold",
+          "query": "What is the divergence threshold that triggers alerts in ScoreRift?",
+          "expected": "0.15",
+          "accept": [
+            "0.15",
+            ".15"
+          ],
+          "found_in_context": true,
+          "answer_correct": true,
+          "context_latency_s": 1.27,
+          "proxy_latency_s": 20.213,
+          "answer_preview": "The divergence threshold that triggers alerts in ScoreRift is **0.15**.\n\nThis value is explicitly defined within the `classify_status_rich` function parameters in the `reconciler.py` file, where it is"
+        },
+        {
+          "name": "biged_skills_count",
+          "query": "How many skills does the BigEd fleet have?",
+          "expected": "125",
+          "accept": [
+            "125",
+            "129"
+          ],
+          "found_in_context": true,
+          "answer_correct": true,
+          "context_latency_s": 1.435,
+          "proxy_latency_s": 4.068,
+          "answer_preview": "The available information indicates that the BigEd system has **129** skills."
+        },
+        {
+          "name": "bookkeeper_monetary",
+          "query": "What type should be used for monetary values in BookKeeper instead of float?",
+          "expected": "Decimal",
+          "accept": [
+            "decimal",
+            "Decimal"
+          ],
+          "found_in_context": true,
+          "answer_correct": true,
+          "context_latency_s": 0.97,
+          "proxy_latency_s": 26.124,
+          "answer_preview": "The definitive and correct type that must be used for all monetary values in BookKeeper is **`Decimal`** from Python's built-in `decimal` module.\n\n**You must never use standard floating-point types (`"
+        },
+        {
+          "name": "helix_pipeline_steps",
+          "query": "How many steps are in the Helix expression pipeline?",
+          "expected": "6",
+          "accept": [
+            "6",
+            "six"
+          ],
+          "found_in_context": true,
+          "answer_correct": false,
+          "context_latency_s": 0.872,
+          "proxy_latency_s": 15.643,
+          "answer_preview": "The process described in the context outlines a flow with three main stages:\n\n1. **Client**\n2. **Helix**\n3. **Helix**"
+        },
+        {
+          "name": "biged_rust_binary_size",
+          "query": "What is the binary size of the Rust BigEd build in MB?",
+          "expected": "11",
+          "accept": [
+            "11",
+            "11mb",
+            "11 mb"
+          ],
+          "found_in_context": true,
+          "answer_correct": false,
+          "context_latency_s": 1.726,
+          "proxy_latency_s": 8.224,
+          "answer_preview": "The provided context states:\n\n> \"The official, production-ready desktop application build size is **22MB**.\"\n\nAnd earlier:\n\n> \"The pre-release build size is approximately **30MB**.\"\n\nHowever, the init"
+        },
+        {
+          "name": "genome_compression_target",
+          "query": "What is the target compression ratio for Helix Context?",
+          "expected": "5x",
+          "accept": [
+            "5x",
+            "5:1",
+            "5 to 1"
+          ],
+          "found_in_context": true,
+          "answer_correct": false,
+          "context_latency_s": 0.733,
+          "proxy_latency_s": 39.636,
+          "answer_preview": "Based on the provided context snippets, there is **no explicit, single target compression ratio** (e.g., X:1) stated.\n\nThe context repeatedly mentions the **context window size of 8192 tokens**, which"
+        },
+        {
+          "name": "scorerift_preset_dimensions",
+          "query": "How many dimensions does the Python preset in ScoreRift check?",
+          "expected": "8",
+          "accept": [
+            "8",
+            "eight"
+          ],
+          "found_in_context": true,
+          "answer_correct": true,
+          "context_latency_s": 1.381,
+          "proxy_latency_s": 25.801,
+          "answer_preview": "The Python preset in ScoreRift checks **8 dimensions**.\n\nThis count is derived from the structure of the default interaction graphs used for the preset, which are specifically noted in the codebase as"
+        },
+        {
+          "name": "helix_ribosome_budget",
+          "query": "How many tokens are allocated for the ribosome decoder prompt?",
+          "expected": "3000",
+          "accept": [
+            "3000",
+            "3k",
+            "3,000"
+          ],
+          "found_in_context": true,
+          "answer_correct": true,
+          "context_latency_s": 0.716,
+          "proxy_latency_s": 28.051,
+          "answer_preview": "The token budget allocated for the ribosome decoder prompt is **3000** tokens (or **3k**)."
+        },
+        {
+          "name": "biged_default_model",
+          "query": "What is the default local model used by BigEd for conductor tasks?",
+          "expected": "qwen3",
+          "accept": [
+            "qwen3",
+            "qwen3:4b",
+            "qwen"
+          ],
+          "found_in_context": true,
+          "answer_correct": false,
+          "context_latency_s": 1.992,
+          "proxy_latency_s": 10.279,
+          "answer_preview": "The provided context does not explicitly state what the primary or default model is used for general-purpose \"conductor\" tasks within the system.\n\nHowever, based on the available information, here is "
+        }
+      ]
+    }
+  }
+}
