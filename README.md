@@ -380,13 +380,47 @@ When a user asks about "cache", the genome also searches for "redis", "ttl", etc
 
 ## HTTP Endpoints
 
+### Core endpoints
+
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/v1/chat/completions` | POST | OpenAI-compatible proxy (primary integration) |
 | `/ingest` | POST | Ingest content into genome: `{content, content_type, metadata?}` |
 | `/context` | POST | Query genome for context: `{query}` (Continue format) |
+| `/consolidate` | POST | Distill session buffer into knowledge genes |
 | `/stats` | GET | Genome metrics, compression ratio, health |
 | `/health` | GET | Server status, ribosome model, gene count |
+| `/health/history` | GET | Recent query health signals (`?limit=N`) |
+
+### Admin / maintenance endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/admin/refresh` | POST | Reopen the genome connection to see external writes |
+| `/admin/vacuum` | POST | Reclaim free SQLite pages after thinning (returns before/after size) |
+| `/admin/kv-backfill` | POST | Run CPU regex KV extraction on genes missing `key_values` |
+| `/replicas` | GET | List replica status (sync lag, paths) |
+| `/replicas/sync` | POST | Force-sync all replicas from the master genome |
+| `/bridge/status` | GET | Shared-memory bridge status (inbox, signals) |
+| `/bridge/collect` | POST | Ingest pending files from the shared bridge inbox |
+| `/bridge/signal` | POST | Write a named signal to the shared bridge |
+
+### Four operations that sound similar — but do different things
+
+These are the most confused operations in the admin surface. Know which one to reach for:
+
+| Operation | What it does | When to use |
+|-----------|--------------|-------------|
+| **`checkpoint(mode)`** | Flush WAL log into the main DB file. No file size change. | During/after bulk ingest, to guarantee data is durable before a crash. Automatic every 50 inserts. |
+| **`refresh()`** / `/admin/refresh` | Close and reopen the long-lived DB connection so it picks up writes made by external processes. | After running a thinning script, ingest worker, or any out-of-band write. Cheap, non-destructive. |
+| **`compact()`** | Scan every gene's `source_id`, mtime-check the file, mark source-changed genes as `AGING`. **Does not delete or shrink anything.** | Periodic source-staleness detection (runs automatically every `compact_interval` seconds). |
+| **`vacuum()`** / `/admin/vacuum` | Rewrite the SQLite file to reclaim free pages from previous deletions. **Shrinks the file.** | After large thinning operations. Blocking — run during maintenance windows only. Our 7.2K-gene genome reclaimed 229 MB (30%) on first VACUUM. |
+
+**Rule of thumb:**
+- If you care about **durability** → `checkpoint()`
+- If you care about **visibility** (seeing external writes) → `refresh()`
+- If you care about **staleness** (detecting changed sources) → `compact()`
+- If you care about **disk space** → `vacuum()`
 
 ## Continue IDE Integration
 
