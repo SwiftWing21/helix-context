@@ -69,3 +69,11 @@ test = ["pytest", "unittest", "mock", "assert", "coverage"]
 deploy = ["docker", "kubernetes", "ci", "cd", "pipeline", "helm"]
 config = ["settings", "toml", "env", "environment", "dotenv"]
 conductor = ["llm", "agent", "orchestration", "model", "fleet"]
+
+# Session terms (2026-04-09 SIKE / MoE decoder work)
+vacuum = ["reclaim", "sqlite", "pages", "compact", "shrink", "admin"]
+sike = ["scale_invariant", "benchmark", "retrieval", "sike_score"]
+moe = ["mixture_of_experts", "sliding_window", "swa", "gemma4", "tissue", "answer_slate"]
+slate = ["answer_slate", "kv_facts", "front_loaded", "extraction", "moe"]
+decoder = ["decoder_mode", "condensed", "moe", "ribosome_prompt", "instructions"]
+maintenance = ["admin", "vacuum", "refresh", "checkpoint", "compact"]
