@@ -70,7 +70,20 @@ class Genome:
         self.conn.execute("PRAGMA busy_timeout=30000")  # 30s retry on lock
         self._upsert_count = 0  # WAL checkpoint cadence counter
         self.last_query_scores: Dict[str, float] = {}  # Retrieval scores from last query
+        self._sema_cache: Optional[Dict] = None  # Pre-materialized ΣĒMA vectors
         self._init_db()
+
+        # Dedicated read-only connection — WAL allows concurrent readers
+        # without blocking the writer. Separate connection = no lock contention.
+        if self.path != ":memory:":
+            self._reader = sqlite3.connect(
+                f"file:{self.path}?mode=ro", uri=True,
+                check_same_thread=False, timeout=10,
+            )
+            self._reader.row_factory = sqlite3.Row
+            self._reader.execute("PRAGMA busy_timeout=10000")
+        else:
+            self._reader = None
 
         # Create SPLADE inverted index if enabled
         if self._splade_enabled:
@@ -275,6 +288,58 @@ class Genome:
         except Exception:
             pass  # No active transaction — safe to ignore
 
+    # ── ΣĒMA vector cache (pre-materialized for fast Mode B scans) ──
+
+    def _build_sema_cache(self) -> None:
+        """
+        Load all ΣĒMA vectors into RAM as a numpy matrix for fast
+        cosine similarity. Eliminates 7K json_loads() per Mode B query.
+
+        Cache structure:
+            gene_ids: list[str] — ordered gene IDs
+            matrix: np.ndarray (N, 20) — float32 ΣĒMA vectors
+        """
+        try:
+            import numpy as np
+        except ImportError:
+            log.debug("numpy not available, ΣĒMA cache disabled")
+            return
+
+        cur = self.read_conn.cursor()
+        rows = cur.execute(
+            "SELECT gene_id, embedding FROM genes "
+            "WHERE embedding IS NOT NULL AND chromatin < ? "
+            "AND COALESCE(compression_tier, 0) < 2",
+            (int(ChromatinState.HETEROCHROMATIN),),
+        ).fetchall()
+
+        gene_ids = []
+        vectors = []
+        for r in rows:
+            try:
+                vec = json_loads(r["embedding"])
+                if isinstance(vec, list) and len(vec) == 20:
+                    gene_ids.append(r["gene_id"])
+                    vectors.append(vec)
+            except Exception:
+                continue
+
+        if vectors:
+            matrix = np.array(vectors, dtype=np.float32)
+            # Normalize rows for cosine similarity via dot product
+            norms = np.linalg.norm(matrix, axis=1, keepdims=True)
+            norms[norms < 1e-8] = 1.0
+            matrix = matrix / norms
+            self._sema_cache = {"gene_ids": gene_ids, "matrix": matrix}
+            log.info("ΣĒMA cache built: %d vectors (%d KB)",
+                     len(gene_ids), matrix.nbytes // 1024)
+        else:
+            self._sema_cache = None
+
+    def invalidate_sema_cache(self) -> None:
+        """Mark cache stale — rebuilt on next Mode B query."""
+        self._sema_cache = None
+
     # ── Replication ──────────────────────────────────────────────────
 
     def set_replication_manager(self, mgr) -> None:
@@ -284,15 +349,18 @@ class Genome:
     @property
     def read_conn(self) -> sqlite3.Connection:
         """
-        Connection for read operations. Routes to a replica if available,
-        falls back to master. This prevents readers from blocking writers
-        during bulk ingestion.
+        Dedicated read-only connection. In WAL mode, readers and writers
+        don't block each other — but only if they use separate connections.
+
+        Priority: replication replica > dedicated reader > write connection.
         """
         if self._replication_mgr is not None:
             try:
                 return self._replication_mgr.get_reader()
             except Exception:
                 pass
+        if self._reader is not None:
+            return self._reader
         return self.conn
 
     # ── Gene ID (content-addressable) ───────────────────────────────
@@ -401,6 +469,10 @@ class Genome:
         elif self._upsert_count % 50 == 0:
             self.checkpoint("PASSIVE")
 
+        # Invalidate ΣĒMA cache (new gene may have embedding)
+        if self._sema_cache is not None:
+            self._sema_cache = None
+
         # Notify replication manager (if attached)
         if self._replication_mgr is not None:
             self._replication_mgr.notify_write()
@@ -444,7 +516,7 @@ class Genome:
             raise PromoterMismatch("No query terms after expansion")
 
         self._refresh_snapshot()  # See latest WAL state (external thinning, deletes)
-        cur = self.conn.cursor()  # Always master — replicas may be stale
+        cur = self.read_conn.cursor()  # Read path — avoids WAL lock contention
         limit = max_genes * 2
 
         # Gene scores: gene_id → float (accumulated across tiers)
@@ -542,7 +614,7 @@ class Genome:
                 if has_table:
                     query_text = " ".join(query_terms)
                     query_sparse = splade_backend.encode(query_text)
-                    splade_hits = splade_backend.query_splade(self.conn, query_sparse, limit=limit * 2)
+                    splade_hits = splade_backend.query_splade(self.read_conn, query_sparse, limit=limit * 2)
                     for gid, score in splade_hits:
                         # Normalize SPLADE score to be comparable with other tiers
                         splade_score = min(score, 20.0) * 3.5 / 20.0  # Cap at 3.5
@@ -590,36 +662,41 @@ class Genome:
                                     gene_scores[gid] += sim * 2.0 * boost_scale
 
                 # Mode B: Add new candidates when pool is undersized
-                # Scans all ΣĒMA vectors to find semantically similar genes
-                # that tags/SPLADE/FTS5 missed entirely
+                # Uses pre-materialized numpy cache for fast cosine scan
+                # instead of deserializing 7K JSON blobs per query.
                 if len(gene_scores) < limit // 2:
-                    sema_all = cur.execute(
-                        "SELECT gene_id, embedding FROM genes "
-                        "WHERE embedding IS NOT NULL AND chromatin < ? "
-                        "AND COALESCE(compression_tier, 0) < 2",
-                        (int(ChromatinState.HETEROCHROMATIN),),
-                    ).fetchall()
+                    # Build cache on first use (lazy init)
+                    if self._sema_cache is None:
+                        self._build_sema_cache()
 
-                    all_candidates = []
-                    for r in sema_all:
-                        if r["gene_id"] in gene_scores:
-                            continue  # Already in pool
+                    if self._sema_cache is not None:
                         try:
-                            vec = json_loads(r["embedding"])
-                            if isinstance(vec, list) and len(vec) == 20:
-                                all_candidates.append((r["gene_id"], vec))
-                        except Exception:
-                            continue
-
-                    if all_candidates:
-                        # Find top-k nearest by ΣĒMA similarity
-                        fill_count = limit - len(gene_scores)
-                        nearest_new = self._sema_codec.nearest(
-                            query_vec, all_candidates, k=fill_count,
-                        )
-                        for gid, sim in nearest_new:
-                            if sim > 0.4:  # Higher threshold for new candidates
-                                gene_scores[gid] = sim * 3.0  # Weight 3.0 for ΣĒMA-discovered
+                            import numpy as np
+                            cache = self._sema_cache
+                            q = np.array(query_vec, dtype=np.float32)
+                            q_norm = np.linalg.norm(q)
+                            if q_norm > 1e-8:
+                                q = q / q_norm
+                                # Batch cosine similarity: (N,20) @ (20,) → (N,)
+                                sims = cache["matrix"] @ q
+                                # Mask already-scored genes
+                                existing = set(gene_scores.keys())
+                                fill_count = limit - len(gene_scores)
+                                # Get top-k indices
+                                top_idx = np.argsort(sims)[::-1]
+                                added = 0
+                                for idx in top_idx:
+                                    if added >= fill_count:
+                                        break
+                                    gid = cache["gene_ids"][idx]
+                                    sim = float(sims[idx])
+                                    if gid in existing:
+                                        continue
+                                    if sim > 0.4:
+                                        gene_scores[gid] = sim * 3.0
+                                        added += 1
+                        except ImportError:
+                            pass  # numpy not available
             except Exception:
                 log.debug("ΣĒMA retrieval failed, continuing without")
 
@@ -1416,4 +1493,9 @@ class Genome:
 
     def close(self) -> None:
         self.checkpoint("TRUNCATE")  # Flush all WAL data before closing
+        if self._reader is not None:
+            try:
+                self._reader.close()
+            except Exception:
+                pass
         self.conn.close()
