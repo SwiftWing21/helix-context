@@ -265,6 +265,24 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
         new_count = helix.genome.stats()["total_genes"]
         return {"refreshed": True, "genes": new_count}
 
+    @app.post("/admin/vacuum")
+    async def admin_vacuum():
+        """Reclaim free pages from the genome database.
+
+        Runs VACUUM to compact the SQLite file after thinning, compaction,
+        or large-scale deletions. Blocks all writers during the operation —
+        run during maintenance windows. Returns before/after sizes.
+        """
+        try:
+            result = helix.genome.vacuum()
+            return {"ok": True, **result}
+        except Exception as exc:
+            log.warning("VACUUM failed: %s", exc, exc_info=True)
+            return JSONResponse(
+                {"ok": False, "error": str(exc)},
+                status_code=500,
+            )
+
     @app.post("/admin/kv-backfill")
     async def admin_kv_backfill():
         """Run CPU regex KV extraction on genes missing key_values."""

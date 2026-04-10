@@ -1324,6 +1324,67 @@ class Genome:
         except Exception:
             log.warning("WAL checkpoint (%s) failed", mode, exc_info=True)
 
+    def vacuum(self) -> Dict[str, int]:
+        """
+        Reclaim free pages from the genome database.
+
+        After large-scale operations (thinning, compaction, source-change
+        repair) SQLite holds deleted pages until a VACUUM releases them.
+        For a heavily-thinned genome this can be 30-50% of the file size.
+
+        This method:
+          1. Checkpoints the WAL so all data is in the main DB file
+          2. Closes the long-lived connection (VACUUM needs exclusive access)
+          3. Runs VACUUM via a dedicated connection
+          4. Reopens the long-lived connection
+
+        Returns:
+            dict with before/after sizes in bytes, and bytes reclaimed.
+
+        Warning: VACUUM is a full-file rewrite — it temporarily doubles disk
+        usage and blocks all writers. Run during maintenance windows.
+        """
+        import os
+        path = self.path
+        before = os.path.getsize(path) if os.path.exists(path) else 0
+
+        # Flush WAL and close the main connection
+        try:
+            self.conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            self.conn.commit()
+        except Exception:
+            log.warning("Pre-VACUUM WAL checkpoint failed", exc_info=True)
+        try:
+            self.conn.close()
+        except Exception:
+            pass
+
+        # Run VACUUM on a fresh, autocommit connection
+        try:
+            vac_conn = sqlite3.connect(path)
+            vac_conn.isolation_level = None  # autocommit — VACUUM requires it
+            vac_conn.execute("VACUUM")
+            vac_conn.close()
+            log.info("VACUUM completed on %s", path)
+        except Exception:
+            log.warning("VACUUM failed", exc_info=True)
+
+        # Reopen the long-lived connection
+        self.conn = sqlite3.connect(path, check_same_thread=False, timeout=30)
+        self.conn.row_factory = sqlite3.Row
+        self.conn.execute("PRAGMA journal_mode=WAL")
+        self.conn.execute("PRAGMA busy_timeout=30000")
+
+        after = os.path.getsize(path) if os.path.exists(path) else 0
+        reclaimed = before - after
+
+        return {
+            "before_bytes": before,
+            "after_bytes": after,
+            "reclaimed_bytes": reclaimed,
+            "reclaimed_pct": round(reclaimed / max(before, 1) * 100, 1),
+        }
+
     # ── Cold-storage compression (ΣĒMA-based chromatin tiers) ──────
 
     TIER_OPEN = 0           # Full fidelity — hot retrieval pool
