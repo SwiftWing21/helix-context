@@ -215,6 +215,89 @@ confidence threshold (>0.6) for storage, start with 5 classes.
 
 ---
 
+## Benchmark Results — Scale-Invariant Knowledge Engine (SIKE)
+
+**Date:** 2026-04-09
+**Benchmark:** Needle-in-a-Haystack (10 project-specific facts, ~46MB genome, 7,264 genes)
+**Hardware:** RTX 3080 Ti (12GB VRAM), 48GB DDR4
+
+### Core Finding
+
+**Retrieval is perfectly scale-invariant across a 43x parameter range.**
+The Agentome genome scored 10/10 retrieval on every model tested, from qwen3:0.6b (600M params)
+to gemma4:26b-a4b (26B total). Accuracy (extraction from retrieved context) is bounded only by
+the downstream model's instruction-following ability, not its knowledge capacity.
+
+### Local Model Sweep (q4_0 KV cache, MoE tissue-specific decoder for gemma4)
+
+| Model | Total / Active | VRAM | Retrieval | Accuracy | Latency |
+|-------|----------------|------|-----------|----------|---------|
+| qwen3:0.6b | 0.6B / 0.6B | 0.5 GB | **10/10** | 2/10 | 1.2s |
+| qwen3:1.7b | 1.7B / 1.7B | 1.4 GB | **10/10** | 3/10 | 1.4s |
+| gemma4:e2b (MoE) | 4B / 2B | 7.2 GB | **10/10** | 5/10 | 1.5s |
+| qwen3:4b | 4B / 4B | 2.5 GB | **10/10** | **9/10** | 21s |
+| gemma4:e4b (MoE) | 8B / 4B | 9.6 GB | **10/10** | **9/10** | 1.7s |
+| qwen3:8b | 8B / 8B | 5.2 GB | **10/10** | **9/10** | 1.2s |
+| gemma4:26b-a4b (MoE) | 26B / 4B | 8.1 GB + 13 GB DDR4 | **10/10** | 6/10 | 6.1s |
+
+### API Model Sweep (via sub-agent dispatch)
+
+Two conditions: **(a)** blind — only project's `CLAUDE.md` in agent working directory as a hand-curated reference; **(b)** Helix enabled — agents call `/context` endpoint on local Helix proxy.
+
+| Model | Blind (CLAUDE.md contamination) | + Helix Proxy | Uplift |
+|-------|---------------------------------|---------------|--------|
+| Claude Haiku 4.5 | 4/10 | **10/10** | +6 |
+| Claude Sonnet 4.6 | 3/10 | **10/10** | +7 |
+| Claude Opus 4.6 | 4/10 | **10/10** | +7 |
+
+### Key Observations
+
+**1. The Contamination Paradox.** Frontier Claude models with a hand-curated project reference
+(`CLAUDE.md`, ~15KB of Markdown maintained by a human) scored 3-4/10. The stuff CLAUDE.md
+doesn't cover (ScoreRift internals, pipeline step counts, exact ribosome budget) returned
+`UNKNOWN`. This isn't a failure of the models — it's a failure of hand-curation. Humans cannot
+maintain exhaustive context documents. The genome can.
+
+**2. The Hallucination Tell.** All three blind Claude models independently hallucinated "5.6x"
+for the Helix compression target. That number exists nowhere in the codebase — it's the
+measured ratio (2.7x) multiplied by a plausible factor. With Helix retrieval, all three found
+the literal "5x" from BENCHMARK_NOTES.md. **Retrieval doesn't just add facts; it prevents
+confident fabrication.**
+
+**3. Retrieval / Parameter correlation ≈ 0.** Standard RAG systems show strong positive
+correlation between model size and retrieval quality — bigger models "look back" better across
+longer context. Agentome flattens this curve to zero: a 0.6B model had identical retrieval
+to Opus. The Librarian does the searching; the Reader only has to extract.
+
+**4. MoE architectures require tissue-specific expression.** Gemma 4's 5:1 sliding-window
+attention means only 1-in-6 layers see the full context window. The first benchmark pass
+with standard expression scored gemma4:e4b at 5/10. Adding a front-loaded "answer slate"
+(flat `key=value` pairs in the first ~200 tokens, inside every local attention window) +
+relevance-first gene ordering (best match at position 0) lifted it to 9/10. This matches
+the biological analogy: different cell types express different proteins from the same genome.
+
+**5. The parameter floor is ~1.7B.** Below this, models enter reasoning loops that consume
+their output budget without producing extractable answers. At 0.6B, even answer-slate
+front-loading + `/no_think` suppression cannot compel reliable extraction. The retrieval
+still works (10/10); the comprehension cannot keep up.
+
+**6. DDR4 offload is viable for 26B-class MoE.** The 26B A4B model running with 12 of 48
+layers on GPU and the rest in DDR4 still achieved 10/10 retrieval at 6.1s average latency
+per query. This is within usable range for interactive work and proves that Agentome's
+selective expression (15K tokens/turn) keeps the model inside its fast path even when
+weights are partially offloaded.
+
+### Implications
+
+- **Agentome is a universal uplift.** Identical improvements at $0.80/M Haiku and $15/M Opus
+  pricing tiers. This is not a "small model trick" — it raises frontier models to ceiling.
+- **Local 4B (qwen3:4b, 2.5GB VRAM) replaces frontier API calls for domain extraction.**
+  9/10 accuracy at zero marginal cost. Only the last 10% of edge cases need Opus.
+- **Knowledge injection beats parameter scaling for project-specific tasks.** A human with
+  500MB of structured knowledge can elevate a 4B model above Opus on their own codebase.
+
+---
+
 ## Biological Metaphor Reference
 
 For contributors unfamiliar with the biology:

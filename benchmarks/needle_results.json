@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-04-09T21:17:52",
-  "genome_genes": 7234,
-  "compression_ratio": 2.6908617518630296,
+  "timestamp": "2026-04-09T22:08:03",
+  "genome_genes": 7255,
+  "compression_ratio": 2.6926610250711795,
   "needles": [
     {
       "name": "helix_port",
@@ -9,25 +9,25 @@
       "expected": "11437",
       "found_in_context": true,
       "answer_correct": false,
-      "context_latency_s": 1.054,
-      "proxy_latency_s": 2.739,
+      "context_latency_s": 5.517,
+      "proxy_latency_s": 6.987,
       "ellipticity": 0.66,
       "status": "sparse",
       "genes_expressed": 12,
-      "answer_preview": " the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the"
+      "answer_preview": "1111111111111111"
     },
     {
       "name": "scorerift_threshold",
       "query": "What is the divergence threshold that triggers alerts in ScoreRift?",
       "expected": "0.15",
       "found_in_context": true,
-      "answer_correct": false,
-      "context_latency_s": 1.307,
-      "proxy_latency_s": 122.275,
+      "answer_correct": true,
+      "context_latency_s": 1.05,
+      "proxy_latency_s": 14.448,
       "ellipticity": 0.3046,
       "status": "sparse",
       "genes_expressed": 3,
-      "answer_preview": ""
+      "answer_preview": "0.15"
     },
     {
       "name": "biged_skills_count",
@@ -35,12 +35,12 @@
       "expected": "125",
       "found_in_context": true,
       "answer_correct": false,
-      "context_latency_s": 1.163,
-      "proxy_latency_s": 2.237,
+      "context_latency_s": 1.401,
+      "proxy_latency_s": 15.086,
       "ellipticity": 0.6257,
       "status": "sparse",
       "genes_expressed": 12,
-      "answer_preview": ": think about many many skills does the BigEd fleet have? /think/ / / / / / / / / / / / / / / / / / / / / / / / / / / / / / /"
+      "answer_preview": "The provided context does not contain a specific number for the total number of skills. It mentions the existence of a system involving \"skills\" and \"tasks\" within the context of the project documenta"
     },
     {
       "name": "bookkeeper_monetary",
@@ -48,25 +48,25 @@
       "expected": "Decimal",
       "found_in_context": true,
       "answer_correct": true,
-      "context_latency_s": 1.269,
-      "proxy_latency_s": 8.272,
+      "context_latency_s": 1.037,
+      "proxy_latency_s": 17.438,
       "ellipticity": 0.5835,
       "status": "sparse",
       "genes_expressed": 12,
-      "answer_preview": " response: The type that should be used for monetary values in BookKeeper instead of float is **`Decimal` from Python's `decimal` module.****Specific Value****`.\n\n**<GENes>: **** **<**Decimal**`**.***"
+      "answer_preview": "**`Decimal`**"
     },
     {
       "name": "helix_pipeline_steps",
       "query": "How many steps are in the Helix expression pipeline?",
       "expected": "6",
       "found_in_context": true,
-      "answer_correct": false,
-      "context_latency_s": 0.924,
-      "proxy_latency_s": 2.893,
+      "answer_correct": true,
+      "context_latency_s": 0.839,
+      "proxy_latency_s": 16.994,
       "ellipticity": 0.6606,
       "status": "sparse",
       "genes_expressed": 12,
-      "answer_preview": ",,,,\n,\n , , , , , , ,, , , , , , , , , , ,, , , , ,, , ,"
+      "answer_preview": "6"
     },
     {
       "name": "biged_rust_binary_size",
@@ -74,12 +74,12 @@
       "expected": "11",
       "found_in_context": true,
       "answer_correct": false,
-      "context_latency_s": 1.984,
-      "proxy_latency_s": 122.645,
+      "context_latency_s": 1.299,
+      "proxy_latency_s": 14.447,
       "ellipticity": 0.6578,
       "status": "sparse",
       "genes_expressed": 12,
-      "answer_preview": ""
+      "answer_preview": "The provided context does not explicitly state the final compiled size of the executable. It only describes the structure and dependencies of the project."
     },
     {
       "name": "genome_compression_target",
@@ -87,25 +87,25 @@
       "expected": "5x",
       "found_in_context": true,
       "answer_correct": false,
-      "context_latency_s": 0.635,
-      "proxy_latency_s": 121.122,
+      "context_latency_s": 0.784,
+      "proxy_latency_s": 15.993,
       "ellipticity": 0.6488,
       "status": "sparse",
       "genes_expressed": 12,
-      "answer_preview": ""
+      "answer_preview": "The provided text does not explicitly state a single, fixed target compression ratio for the entire system.\n\nHowever, the text discusses the concept of compression in the context of the overall goal:\n"
     },
     {
       "name": "scorerift_preset_dimensions",
       "query": "How many dimensions does the Python preset in ScoreRift check?",
       "expected": "8",
       "found_in_context": true,
-      "answer_correct": false,
-      "context_latency_s": 0.971,
-      "proxy_latency_s": 42.634,
+      "answer_correct": true,
+      "context_latency_s": 1.035,
+      "proxy_latency_s": 17.733,
       "ellipticity": 0.6081,
       "status": "sparse",
       "genes_expressed": 12,
-      "answer_preview": " response: the exact value of the key that matches the question and return its exact value.\n the key that matches the question and return its exact value. Do not speculate or speculate, but the the ke"
+      "answer_preview": "8"
     },
     {
       "name": "helix_ribosome_budget",
@@ -113,12 +113,12 @@
       "expected": "3000",
       "found_in_context": true,
       "answer_correct": true,
-      "context_latency_s": 0.556,
-      "proxy_latency_s": 1.547,
+      "context_latency_s": 0.616,
+      "proxy_latency_s": 17.745,
       "ellipticity": 0.4924,
       "status": "sparse",
       "genes_expressed": 12,
-      "answer_preview": " response: the token budget allocated for the ribosome decoder prompt is is **3k the token budget, is is is is is is is is is is is is is is is is is is is is is is is is is is is is is is is"
+      "answer_preview": "3000"
     },
     {
       "name": "biged_default_model",
@@ -126,17 +126,17 @@
       "expected": "qwen3",
       "found_in_context": true,
       "answer_correct": false,
-      "context_latency_s": 2.024,
-      "proxy_latency_s": 122.731,
+      "context_latency_s": 1.505,
+      "proxy_latency_s": 13.005,
       "ellipticity": 0.6618,
       "status": "sparse",
       "genes_expressed": 12,
-      "answer_preview": ""
+      "answer_preview": "The provided context does not explicitly state which model is used for the \"caller\" or any specific model configuration. It details the architecture and structure of a system, but not the specific LLM"
     }
   ],
   "summary": {
     "context_retrieval_rate": 1.0,
-    "answer_accuracy_rate": 0.2,
-    "avg_context_latency_s": 1.189
+    "answer_accuracy_rate": 0.5,
+    "avg_context_latency_s": 1.508
   }
 }
