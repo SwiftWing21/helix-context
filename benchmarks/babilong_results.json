@@ -1,0 +1,44 @@
+{
+  "model": "qwen3:4b",
+  "helix_url": "http://127.0.0.1:11437",
+  "timestamp": 1775805642.0313618,
+  "summary": {
+    "task_1": {
+      "retrieval_rate": 0.0,
+      "answer_rate": 0.0,
+      "avg_latency_s": 29.67
+    }
+  },
+  "results": {
+    "task_1": [
+      {
+        "name": "task_1_00",
+        "question": "Where is Dan?",
+        "expected": "kitchen",
+        "retrieved_facts": 0,
+        "total_facts": 1,
+        "retrieval_complete": false,
+        "answer_correct": false,
+        "context_latency_s": 0.388,
+        "proxy_latency_s": 40.886,
+        "ellipticity": 0.6434,
+        "status": "sparse",
+        "answer_preview": "The question asks for \"Where is Dan?\" with the instruction to not think or speculate. \n\nIn the provided context, Dan is mentioned as \"Daniel James Tay"
+      },
+      {
+        "name": "task_1_01",
+        "question": "Where is Carol?",
+        "expected": "hallway",
+        "retrieved_facts": 0,
+        "total_facts": 1,
+        "retrieval_complete": false,
+        "answer_correct": false,
+        "context_latency_s": 0.41,
+        "proxy_latency_s": 17.662,
+        "ellipticity": 0.1394,
+        "status": "denatured",
+        "answer_preview": "Carol isn't mentioned in the provided context. The context includes characters like **Nyx**, **Athena**, and **Hades**, but **Carol** does not appear "
+      }
+    ]
+  }
+}
