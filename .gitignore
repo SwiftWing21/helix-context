@@ -10,7 +10,17 @@ build/
 genome.db
 genome.db-wal
 genome.db-shm
+genome-bench-*.db
+genome_cpu.db
+genome_cpu.db-wal
+genome_cpu.db-shm
+genome.db.pre-*.bak
 helix.log
+
+# Benchmark incremental traces (one line per needle)
+benchmarks/*.incremental.jsonl
+# Benchmark monitor traces (per-check heartbeats)
+benchmarks/*.monitor.jsonl
 
 # IDE
 .vscode/
