@@ -29,6 +29,7 @@ from .codons import CodonChunker, CodonEncoder
 from .config import HelixConfig
 from .exceptions import PromoterMismatch
 from .genome import Genome
+from .headroom_bridge import compress_text
 from .ribosome import Ribosome, OllamaBackend
 from .schemas import ChromatinState, ContextHealth, ContextWindow, Gene
 
@@ -491,8 +492,15 @@ class HelixContextManager:
                 for kv in g.key_values[:5]:
                     answer_slate_lines.append(kv)
             src_attr = f' src="{short}"' if short else ""
-            # Compact content — first 1000 chars (less noise than 1400)
-            content = g.content[:1000].strip()
+            # Semantic compression via Headroom (by Tejas Chopra, Apache-2.0).
+            # Dispatches by promoter domain: code→CodeAwareCompressor,
+            # log→LogCompressor, diff→DiffCompressor, else→Kompress (ModernBERT).
+            # Falls back to content[:1000].strip() when headroom is unavailable.
+            content = compress_text(
+                g.content,
+                target_chars=1000,
+                content_type=g.promoter.domains,
+            )
             spliced_map[g.gene_id] = f"<GENE{src_attr}{kv_attrs}>\n{content}\n</GENE>"
 
         # Step 5: Assemble (MoE/small-model aware)
@@ -827,7 +835,13 @@ class HelixContextManager:
         total_raw = 0
 
         for g in sorted_genes:
-            spliced_text = spliced_map.get(g.gene_id, g.complement or g.content[:500])
+            # Prefer ribosome-spliced text; fall back to complement summary;
+            # last resort is Headroom semantic compression (was content[:500]).
+            spliced_text = spliced_map.get(g.gene_id) or g.complement or compress_text(
+                g.content,
+                target_chars=500,
+                content_type=g.promoter.domains,
+            )
             parts.append(spliced_text)
             total_raw += len(g.content)
 

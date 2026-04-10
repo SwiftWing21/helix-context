@@ -121,7 +121,10 @@ _CODE_DOMAINS = frozenset({
     "go", "java", "cpp", "c", "sql", "shell", "bash",
 })
 _LOG_DOMAINS = frozenset({
-    "log", "logs", "pytest", "build", "npm", "cargo", "make", "jest", "ci",
+    # Strictly log-output-signaling tokens. Tool names like "cargo", "npm",
+    # "build" are excluded because they also appear in code genes (e.g. a
+    # Rust source file naturally has promoter domain "cargo" from Cargo.toml).
+    "log", "logs", "stderr", "stdout", "pytest", "jest", "traceback",
 })
 _DIFF_DOMAINS = frozenset({"diff", "patch", "git_diff"})
 
