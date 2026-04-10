@@ -103,6 +103,16 @@ Extract and return the LITERAL value. Do NOT reason or speculate."""
 # Model families that use MoE / sliding-window attention
 MOE_MODEL_FAMILIES = ("gemma4",)
 
+# Models at or below this param count get the same front-loaded treatment
+# as MoE models — their limited capacity can't "look back" across 15K tokens
+SMALL_MODEL_THRESHOLD_B = 3.2  # billion params (excludes 4B dense models like qwen3:4b)
+SMALL_MODEL_PATTERNS = {
+    # model prefix → approximate param count in billions
+    "qwen3:0.6b": 0.6, "qwen3:1.7b": 1.7,
+    "gemma4:e2b": 2.0, "llama3.2:3b": 3.0, "llama3.2:1b": 1.0,
+    "phi-3.5:mini": 3.2, "gemma2:2b": 2.0,
+}
+
 DECODER_MODES = {
     "full": DECODER_FULL,
     "condensed": DECODER_CONDENSED,
@@ -221,12 +231,20 @@ class HelixContextManager:
         self._decoder_mode = config.budget.decoder_mode
         self._decoder_prompt = DECODER_MODES.get(self._decoder_mode, DECODER_FULL)
 
-        # MoE model detection — enables answer-slate front-loading
-        # for models with sliding-window attention (gemma4 family)
-        self._is_moe = any(
-            config.ribosome.model.startswith(fam)
-            for fam in MOE_MODEL_FAMILIES
-        )
+        # Answer-slate mode: front-loads KV facts for models that struggle
+        # with long-range extraction. Applies to:
+        #   1. MoE models (gemma4) — sliding-window attention misses distant tokens
+        #   2. Sub-4B models — limited capacity can't attend across 15K tokens
+        model_name = config.ribosome.model.lower()
+        is_moe = any(model_name.startswith(fam) for fam in MOE_MODEL_FAMILIES)
+        is_small = SMALL_MODEL_PATTERNS.get(model_name, 999) <= SMALL_MODEL_THRESHOLD_B
+        self._is_moe = is_moe or is_small
+        if self._is_moe:
+            log.info(
+                "Answer-slate mode enabled for %s (%s)",
+                config.ribosome.model,
+                "MoE/SWA" if is_moe else "sub-4B",
+            )
 
         # Pending replication buffer -- genes from background replication
         # that haven't committed to SQLite yet. Checked during Step 2
@@ -321,10 +339,31 @@ class HelixContextManager:
 
     # -- Build context: the main per-turn operation --------------------
 
-    def build_context(self, query: str) -> ContextWindow:
+    def _should_use_slate(self, downstream_model: Optional[str] = None) -> bool:
+        """Check if answer-slate mode should activate for this request.
+
+        Activates for:
+          1. Server-level MoE detection (ribosome model is gemma4 etc.)
+          2. Per-request downstream model detection (sub-4B or MoE family)
+        """
+        if self._is_moe:
+            return True
+        if downstream_model:
+            dm = downstream_model.lower()
+            if any(dm.startswith(fam) for fam in MOE_MODEL_FAMILIES):
+                return True
+            if SMALL_MODEL_PATTERNS.get(dm, 999) <= SMALL_MODEL_THRESHOLD_B:
+                return True
+        return False
+
+    def build_context(self, query: str, downstream_model: Optional[str] = None) -> ContextWindow:
         """
         Build the active context window for a query.
         Runs the 5-step expression pipeline (Steps 1-5).
+
+        Args:
+            downstream_model: optional model name from the proxy request,
+                used for per-request MoE/small-model detection.
         """
         self._maybe_compact()
 
@@ -425,11 +464,12 @@ class HelixContextManager:
             content = g.content[:1000].strip()
             spliced_map[g.gene_id] = f"<GENE{src_attr}{kv_attrs}>\n{content}\n</GENE>"
 
-        # Step 5: Assemble (MoE-aware)
+        # Step 5: Assemble (MoE/small-model aware)
+        use_slate = self._should_use_slate(downstream_model)
         window = self._assemble(
             query, candidates, spliced_map, relation_graph,
             query_signals=(domains, entities),
-            answer_slate=answer_slate_lines if self._is_moe else None,
+            answer_slate=answer_slate_lines if use_slate else None,
         )
 
         # Touch expressed genes (update epigenetics)
@@ -461,10 +501,12 @@ class HelixContextManager:
 
         return window
 
-    async def build_context_async(self, query: str) -> ContextWindow:
+    async def build_context_async(self, query: str, downstream_model: Optional[str] = None) -> ContextWindow:
         """Async wrapper -- runs the sync pipeline in thread pool."""
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(_executor, self.build_context, query)
+        return await loop.run_in_executor(
+            _executor, self.build_context, query, downstream_model,
+        )
 
     # -- Learn: replicate exchange back to genome (Step 6) -------------
 
@@ -701,8 +743,9 @@ class HelixContextManager:
         SWA local attention window. Also injects an answer slate into the
         decoder prompt for front-loaded fact extraction.
         """
-        if self._is_moe:
-            # MoE: relevance-first ordering — best gene at position 0
+        use_slate = answer_slate is not None
+        if use_slate:
+            # MoE/small-model: relevance-first ordering — best gene at position 0
             # so it's within every sliding-window attention layer
             scores = self.genome.last_query_scores or {}
             sorted_genes = sorted(
@@ -733,7 +776,7 @@ class HelixContextManager:
 
         # MoE answer slate: inject pre-extracted KVs into decoder prompt
         # so they land in the first ~200 tokens (inside every SWA window)
-        if answer_slate and self._is_moe:
+        if answer_slate:
             # Dedupe and limit slate to 20 entries
             seen_kvs: set[str] = set()
             unique_slate: list[str] = []
@@ -780,7 +823,7 @@ class HelixContextManager:
                 "genes_expressed": len(parts),
                 "raw_chars": total_raw,
                 "compressed_chars": compressed_chars,
-                "moe_mode": bool(answer_slate and self._is_moe),
+                "moe_mode": bool(answer_slate),
             },
         )
 

@@ -90,7 +90,8 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             return await _forward_raw(body, config)
 
         # Step 1-5: Expression pipeline
-        context_window = await helix.build_context_async(user_query)
+        downstream_model = body.get("model")
+        context_window = await helix.build_context_async(user_query, downstream_model=downstream_model)
 
         # Delta-epsilon health signal
         health = context_window.context_health
@@ -110,6 +111,17 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             total_genes=helix.genome.stats()["total_genes"],
             cold_start_threshold=config.genome.cold_start_threshold,
         )
+
+        # Suppress think mode for small models — their reasoning loops
+        # consume the entire output budget without producing answers
+        if context_window.metadata.get("moe_mode"):
+            body["temperature"] = 0
+            # Inject /no_think into user message for Qwen3 think suppression
+            for msg in reversed(body["messages"]):
+                if msg.get("role") == "user":
+                    if not msg["content"].startswith("/no_think"):
+                        msg["content"] = "/no_think " + msg["content"]
+                    break
 
         if body.get("stream", False):
             return StreamingResponse(

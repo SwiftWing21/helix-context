@@ -144,10 +144,12 @@ def find_needle(client, needle):
 
     # Step 2: Full proxy query for answer accuracy
     t1 = time.time()
+    model = os.environ.get("HELIX_MODEL", "qwen3:8b")
     proxy_resp = client.post(f"{HELIX_URL}/v1/chat/completions", json={
-        "model": "qwen3:8b",
+        "model": model,
         "messages": [{"role": "user", "content": needle["query"]}],
         "stream": False,
+        "options": {"temperature": 0, "num_predict": 256},
     })
     proxy_latency = time.time() - t1
 
