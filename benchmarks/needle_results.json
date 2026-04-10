@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-04-09T22:08:03",
-  "genome_genes": 7255,
-  "compression_ratio": 2.6926610250711795,
+  "timestamp": "2026-04-10T00:51:46",
+  "genome_genes": 7304,
+  "compression_ratio": 2.6941145998961087,
   "needles": [
     {
       "name": "helix_port",
@@ -9,12 +9,12 @@
       "expected": "11437",
       "found_in_context": true,
       "answer_correct": false,
-      "context_latency_s": 5.517,
-      "proxy_latency_s": 6.987,
-      "ellipticity": 0.66,
+      "context_latency_s": 1.142,
+      "proxy_latency_s": 16.913,
+      "ellipticity": 0.6602,
       "status": "sparse",
       "genes_expressed": 12,
-      "answer_preview": "1111111111111111"
+      "answer_preview": "The Helix proxy server listens on port **11434**. This is indicated by the fact in the `test_server.py` GENE, where the URL is set to `http://localhost:11434`, confirming the server's listening port. "
     },
     {
       "name": "scorerift_threshold",
@@ -22,8 +22,8 @@
       "expected": "0.15",
       "found_in_context": true,
       "answer_correct": true,
-      "context_latency_s": 1.05,
-      "proxy_latency_s": 14.448,
+      "context_latency_s": 0.875,
+      "proxy_latency_s": 15.549,
       "ellipticity": 0.3046,
       "status": "sparse",
       "genes_expressed": 3,
@@ -34,13 +34,13 @@
       "query": "How many skills does the BigEd fleet have?",
       "expected": "125",
       "found_in_context": true,
-      "answer_correct": false,
-      "context_latency_s": 1.401,
-      "proxy_latency_s": 15.086,
-      "ellipticity": 0.6257,
+      "answer_correct": true,
+      "context_latency_s": 1.082,
+      "proxy_latency_s": 19.0,
+      "ellipticity": 0.6269,
       "status": "sparse",
       "genes_expressed": 12,
-      "answer_preview": "The provided context does not contain a specific number for the total number of skills. It mentions the existence of a system involving \"skills\" and \"tasks\" within the context of the project documenta"
+      "answer_preview": "The BigEd fleet has **129 skills**. This is explicitly stated in multiple sources within the provided documentation, including the architecture and overview pages."
     },
     {
       "name": "bookkeeper_monetary",
@@ -48,12 +48,12 @@
       "expected": "Decimal",
       "found_in_context": true,
       "answer_correct": true,
-      "context_latency_s": 1.037,
-      "proxy_latency_s": 17.438,
+      "context_latency_s": 0.763,
+      "proxy_latency_s": 15.654,
       "ellipticity": 0.5835,
       "status": "sparse",
       "genes_expressed": 12,
-      "answer_preview": "**`Decimal`**"
+      "answer_preview": "**Decimal**"
     },
     {
       "name": "helix_pipeline_steps",
@@ -61,12 +61,12 @@
       "expected": "6",
       "found_in_context": true,
       "answer_correct": true,
-      "context_latency_s": 0.839,
-      "proxy_latency_s": 16.994,
-      "ellipticity": 0.6606,
+      "context_latency_s": 0.637,
+      "proxy_latency_s": 22.568,
+      "ellipticity": 0.6607,
       "status": "sparse",
       "genes_expressed": 12,
-      "answer_preview": "6"
+      "answer_preview": "The Helix expression pipeline consists of **6 steps**. These steps are outlined in the `helix-context/helix_context/context_manager.py` file as follows:\n\n1. **Extract** promoter signals from the query"
     },
     {
       "name": "biged_rust_binary_size",
@@ -74,25 +74,25 @@
       "expected": "11",
       "found_in_context": true,
       "answer_correct": false,
-      "context_latency_s": 1.299,
-      "proxy_latency_s": 14.447,
-      "ellipticity": 0.6578,
+      "context_latency_s": 1.505,
+      "proxy_latency_s": 121.977,
+      "ellipticity": 0.6583,
       "status": "sparse",
       "genes_expressed": 12,
-      "answer_preview": "The provided context does not explicitly state the final compiled size of the executable. It only describes the structure and dependencies of the project."
+      "answer_preview": ""
     },
     {
       "name": "genome_compression_target",
       "query": "What is the target compression ratio for Helix Context?",
       "expected": "5x",
       "found_in_context": true,
-      "answer_correct": false,
-      "context_latency_s": 0.784,
-      "proxy_latency_s": 15.993,
-      "ellipticity": 0.6488,
+      "answer_correct": true,
+      "context_latency_s": 0.498,
+      "proxy_latency_s": 8.075,
+      "ellipticity": 0.6541,
       "status": "sparse",
       "genes_expressed": 12,
-      "answer_preview": "The provided text does not explicitly state a single, fixed target compression ratio for the entire system.\n\nHowever, the text discusses the concept of compression in the context of the overall goal:\n"
+      "answer_preview": "The target compression ratio for Helix Context is **5x**.\n\nThis is explicitly stated in the GENE block under `helix-context/BENCHMARK_NOTES.md` in the text:  \n*\"Metric: Information retention at variou"
     },
     {
       "name": "scorerift_preset_dimensions",
@@ -100,9 +100,9 @@
       "expected": "8",
       "found_in_context": true,
       "answer_correct": true,
-      "context_latency_s": 1.035,
-      "proxy_latency_s": 17.733,
-      "ellipticity": 0.6081,
+      "context_latency_s": 1.17,
+      "proxy_latency_s": 18.801,
+      "ellipticity": 0.6281,
       "status": "sparse",
       "genes_expressed": 12,
       "answer_preview": "8"
@@ -113,9 +113,9 @@
       "expected": "3000",
       "found_in_context": true,
       "answer_correct": true,
-      "context_latency_s": 0.616,
-      "proxy_latency_s": 17.745,
-      "ellipticity": 0.4924,
+      "context_latency_s": 0.891,
+      "proxy_latency_s": 18.916,
+      "ellipticity": 0.4712,
       "status": "sparse",
       "genes_expressed": 12,
       "answer_preview": "3000"
@@ -125,18 +125,18 @@
       "query": "What is the default local model used by BigEd for conductor tasks?",
       "expected": "qwen3",
       "found_in_context": true,
-      "answer_correct": false,
-      "context_latency_s": 1.505,
-      "proxy_latency_s": 13.005,
-      "ellipticity": 0.6618,
+      "answer_correct": true,
+      "context_latency_s": 1.309,
+      "proxy_latency_s": 21.641,
+      "ellipticity": 0.6632,
       "status": "sparse",
       "genes_expressed": 12,
-      "answer_preview": "The provided context does not explicitly state which model is used for the \"caller\" or any specific model configuration. It details the architecture and structure of a system, but not the specific LLM"
+      "answer_preview": "The default local model used by BigEd for conductor tasks is **`qwen3:4b`**. \n\nThis is inferred from the following context:\n- In the **Helm chart values.yaml**, the default model is set to `qwen3:4b`."
     }
   ],
   "summary": {
     "context_retrieval_rate": 1.0,
-    "answer_accuracy_rate": 0.5,
-    "avg_context_latency_s": 1.508
+    "answer_accuracy_rate": 0.8,
+    "avg_context_latency_s": 0.987
   }
 }

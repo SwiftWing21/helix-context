@@ -157,9 +157,13 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
 
     @app.post("/context")
     async def context_endpoint(request: Request):
+        import time as _time
+        t0 = _time.time()
+
         data = await request.json()
         query = data.get("query", "")
         decoder_override = data.get("decoder_mode")
+        verbose = data.get("verbose", False)  # Agent-mode: include gene citations
 
         if not query:
             return JSONResponse({"error": "No query provided"}, status_code=400)
@@ -178,19 +182,86 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
         if decoder_override and decoder_override in ("full", "condensed", "minimal", "none"):
             helix._decoder_mode = original_mode
             helix._decoder_prompt = original_prompt
+
         health = window.context_health
-        return [
-            {
-                "name": "Helix Genome Context",
-                "description": (
-                    f"{health.genes_expressed} genes expressed, "
-                    f"{window.compression_ratio:.1f}x compression, "
-                    f"health={health.status} (Δε={health.ellipticity:.2f})"
-                ),
-                "content": window.expressed_context,
-                "context_health": health.model_dump(),
+        latency_ms = round((_time.time() - t0) * 1000, 1)
+
+        # Build base response (Continue-compatible)
+        response = {
+            "name": "Helix Genome Context",
+            "description": (
+                f"{health.genes_expressed} genes expressed, "
+                f"{window.compression_ratio:.1f}x compression, "
+                f"health={health.status} (Δε={health.ellipticity:.2f})"
+            ),
+            "content": window.expressed_context,
+            "context_health": health.model_dump(),
+        }
+
+        # Agent-mode fields: structured metadata for programmatic use
+        # Always included (low cost, high value for agents)
+        try:
+            scores = helix.genome.last_query_scores or {}
+            # Fetch source_id for expressed genes for citation
+            gene_ids = window.expressed_gene_ids or []
+            citations = []
+            if gene_ids:
+                cur = helix.genome.read_conn.cursor()
+                placeholders = ",".join("?" * len(gene_ids))
+                rows = cur.execute(
+                    f"SELECT gene_id, source_id, promoter FROM genes "
+                    f"WHERE gene_id IN ({placeholders})",
+                    gene_ids,
+                ).fetchall()
+                row_map = {r["gene_id"]: r for r in rows}
+                for gid in gene_ids:
+                    r = row_map.get(gid)
+                    if r is None:
+                        continue
+                    citation = {
+                        "gene_id": gid,
+                        "source": r["source_id"] or "",
+                        "score": round(scores.get(gid, 0.0), 3),
+                    }
+                    if verbose:
+                        # Include promoter tags for deeper inspection
+                        try:
+                            from .accel import parse_promoter
+                            prom = parse_promoter(r["promoter"]) if r["promoter"] else None
+                            if prom:
+                                citation["domains"] = prom.domains[:5]
+                                citation["entities"] = prom.entities[:5]
+                        except Exception:
+                            pass
+                    citations.append(citation)
+
+            # Actionable recommendation for the agent based on health
+            if health.status == "aligned":
+                recommendation = "trust"
+                hint = "Context is well-grounded. Use directly."
+            elif health.status == "sparse":
+                recommendation = "verify"
+                hint = "Context has gaps. Verify specific values before acting on them."
+            elif health.status == "stale":
+                recommendation = "refresh"
+                hint = "Expressed genes are outdated. Re-ingest source files or verify from disk."
+            else:  # denatured
+                recommendation = "reread_raw"
+                hint = "Context is unreliable. Read raw files instead of trusting the genome."
+
+            response["agent"] = {
+                "recommendation": recommendation,
+                "hint": hint,
+                "citations": citations,
+                "latency_ms": latency_ms,
+                "total_tokens_est": window.total_estimated_tokens,
+                "compression_ratio": round(window.compression_ratio, 2),
+                "moe_mode": window.metadata.get("moe_mode", False),
             }
-        ]
+        except Exception:
+            log.debug("Agent metadata enrichment failed", exc_info=True)
+
+        return [response]
 
     # -- Stats endpoint ------------------------------------------------
 
@@ -334,6 +405,81 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
         """Force a WAL checkpoint."""
         helix.genome.checkpoint(mode)
         return {"checkpointed": True, "mode": mode}
+
+    @app.post("/admin/sema/rebuild")
+    async def admin_sema_rebuild():
+        """Force-rebuild the ΣĒMA vector cache from the current genome state.
+
+        Useful after bulk ingest or external DB changes when the cache
+        would otherwise stay stale until the next upsert invalidates it.
+        """
+        helix.genome.invalidate_sema_cache()
+        helix.genome._build_sema_cache()
+        cache = helix.genome._sema_cache
+        return {
+            "rebuilt": True,
+            "vectors": len(cache["gene_ids"]) if cache else 0,
+            "memory_kb": (cache["matrix"].nbytes // 1024) if cache else 0,
+        }
+
+    @app.post("/admin/reload")
+    async def admin_reload():
+        """
+        Hot-reload server runtime state without killing the process.
+
+        What this refreshes:
+          - helix.toml config (ports, thresholds, budget, model routing)
+          - Genome WAL snapshot (see external writes)
+          - ΣĒMA vector cache (rebuild from current genome)
+          - last_query_scores (clear stale per-query state)
+
+        What this does NOT do:
+          - Reload Python code (needs process restart)
+          - Reconnect the write DB connection (read conn refresh only)
+          - Rebuild the ribosome backend (model stays loaded)
+
+        Use /admin/reload for config/data changes; restart the process
+        for code changes.
+        """
+        changes = {}
+
+        # 1. Reload config from helix.toml
+        try:
+            from .config import load_config
+            new_config = load_config()
+            old_budget = helix.config.budget.max_genes_per_turn
+            new_budget = new_config.budget.max_genes_per_turn
+            helix.config = new_config
+            if old_budget != new_budget:
+                changes["max_genes_per_turn"] = {"old": old_budget, "new": new_budget}
+            else:
+                changes["config"] = "reloaded (no visible changes)"
+        except Exception as exc:
+            changes["config_error"] = str(exc)[:200]
+
+        # 2. Refresh genome snapshot (see external WAL state)
+        try:
+            helix.genome.refresh()
+            total = helix.genome.stats().get("total_genes", 0)
+            changes["genome_genes"] = total
+        except Exception as exc:
+            changes["genome_error"] = str(exc)[:200]
+
+        # 3. Rebuild ΣĒMA vector cache
+        try:
+            helix.genome.invalidate_sema_cache()
+            helix.genome._build_sema_cache()
+            cache = helix.genome._sema_cache
+            if cache:
+                changes["sema_vectors"] = len(cache["gene_ids"])
+        except Exception as exc:
+            changes["sema_error"] = str(exc)[:200]
+
+        # 4. Clear last_query_scores (stale per-query state)
+        helix.genome.last_query_scores = {}
+
+        log.info("Admin reload complete: %s", changes)
+        return {"reloaded": True, "changes": changes}
 
     # ── Bridge: shared memory between AI assistants ────────────
     from .bridge import AgentBridge

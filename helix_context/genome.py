@@ -306,12 +306,28 @@ class Genome:
             return
 
         cur = self.read_conn.cursor()
-        rows = cur.execute(
-            "SELECT gene_id, embedding FROM genes "
-            "WHERE embedding IS NOT NULL AND chromatin < ? "
-            "AND COALESCE(compression_tier, 0) < 2",
-            (int(ChromatinState.HETEROCHROMATIN),),
-        ).fetchall()
+        # Try the tier-aware query first; fall back to legacy schema
+        # when the read path is a replica that hasn't been migrated yet.
+        try:
+            rows = cur.execute(
+                "SELECT gene_id, embedding FROM genes "
+                "WHERE embedding IS NOT NULL AND chromatin < ? "
+                "AND COALESCE(compression_tier, 0) < 2",
+                (int(ChromatinState.HETEROCHROMATIN),),
+            ).fetchall()
+        except sqlite3.OperationalError as e:
+            if "compression_tier" in str(e):
+                log.warning(
+                    "read_conn lacks compression_tier column — "
+                    "falling back to legacy schema (likely a stale replica)"
+                )
+                rows = cur.execute(
+                    "SELECT gene_id, embedding FROM genes "
+                    "WHERE embedding IS NOT NULL AND chromatin < ?",
+                    (int(ChromatinState.HETEROCHROMATIN),),
+                ).fetchall()
+            else:
+                raise
 
         gene_ids = []
         vectors = []
