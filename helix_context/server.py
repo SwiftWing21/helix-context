@@ -18,7 +18,12 @@ from __future__ import annotations
 import asyncio
 import logging
 from contextlib import asynccontextmanager
-from typing import Optional
+from typing import Dict, Optional
+
+# Module-level stash for paused ribosome backends. Maps id(backend) →
+# original complete() method. Not persisted — lost on server restart,
+# which is fine because restart defaults to un-paused.
+_paused_ribosomes: Dict[int, object] = {}
 
 from .accel import json_loads
 
@@ -113,8 +118,17 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
         )
 
         # Suppress think mode for small models — their reasoning loops
-        # consume the entire output budget without producing answers
-        if context_window.metadata.get("moe_mode"):
+        # consume the entire output budget without producing answers.
+        # Extends to qwen3:4b for extraction-heavy workloads (benchmarks,
+        # agent tool-calls) where think tokens add cost without accuracy.
+        downstream_model_name = body.get("model", "").lower()
+        suppress_think = (
+            context_window.metadata.get("moe_mode")
+            or downstream_model_name.startswith("qwen3:4b")
+            or downstream_model_name.startswith("qwen3:1.7b")
+            or downstream_model_name.startswith("qwen3:0.6b")
+        )
+        if suppress_think:
             body["temperature"] = 0
             # Inject /no_think into user message for Qwen3 think suppression
             for msg in reversed(body["messages"]):
@@ -405,6 +419,86 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
         """Force a WAL checkpoint."""
         helix.genome.checkpoint(mode)
         return {"checkpointed": True, "mode": mode}
+
+    @app.post("/admin/ribosome/pause")
+    async def admin_ribosome_pause():
+        """
+        Disable the ribosome's LLM calls without unloading or restarting anything.
+
+        Monkey-patches ``backend.complete()`` on the live Ribosome instance to
+        raise a RuntimeError. The existing fallback paths in ``replicate()``
+        and ``pack()`` already catch this and produce minimal genes from the
+        raw exchange, so ``learn()`` stays fully functional — it just skips
+        the LLM pass.
+
+        Use case: when something else (e.g., a concurrent benchmark) needs
+        GPU VRAM and you want to unload the ribosome model from Ollama
+        without Helix re-triggering a load on the next ``learn()`` call.
+
+        Pair with:
+            curl -X POST localhost:11434/api/generate \
+                 -d '{"model": "<ribosome-model>", "keep_alive": 0}'
+
+        Resume with ``POST /admin/ribosome/resume``.
+        """
+        backend = helix.ribosome.backend
+        backend_id = id(backend)
+        if backend_id in _paused_ribosomes:
+            return {
+                "paused": True,
+                "already": True,
+                "model": getattr(backend, "model", "unknown"),
+            }
+
+        _paused_ribosomes[backend_id] = backend.complete
+
+        def _raise_paused(*args, **kwargs):
+            raise RuntimeError(
+                "Ribosome paused by /admin/ribosome/pause — "
+                "learn() fallback path engaged"
+            )
+
+        backend.complete = _raise_paused
+        log.info(
+            "Ribosome backend paused (model=%s). LLM calls will raise.",
+            getattr(backend, "model", "unknown"),
+        )
+        return {
+            "paused": True,
+            "model": getattr(backend, "model", "unknown"),
+            "hint": (
+                "LLM calls will raise. learn() builds minimal genes from "
+                "raw exchange. Resume with POST /admin/ribosome/resume."
+            ),
+        }
+
+    @app.post("/admin/ribosome/resume")
+    async def admin_ribosome_resume():
+        """Restore the ribosome backend after /admin/ribosome/pause."""
+        backend = helix.ribosome.backend
+        backend_id = id(backend)
+        if backend_id not in _paused_ribosomes:
+            return {"resumed": False, "reason": "not paused"}
+
+        backend.complete = _paused_ribosomes.pop(backend_id)
+        log.info(
+            "Ribosome backend resumed (model=%s)",
+            getattr(backend, "model", "unknown"),
+        )
+        return {
+            "resumed": True,
+            "model": getattr(backend, "model", "unknown"),
+        }
+
+    @app.get("/admin/ribosome/status")
+    async def admin_ribosome_status():
+        """Check whether the ribosome is currently paused."""
+        backend = helix.ribosome.backend
+        return {
+            "paused": id(backend) in _paused_ribosomes,
+            "model": getattr(backend, "model", "unknown"),
+            "backend_type": type(backend).__name__,
+        }
 
     @app.post("/admin/sema/rebuild")
     async def admin_sema_rebuild():

@@ -510,13 +510,18 @@ class HelixContextManager:
 
     # -- Learn: replicate exchange back to genome (Step 6) -------------
 
-    def learn(self, query: str, response: str) -> Optional[str]:
+    def learn(self, query: str, response: str, timeout_s: float = 15.0) -> Optional[str]:
         """
         Buffer a query+response exchange for later consolidation.
 
         Appends to the session buffer (last 10 exchanges) and triggers
         auto-consolidation every N learns. The exchange is also immediately
         replicated to the genome for pending-buffer retrieval continuity.
+
+        The ribosome replicate call is wrapped in a thread timeout so a
+        slow/overloaded backend can never hang the background task forever.
+        On timeout, a minimal gene is synthesized from the raw exchange
+        (same fallback path used by ``Ribosome.replicate`` on error).
 
         Returns gene_id or None on failure.
         """
@@ -529,7 +534,32 @@ class HelixContextManager:
             self._session_learn_count += 1
 
         try:
-            gene = self.ribosome.replicate(query, response)
+            # Wrap replicate in a thread timeout so a stuck ribosome
+            # can't block this background task indefinitely.
+            import concurrent.futures as _cf
+            with _cf.ThreadPoolExecutor(max_workers=1) as _ex:
+                future = _ex.submit(self.ribosome.replicate, query, response)
+                try:
+                    gene = future.result(timeout=timeout_s)
+                except _cf.TimeoutError:
+                    log.warning(
+                        "Ribosome replicate timed out after %.1fs — "
+                        "building minimal gene from raw exchange",
+                        timeout_s,
+                    )
+                    # Build minimal gene without the ribosome (same shape
+                    # as Ribosome.replicate's own fallback path)
+                    from .genome import Genome as _Genome
+                    from .schemas import Gene as _Gene, PromoterTags as _PT, EpigeneticMarkers as _EM
+                    exchange = f"User query: {query}\n\nAssistant response: {response}"
+                    gene = _Gene(
+                        gene_id=_Genome.make_gene_id(exchange),
+                        content=exchange,
+                        complement=f"Q: {query[:200]} A: {response[:300]}",
+                        codons=["exchange"],
+                        promoter=_PT(summary=query[:100]),
+                        epigenetics=_EM(),
+                    )
 
             # Attach ΣĒMA vector to replicated gene
             if self._sema_codec is not None:
