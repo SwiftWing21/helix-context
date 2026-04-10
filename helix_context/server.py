@@ -52,15 +52,42 @@ async def _background_checkpoint(helix: HelixContextManager) -> None:
 
 def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
     """Factory -- creates the FastAPI app with a HelixContextManager."""
+    import os  # for getpid() in lifespan stamps
+    from .bridge import AgentBridge
 
     if config is None:
         config = load_config()
 
     helix = HelixContextManager(config)
 
+    # Bridge instantiated up here so the lifespan closure can capture it.
+    # The /bridge/* endpoints below close over this same instance.
+    bridge = AgentBridge()
+
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        """Background WAL checkpoint + clean shutdown."""
+        """
+        Startup: stamp server_state=running so observer sessions know
+            a restart completed (or this is the first launch).
+        Shutdown: WAL checkpoint + stamp server_state=stopped as a
+            fallback for clean shutdowns (Ctrl+C, OS shutdown).
+            Does NOT run under kill -9 — agents should call
+            bridge.announce_restart BEFORE killing the process.
+        """
+        # Stamp "running" so observer sessions know a restart completed.
+        try:
+            bridge.write_signal("server_state", {
+                "state": "running",
+                "actor": "lifespan",
+                "reason": None,
+                "pid": os.getpid(),
+                "expected_downtime_s": 0,
+                "phase": "up",
+            })
+            log.info("Startup: server_state=running stamped (pid=%d)", os.getpid())
+        except Exception:
+            log.warning("Startup: failed to stamp server_state signal", exc_info=True)
+
         task = asyncio.create_task(_background_checkpoint(helix))
         yield
         task.cancel()
@@ -69,10 +96,25 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
         except asyncio.CancelledError:
             pass
         helix.genome.checkpoint("TRUNCATE")
+
+        # Belt-and-suspenders: stamp "stopped" on clean shutdown.
+        try:
+            bridge.write_signal("server_state", {
+                "state": "stopped",
+                "actor": "lifespan",
+                "reason": "clean shutdown",
+                "pid": os.getpid(),
+                "expected_downtime_s": 0,
+                "phase": "shutting_down",
+            })
+        except Exception:
+            log.warning("Shutdown: failed to stamp server_state signal", exc_info=True)
+
         log.info("Shutdown: final WAL checkpoint completed")
 
     app = FastAPI(title="Helix Context Proxy", version="0.1.0", lifespan=lifespan)
     app.state.helix = helix  # Expose for testing
+    app.state.bridge = bridge  # Expose for testing
 
     # -- Proxy endpoint (primary integration) --------------------------
 
@@ -502,6 +544,78 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             "backend_type": type(backend).__name__,
         }
 
+    @app.post("/admin/announce_restart")
+    async def admin_announce_restart(request: Request):
+        """
+        Announce an intentional server restart to other sessions.
+
+        Body:
+            {
+                "reason": "swapping ribosome model for benchmark",
+                "actor": "laude",
+                "expected_downtime_s": 30  (optional, default 30)
+            }
+
+        Writes a 'server_state=restarting' signal that other sessions
+        polling ~/.helix/shared/signals/server_state.json can see.
+
+        RECOMMENDED WORKFLOW (from the restarting agent):
+          1. POST /admin/announce_restart with reason + actor
+          2. Sleep ~750ms (let filesystem flush + observers see it)
+          3. Kill the server process and restart it
+          4. New server's lifespan hook stamps 'server_state=running'
+
+        Observer sessions should read ~/.helix/shared/signals/server_state.json
+        directly (no HTTP needed — the server may be down) whenever they get
+        a ConnectionRefused from Helix, and interpret 'restarting' as expected.
+
+        See docs/RESTART_PROTOCOL.md for the full protocol.
+        """
+        try:
+            body = await request.json()
+        except Exception:
+            return JSONResponse(
+                {"error": "Invalid JSON body"},
+                status_code=400,
+            )
+
+        reason = body.get("reason")
+        actor = body.get("actor")
+        if not reason or not actor:
+            return JSONResponse(
+                {"error": "Both 'reason' and 'actor' are required"},
+                status_code=400,
+            )
+
+        expected_downtime_s = int(body.get("expected_downtime_s", 30))
+
+        try:
+            import os as _os
+            bridge.announce_restart(
+                reason=reason,
+                actor=actor,
+                expected_downtime_s=expected_downtime_s,
+                pid=_os.getpid(),
+            )
+        except Exception as exc:
+            log.warning("announce_restart failed: %s", exc, exc_info=True)
+            return JSONResponse(
+                {"error": f"Announce failed: {exc}"},
+                status_code=500,
+            )
+
+        log.info(
+            "Restart announced by %s: %s (expected_downtime=%ds)",
+            actor, reason, expected_downtime_s,
+        )
+        return {
+            "announced": True,
+            "actor": actor,
+            "reason": reason,
+            "expected_downtime_s": expected_downtime_s,
+            "hint": "Sleep ~750ms before killing the server to let observers see the signal.",
+        }
+
     @app.post("/admin/sema/rebuild")
     async def admin_sema_rebuild():
         """Force-rebuild the ΣĒMA vector cache from the current genome state.
@@ -578,8 +692,7 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
         return {"reloaded": True, "changes": changes}
 
     # ── Bridge: shared memory between AI assistants ────────────
-    from .bridge import AgentBridge
-    bridge = AgentBridge()
+    # (AgentBridge instance created at top of create_app for lifespan capture)
 
     @app.get("/bridge/status")
     async def bridge_status():

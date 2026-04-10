@@ -20,6 +20,55 @@ Fixes incorporated:
             keep first N codons or fall back to complement
     Fix 4 — Timeout fallback: httpx timeout on all model calls,
             catch and fall back to deterministic ordering / raw complement
+
+================================================================
+CURRENT STATE (as of v0.3.0b3): LLM RIBOSOME IS PAUSED BY DEFAULT
+================================================================
+
+Every method in this file is an LLM function call. The operations are:
+
+    pack       → backend.complete()  (ribosome.py:318, ~6s/call on gemma4:e4b)
+    re_rank    → backend.complete()  (ribosome.py:407, used only if rerank_enabled)
+    splice     → backend.complete()  (ribosome.py:451, currently UNWIRED in pipeline)
+    replicate  → backend.complete()  (ribosome.py:535, wrapped in 15s timeout)
+
+As of v0.3.0b3, the default runtime configuration disables the LLM
+ribosome via two mechanisms:
+
+    1. helix.toml:  ribosome.warmup = false
+       → server does NOT pre-load gemma4:e4b on startup
+
+    2. /admin/ribosome/pause endpoint + background_tasks.add_task wrapper
+       → monkey-patches backend.complete() to raise RuntimeError
+       → existing fallback paths in pack/replicate synthesize minimal
+         genes from raw exchange when the LLM call raises
+
+The LLM path still EXISTS — it can be re-enabled per-session via
+/admin/ribosome/resume. It's not deleted, just turned off.
+
+WHY IT'S OFF: the ribosome competed for GPU VRAM with concurrent
+benchmark workloads (qwen3:4b, qwen3:8b inference). Paused ribosome
+= zero VRAM contention, minimal-gene fallback path is good enough
+for learn()/replicate() until we pick a permanent small-model codec.
+
+WHAT'S NEXT (pending headroom meeting 2026-04-10):
+The LLM ribosome is the swap point for a CPU-native codec. Two
+candidates on the table:
+
+    - LLMLingua-2 (microsoft, MIT, mBERT-base token classifier)
+      → drop-in peer to the current ribosome, 700MB model download,
+        MeetingBank-prose bias, 512-token chunking seam
+
+    - Kompress (chopratejas/headroom, Apache-2.0, ModernBERT)
+      → 8k native context, code+web training mix, bundled ONNX path
+
+Both replace the same backend.complete() contract via a new
+CodecBackend protocol. Whichever wins gets wired via the existing
+config.ribosome.backend = "ollama" | "deberta" | <new> switch at
+context_manager.py:196-215. The LLM path stays as a fallback for
+content types where neither CPU codec works.
+
+DO NOT delete this file or its methods without explicit coordination.
 """
 
 from __future__ import annotations
@@ -265,6 +314,15 @@ class Ribosome:
 
     The ribosome doesn't participate in conversation — it's a
     preprocessing/postprocessing engine that runs between turns.
+
+    ── IMPORTANT: This class calls the LLM via self.backend.complete() ──
+    As of v0.3.0b3 the default runtime keeps this path PAUSED via
+    /admin/ribosome/pause. Every method below that calls backend.complete
+    will raise RuntimeError if the pause is active; callers already have
+    fallback paths (minimal-gene synthesis from raw exchange).
+
+    Swap target: pending headroom meeting decision on LLMLingua-2 vs
+    Kompress as a CPU-native codec replacement. See module docstring.
     """
 
     def __init__(
