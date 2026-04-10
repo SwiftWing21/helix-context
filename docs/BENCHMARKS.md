@@ -120,6 +120,38 @@ genome's `key_values` column. Each fact becomes a template query.
 4. Build template queries (`"What is the value of {key}?"`)
 5. Seed `random.Random(42)` for reproducibility
 
+### Harness versions
+
+The harvest logic is versioned. Every run's result JSON stamps `harness_version`
+so older runs remain identifiable after filter changes.
+
+| Version | Date | Key changes |
+|---|---|---|
+| **v1** | pre-2026-04-10 | Original filter: length bounds, generic-type blacklist, value-appears-in-content sanity check, substring retrieval match |
+| **v2** | 2026-04-10 | Rejects dotted Python identifier chains (`os.path.join`), function-call shapes (`foo(bar)`), single plain English words (TitleCase/lowercase/short acronyms); expanded prose-key blacklist (`note`, `description`, `comment`, `text`, …); requires value to appear in an assignment-context window near the key; word-boundary-aware retrieval match |
+
+v2 was triggered by raude's forensic on the N=20 Headroom A/B run: three
+"failures" turned out to be harness bugs (docstring fragments harvested as
+"values", function-call expressions captured verbatim, substring-matched
+retrieval). See `tests/test_bench_harvest.py` for the pinned cases.
+
+**v1 → v2 audit on `genome-bench-2026-04-10.db`:**
+
+| Metric | v1 | v2 | Delta |
+|---|---:|---:|---:|
+| Raw quality KVs | 40,740 | 16,428 | −60% |
+| Globally-unique KVs | 20,698 | 8,071 | −61% |
+| Full candidate pool (post content-sanity) | 25,382 | 9,891 | −61% |
+
+**~60% of the v1 pool was phantom-contaminated.** v2 needles on the same seed
+are nearly disjoint from v1 needles (2/200 overlap in a control audit). The
+raw retrieval/answer numbers also drop under v2 — not because the system got
+worse, but because the easy wins from substring-matching docstring phrases
+are gone. The v2 floor is a truer measurement.
+
+Opt into legacy v1 behavior with `BENCH_LEGACY_HARVEST=1` for reproduction of
+older runs.
+
 ### Stratification (targets; actual bucket size depends on pool depth)
 
 ```

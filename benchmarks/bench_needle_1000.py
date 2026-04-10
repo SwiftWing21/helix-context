@@ -36,12 +36,19 @@ from typing import Optional
 
 import httpx
 
+# Harness version — bump when filter logic changes so older result files stay
+# comparable. v1 = original (phantom-prone) harvest. v2 = literal-value filter,
+# dotted-chain reject, assignment-context check, word-boundary retrieval match.
+HARNESS_VERSION = 2
+
 HELIX_URL = os.environ.get("HELIX_URL", "http://127.0.0.1:11437")
 GENOME_DB = os.environ.get("GENOME_DB", "F:/Projects/helix-context/genome-bench-2026-04-10.db")
 MODEL = os.environ.get("HELIX_MODEL", "qwen3:4b")
 N_TOTAL = int(os.environ.get("N", "1000"))
 SEED = int(os.environ.get("SEED", "42"))
 OUTPUT_PATH = os.environ.get("OUTPUT", "F:/Projects/helix-context/benchmarks/needle_1000_results.json")
+# Opt-in to legacy v1 behavior (no-op fixes) for reproducing old runs.
+LEGACY_HARVEST = os.environ.get("BENCH_LEGACY_HARVEST") == "1"
 
 # Stratification targets (sum to 1.0)
 # Weights favor signal-bearing sources but keep noise at ~30% to test
@@ -75,8 +82,109 @@ def categorize(src: str) -> str:
     return "other"
 
 
+# v1 prose-key blacklist — exact set shipped in harness v1
+_PROSE_KEYS_V1 = frozenset({"key", "value", "name", "type", "id"})
+
+# v2 expansion — generic English content fields that almost always harvest
+# phantom values from prose (docstrings, README lines, comment blocks).
+_PROSE_KEYS_V2 = _PROSE_KEYS_V1 | frozenset({
+    "note", "notes", "description", "desc", "summary",
+    "comment", "comments", "remark", "text", "label",
+    "title", "caption", "message", "msg", "content",
+})
+
+_DOTTED_CHAIN_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)+$")
+_IDENT_WORDY_RE = re.compile(r"[a-zA-Z_][a-zA-Z0-9_]*\s*\(")  # function-call shape
+
+
+def _looks_like_literal_value(v: str) -> bool:
+    """True if v looks like an actual assigned value, not a docstring word.
+
+    Accepts: anything with digits, punctuation, underscores, camelCase,
+    long ALL_CAPS constants.
+    Rejects: single plain English words (lowercase, TitleCase, short acronyms)
+    — these are overwhelmingly sentence fragments from docstrings/comments.
+    """
+    if not v:
+        return False
+    # Has any non-alpha char (digits, punctuation, path sep, etc.) → literal-ish
+    if not v.isalpha():
+        return True
+    # camelCase / mixedCase identifier
+    if v != v.lower() and v != v.upper() and not v.istitle():
+        return True
+    # Long ALL_CAPS constant (enum/const like "DEFAULT_TIMEOUT" — though with
+    # underscores it wouldn't reach here; bare "RUNNING", "PENDING", etc.)
+    if v.isupper() and len(v) >= 5:
+        return True
+    # Otherwise: single plain English word — reject as phantom-prone
+    return False
+
+
+def _word_boundary_match(text: str, value: str) -> bool:
+    """Match `value` inside `text` with word boundaries when safe.
+
+    For alphanumeric-only short values (≤20 chars), requires that the match
+    is not surrounded by word characters on either side — prevents "api"
+    matching "apis", "api_key", or "rapid".
+    For values containing punctuation (paths, URLs, dotted names, etc.) or
+    values longer than 20 chars, falls back to plain substring.
+    """
+    if not value or not text:
+        return False
+    v_low = value.lower()
+    t_low = text.lower()
+    if re.fullmatch(r"[a-z0-9_]+", v_low) and len(v_low) <= 20:
+        return bool(re.search(
+            rf"(?<![a-z0-9_]){re.escape(v_low)}(?![a-z0-9_])", t_low
+        ))
+    return v_low in t_low
+
+
+def _value_in_assignment_context(content: str, k: str, v: str, window: int = 120) -> bool:
+    """Return True if `v` appears near `k` with an assignment separator.
+
+    Scans for occurrences of the key and checks whether the next `window`
+    characters contain an `=` or `:` separator followed by the value. This
+    rejects phantom KVs where the value only appears in a docstring or
+    comment far from any actual assignment of the key.
+
+    Matches are case-insensitive on the separator side but respect word
+    boundaries for the key itself.
+    """
+    if not content or not k or not v:
+        return False
+    k_lower = k.lower()
+    c_lower = content.lower()
+    v_lower = v.lower()
+    # Iterate over word-boundary matches of the key (case-insensitive)
+    key_pat = re.compile(rf"(?<![a-z0-9_]){re.escape(k_lower)}(?![a-z0-9_])")
+    for m in key_pat.finditer(c_lower):
+        start = m.end()
+        snippet = c_lower[start:start + window]
+        # Require a : or = separator before the value inside the window
+        # Allow type annotations between (e.g. "key: bool = False" or "key: 'v'")
+        sep_pos = -1
+        for ch in (":", "="):
+            p = snippet.find(ch)
+            if p != -1 and (sep_pos == -1 or p < sep_pos):
+                sep_pos = p
+        if sep_pos == -1:
+            continue
+        after_sep = snippet[sep_pos + 1:]
+        if v_lower in after_sep:
+            return True
+    return False
+
+
 def is_quality_kv(k: str, v: str) -> bool:
-    """Filter out low-value KVs — generic types, placeholders, short keys."""
+    """Filter out low-value KVs — generic types, placeholders, short keys.
+
+    v2 adds: dotted-identifier-chain rejection (e.g. "os.path.join"),
+    function-call shape rejection (e.g. "foo(bar)"), single-English-word
+    rejection via _looks_like_literal_value, and an expanded prose-key
+    blacklist (note, description, comment, ...).
+    """
     if len(k) < 3 or len(k) > 30:
         return False
     if len(v) < 2 or len(v) > 60:
@@ -90,8 +198,20 @@ def is_quality_kv(k: str, v: str) -> bool:
         return False
     if v.startswith("<") or v.endswith(">"):
         return False
-    if k.lower() in ("key", "value", "name", "type", "id"):
+    prose_keys = _PROSE_KEYS_V1 if LEGACY_HARVEST else _PROSE_KEYS_V2
+    if k.lower() in prose_keys:
         return False
+    # v2: harness-version-gated filters
+    if not LEGACY_HARVEST:
+        # Reject dotted Python attribute chains (os.path.join, obj.attr.method)
+        if _DOTTED_CHAIN_RE.match(v):
+            return False
+        # Reject function-call shapes (foo(bar), compress_text(content))
+        if _IDENT_WORDY_RE.search(v):
+            return False
+        # Reject single plain English words — almost always docstring phantoms
+        if not _looks_like_literal_value(v):
+            return False
     return True
 
 
@@ -130,6 +250,12 @@ def harvest_needles(db_path: str, n: int, seed: int) -> list[dict]:
             # (sanity: some KV extractions were noisy)
             if v.lower() not in (content or "").lower():
                 continue
+            # v2: require key+value to appear in an assignment-like context.
+            # Catches cases where the value exists in the content but only in
+            # a docstring sentence or a comment far from the real assignment.
+            if not LEGACY_HARVEST:
+                if not _value_in_assignment_context(content or "", k, v):
+                    continue
             key = f"{k}={v}".lower()
             value_gene_count[key] += 1
             all_candidates.append({
@@ -240,7 +366,11 @@ def run_needle(client: httpx.Client, needle: dict) -> dict:
     health = entry.get("context_health", {})
     agent_meta = entry.get("agent", {})
 
-    retrieved = accept in content.lower()
+    # v2: word-boundary-aware match (plain substring in v1/legacy)
+    if LEGACY_HARVEST:
+        retrieved = accept in content.lower()
+    else:
+        retrieved = _word_boundary_match(content, needle["value"])
 
     # Step 2: downstream model extraction
     t1 = time.time()
@@ -270,7 +400,10 @@ def run_needle(client: httpx.Client, needle: dict) -> dict:
             choices = proxy_resp.json().get("choices", [])
             if choices:
                 answer_text = choices[0].get("message", {}).get("content", "") or ""
-                answered = accept in answer_text.lower()
+                if LEGACY_HARVEST:
+                    answered = accept in answer_text.lower()
+                else:
+                    answered = _word_boundary_match(answer_text, needle["value"])
         except Exception:
             pass
 
@@ -682,7 +815,7 @@ def main():
         summary["monitor_incidents"] = monitor_report["incident_count"]
         if monitor_report["incident_count"] > 0:
             print()
-            print(f"⚠ Monitor flagged {monitor_report['incident_count']} incident(s):")
+            print(f"[!] Monitor flagged {monitor_report['incident_count']} incident(s):")
             for inc in monitor_report["incidents"]:
                 print(f"  [{inc['severity'].upper()}] {inc['type']}: {inc['reason']}")
             print(f"  Run clean: {monitor_report['run_clean']}")
@@ -711,6 +844,7 @@ def main():
     # Save
     output = {
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "harness_version": 1 if LEGACY_HARVEST else HARNESS_VERSION,
         "n": summary["n"],
         "model": MODEL,
         "seed": SEED,
