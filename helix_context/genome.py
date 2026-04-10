@@ -489,6 +489,78 @@ class Genome:
                 expanded.update(self.synonym_map[key])
         return list(expanded)
 
+    # ── Authority boosts: distinguish "about X" from "mentions X" ──
+
+    def _apply_authority_boosts(
+        self,
+        cur,
+        gene_scores: Dict[str, float],
+        query_terms: List[str],
+    ) -> None:
+        """
+        Post-rank boosts that distinguish authoritative genes from tangential ones.
+
+        Three signals:
+          1. Source authority (+2.0): query term in source_id path
+             — a file named BENCHMARK_NOTES.md answering "benchmark" is authoritative
+          2. Domain primacy (+1.5): query term in top-3 promoter domains
+             — primary domains = what the gene is ABOUT, not mentions
+          3. Creation recency (+0.5): gene created in last 48 hours
+             — bootstraps new concepts before they build co-activation history
+
+        All boosts are additive to existing scores. Low risk — only raises
+        the ceiling on already-scored genes, never adds new candidates.
+        """
+        if not gene_scores:
+            return
+
+        import time as _time
+        now = _time.time()
+        recency_window = 48 * 3600  # 48 hours in seconds
+
+        gene_ids = list(gene_scores.keys())
+        id_ph = ",".join("?" * len(gene_ids))
+        lower_terms = [t.lower() for t in query_terms]
+
+        # Fetch source_id, promoter, epigenetics for all candidates in one query
+        rows = cur.execute(
+            f"SELECT gene_id, source_id, promoter, epigenetics "
+            f"FROM genes WHERE gene_id IN ({id_ph})",
+            gene_ids,
+        ).fetchall()
+
+        for r in rows:
+            gid = r["gene_id"]
+            boost = 0.0
+
+            # 1. Source authority: query term in path
+            source = (r["source_id"] or "").lower()
+            if source and any(t in source for t in lower_terms):
+                boost += 2.0
+
+            # 2. Domain primacy: query term in top-3 promoter domains
+            try:
+                prom = parse_promoter(r["promoter"]) if r["promoter"] else None
+                if prom and prom.domains:
+                    primary_domains = {d.lower() for d in prom.domains[:3]}
+                    if any(t in primary_domains for t in lower_terms):
+                        boost += 1.5
+            except Exception:
+                pass
+
+            # 3. Creation recency: gene created in last 48h
+            try:
+                epi = parse_epigenetics(r["epigenetics"]) if r["epigenetics"] else None
+                if epi and epi.created_at > 0:
+                    age = now - epi.created_at
+                    if 0 < age < recency_window:
+                        boost += 0.5
+            except Exception:
+                pass
+
+            if boost > 0:
+                gene_scores[gid] += boost
+
     # ── Core retrieval (Step 2) — hybrid promoter + FTS5 ────────────
 
     def query_genes(
@@ -716,9 +788,10 @@ class Genome:
             ).fetchone()[0]
             if term_freq == 0:
                 continue
-            # IDF boost: rare terms get up to 5.0, common terms ~0.5
+            # IDF boost: rare terms get up to 3.0, common terms ~0.5
+            # Capped at 3.0 (was 5.0) to reduce tangential rare-term over-boost.
             idf = _math.log(total_genes_est / term_freq) if term_freq > 0 else 0
-            boost = min(idf * 1.5, 5.0)
+            boost = min(idf * 1.5, 3.0)
             if boost > 1.0:
                 anchor_genes = cur.execute(
                     "SELECT pi.gene_id FROM promoter_index pi "
@@ -728,6 +801,9 @@ class Genome:
                 ).fetchall()
                 for r in anchor_genes:
                     gene_scores[r["gene_id"]] = gene_scores.get(r["gene_id"], 0) + boost
+
+        # ── Authority boosts: distinguish "about X" from "mentions X" ──
+        self._apply_authority_boosts(cur, gene_scores, query_terms)
 
         # Expose scores for score-gated expression in context_manager
         self.last_query_scores = dict(gene_scores)
