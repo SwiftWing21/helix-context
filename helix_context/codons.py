@@ -131,7 +131,34 @@ class CodonChunker:
     # ── Code chunking (function/class boundary splitting) ───────────
 
     def _chunk_code(self, code: str, metadata: Dict) -> List[RawStrand]:
-        # Split on top-level definitions (MVP heuristic — swap for tree-sitter later)
+        # Tree-sitter AST chunking (opt-in, requires tree-sitter-languages).
+        # Falls through to regex path if unavailable or language unknown.
+        source_id = metadata.get("path") or metadata.get("source_id")
+        try:
+            from . import tree_chunker
+            if tree_chunker.is_available():
+                ast_blocks = tree_chunker.chunk_code_ast(
+                    code,
+                    max_chars=self.max_chars,
+                    source_id=source_id,
+                )
+                strands: List[RawStrand] = []
+                for seq, (block_text, is_fragment) in enumerate(ast_blocks):
+                    strands.append(RawStrand(
+                        content=block_text.strip(),
+                        sequence_index=seq,
+                        is_fragment=is_fragment,
+                        content_type="code",
+                        metadata=metadata,
+                    ))
+                if strands:
+                    return strands
+        except (ImportError, ValueError):
+            # ImportError: tree-sitter not installed
+            # ValueError: unsupported/undetected language
+            pass  # Fall through to regex path
+
+        # Regex fallback — splits on top-level def/class keywords
         blocks = RE_CODE_BOUNDARY.split(code)
 
         # Re-stitch split delimiters with their content
