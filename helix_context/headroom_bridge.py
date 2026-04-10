@@ -27,6 +27,7 @@ lock, so repeated calls from the async request path are safe.
 from __future__ import annotations
 
 import logging
+import os
 import threading
 from typing import Iterable, Optional
 
@@ -37,12 +38,33 @@ log = logging.getLogger(__name__)
 _HEADROOM_IMPORT_LOCK = threading.Lock()
 _HEADROOM_AVAILABLE: Optional[bool] = None  # tri-state: None = not probed yet
 
+_TRUTHY = {"1", "true", "yes", "on"}
+
+
+def _headroom_disabled_by_env() -> bool:
+    """Honor HELIX_DISABLE_HEADROOM=1 for A/B benchmarking.
+
+    When set to a truthy value (1/true/yes/on), compress_text bypasses all
+    Headroom specialists and falls through to legacy character-level
+    truncation. Useful for comparing v0.3.0b4-equivalent behavior against
+    v0.3.0b5 on the same genome without reverting code.
+    """
+    return os.environ.get("HELIX_DISABLE_HEADROOM", "").lower() in _TRUTHY
+
 
 def is_headroom_available() -> bool:
-    """Return True iff the headroom-ai package is importable.
+    """Return True iff headroom-ai is importable AND not explicitly disabled.
+
+    Probed once and cached (module-level), except for the env override check
+    which is re-evaluated on every call so tests and benchmarks can toggle
+    behavior per-process without a module reload.
 
     Does NOT load the Kompress model — that only happens on first compress call.
     """
+    # Env override re-checked every call (cheap: os.environ lookup + str.lower)
+    if _headroom_disabled_by_env():
+        return False
+
     global _HEADROOM_AVAILABLE
     if _HEADROOM_AVAILABLE is not None:
         return _HEADROOM_AVAILABLE

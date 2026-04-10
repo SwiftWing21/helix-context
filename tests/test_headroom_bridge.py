@@ -122,6 +122,33 @@ class TestFallbackPath:
         # Should not start with whitespace after .strip()
         assert not out.startswith(" ")
 
+    def test_env_toggle_disables_headroom(self, monkeypatch):
+        """HELIX_DISABLE_HEADROOM=1 should bypass Headroom even if installed."""
+        monkeypatch.setenv("HELIX_DISABLE_HEADROOM", "1")
+        assert is_headroom_available() is False
+        # Compressing should fall back to truncation
+        content = "a" * 3000
+        out = compress_text(content, target_chars=500)
+        assert out == content[:500]
+
+    def test_env_toggle_accepts_truthy_variants(self, monkeypatch):
+        """Env toggle should accept 1, true, yes, on (case insensitive)."""
+        for val in ("1", "true", "True", "TRUE", "yes", "on"):
+            monkeypatch.setenv("HELIX_DISABLE_HEADROOM", val)
+            assert is_headroom_available() is False, f"Expected False for {val!r}"
+
+    def test_env_toggle_off_leaves_headroom_active(self, monkeypatch):
+        """Empty or falsy env var should NOT disable Headroom (when installed)."""
+        monkeypatch.delenv("HELIX_DISABLE_HEADROOM", raising=False)
+        # Only meaningful if headroom is actually installed; otherwise the
+        # probe will naturally return False.
+        # This test asserts the env override doesn't interfere with normal
+        # probe behavior — it's a no-op when unset.
+        result = is_headroom_available()
+        # In our test env headroom IS installed, so expect True
+        if _headroom_installed:
+            assert result is True
+
 
 # ── Live specialist round-trips (require headroom-ai installed) ────────
 
