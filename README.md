@@ -112,42 +112,50 @@ to survive mixed-domain corpora.
 > public [`BigEd`](https://github.com/SwiftWing21/BigEd) repo, with a private worktree
 > ahead by 2 unreleased commits.
 
-### Database Storage Breakdown
+### Database Storage Breakdown (post-VACUUM)
 
-The on-disk `genome.db` is **752 MB** for 7,264 genes (~46 MB of raw content).
-Why the 16x gap between raw content and DB file? Because the genome isn't just storage —
+The on-disk `genome.db` is **523 MB** for 7,264 genes (~46 MB of raw content).
+Why the ~12x gap between raw content and DB file? Because the genome isn't just storage —
 it's a **4-tier retrieval engine** (promoter tags → FTS5 → SPLADE → ΣĒMA semantic), and
 each tier carries its own index.
 
-| Component | Size | Purpose |
-|---|---:|---|
-| **Raw content** (`gene.content`) | 44.5 MB | Original source text, verbatim |
-| **Ribosome complements** (`gene.complement`) | 16.5 MB | Small-model compressed summaries (2.69x storage ratio) |
-| **FTS5 posting lists** (`genes_fts_data`) | 187 MB | Full-text inverted index for keyword retrieval |
-| **SPLADE sparse index** (`splade_terms`) | 36 MB | 1.73M term weights for lexical expansion |
-| **Promoter index** (retrieval tags) | 3.8 MB | 73,815 domain/entity tags across all genes |
-| **Entity graph** | 5.6 MB | 117K entity-to-gene edges for co-activation |
-| **Gene relations** (NLI) | 6.6 MB | 108K typed logical relations between genes |
-| **ΣĒMA embeddings** (20D vectors) | 0.34 MB | Semantic primes — 80 bytes per gene |
-| **Key-value facts** (pre-extracted) | 1.4 MB | Pre-parsed `key=value` pairs for answer slate |
-| **Codons + promoter JSON + epigenetics** | 8.2 MB | Gene metadata (tags, access counts, decay) |
-| **SQLite B-tree overhead + free pages** | ~441 MB | Post-thinning fragmentation (7,075 of 11,529 genes deleted, space not reclaimed) |
-| **Total file size** | **752 MB** | |
+| Component | Size | % of DB | Purpose |
+|---|---:|---:|---|
+| **FTS5 posting lists** (`genes_fts_data`) | 187.3 MB | 35.8% | Full-text inverted index for keyword retrieval |
+| **Raw content** (`gene.content`) | 44.5 MB | 8.5% | Original source text, verbatim |
+| **SPLADE sparse index** (`splade_terms`) | 35.7 MB | 6.8% | 1.73M term weights for lexical expansion |
+| **Ribosome complements** (`gene.complement`) | 16.5 MB | 3.2% | Small-model compressed summaries (2.69x storage ratio) |
+| **Gene relations** (NLI) | 6.6 MB | 1.3% | 108K typed logical relations between genes |
+| **Entity graph** | 5.6 MB | 1.1% | 117K entity-to-gene edges for co-activation |
+| **Promoter index** (retrieval tags) | 3.8 MB | 0.7% | 73,815 domain/entity tags across all genes |
+| **Codons + metadata JSON** | 8.2 MB | 1.6% | Semantic tags, promoter JSON, epigenetics |
+| **ΣĒMA embeddings** (20D vectors) | 0.34 MB | 0.1% | Semantic primes — 80 bytes per gene |
+| **Key-value facts** (pre-extracted) | 1.4 MB | 0.3% | Pre-parsed `key=value` pairs for answer slate |
+| **Accounted payload subtotal** | **310.0 MB** | **59.3%** | Actual data across all indexes |
+| **SQLite B-tree + page overhead** | 212.7 MB | 40.7% | Index structure, not fragmentation |
+| **Total file size** | **522.7 MB** | **100%** | |
+
+> 💾 **VACUUM impact:** This table reflects post-`VACUUM` state. Before VACUUM, the
+> database was **752 MB** — the extra 229 MB (30.4%) was free pages from thinning
+> 11,529 genes down to 7,264 during tuning. SQLite holds deleted pages until a
+> VACUUM reclaims them. The ~213 MB of "B-tree overhead" that remains is *structural*:
+> page headers, cell pointers, interior nodes of the index B-trees. That's not
+> reclaimable without changing the indexing strategy.
 
 **Observations:**
 
-- **FTS5 dominates storage** (25% of the file). The full-text index holds position
+- **FTS5 dominates storage** (35.8% of the file). The full-text index holds position
   data for every token across all 7K genes — it's what enables the sub-5ms content
-  queries that make the 1s total retrieval latency possible.
-- **Raw content is only 6% of the file**. The rest is indexes. This is the expected
+  queries that make the ~1s total retrieval latency possible.
+- **Raw content is only 8.5% of the file**. The rest is indexes. This is the expected
   tradeoff for a retrieval-optimized database vs a flat text archive.
-- **~440 MB is fragmentation**, not real data. The genome was thinned from 11,529
-  to 7,264 genes during tuning, and SQLite holds those pages until a `VACUUM`. A
-  compacted genome would land around **~310 MB for the same content**.
+- **Accounted payload is 310 MB (59.3%)**. The remaining 213 MB (40.7%) is legitimate
+  B-tree structure overhead — page headers, cell pointers, and internal index nodes.
+  SQLite can't compress this further without sacrificing query speed.
 - **ΣĒMA embeddings are essentially free** — 20 floats per gene = 80 bytes. A 1M-gene
-  genome would cost only 80MB for the semantic tier.
+  genome would cost only 80 MB for the semantic tier.
 - **Inference cost is unchanged by DB size**: the LLM only ever sees ~15K tokens
-  per turn regardless of whether the genome is 50MB or 50GB.
+  per turn regardless of whether the genome is 50 MB or 50 GB.
 
 **Compression summary:**
 
@@ -155,7 +163,8 @@ each tier carries its own index.
 |---|---:|---|
 | Storage (raw → complement) | **2.69x** | How much the ribosome compresses each gene's summary |
 | Expression (full corpus → single turn) | **776x** | How much of the genome the LLM sees per query |
-| DB file / raw content | 16x (6x post-VACUUM) | Index overhead for 4-tier retrieval |
+| DB file / raw content | 11.76x (post-VACUUM) | Index overhead for 4-tier retrieval |
+| DB file / raw content | 16.90x (pre-VACUUM) | With fragmentation from thinning |
 | vs 128K-stuffed context | 8.5x fewer tokens | Baseline "dump everything" approach |
 | vs chunked RAG (25K tokens) | 1.7x fewer tokens | Standard vector-search RAG |
 
