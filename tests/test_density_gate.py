@@ -24,6 +24,7 @@ from helix_context.genome import (
     _DENSITY_EUCHROMATIN_THRESHOLD,
     _DENSITY_ACCESS_OVERRIDE,
 )
+from helix_context.exceptions import PromoterMismatch
 from helix_context.schemas import (
     Gene,
     PromoterTags,
@@ -416,7 +417,8 @@ class TestCompactGenomeSweep:
 
     def test_apply_run_demotes_noise(self, genome):
         """dry_run=False actually writes the demotions."""
-        g_noise = make_gene("x" * 3000, domains=[])
+        original_content = "x" * 3000
+        g_noise = make_gene(original_content, domains=[])
         g_noise.source_id = "F:/project/node_modules/some-pkg/dist/index.min.js"
         g_noise.embedding = [0.1] * 20  # required for cold-storage demotion
         # Gate would demote on insert, so bypass it then run sweep
@@ -427,8 +429,14 @@ class TestCompactGenomeSweep:
         genome.compact_genome(dry_run=False)
 
         retrieved = genome.get_gene(g_noise.gene_id)
-        # After heterochromatin compression, content is replaced with a marker
-        assert "COMPRESSED:heterochromatin" in retrieved.content
+        # After C.1 (2026-04-10), heterochromatin is non-destructive — the
+        # chromatin flag flips but content is preserved so cold-tier
+        # retrieval (C.2) can reactivate the gene when a query needs it.
+        assert retrieved.chromatin == ChromatinState.HETEROCHROMATIN
+        assert retrieved.content == original_content, (
+            "compress_to_heterochromatin must preserve content "
+            "(non-destructive as of C.1)"
+        )
 
     def test_sweep_reason_breakdown(self, genome):
         """The by_reason dict should record why each decision was made."""
@@ -461,6 +469,111 @@ class TestCompactGenomeSweep:
         assert "access_override" in reasons, f"reasons={reasons}"
         # Signal gene should hit "open" reason
         assert "open" in reasons, f"reasons={reasons}"
+
+
+# ── C.1 — compress_to_heterochromatin is non-destructive ──────────────
+
+
+class TestHeterochromatinNonDestructive:
+    """Verifies that compress_to_heterochromatin only flips the tier flag.
+
+    Content, complement, codons, SPLADE terms, and FTS5 index entries are
+    all preserved so that cold-tier retrieval (C.2) can reactivate demoted
+    genes on-demand. Hot-tier retrieval still excludes heterochromatin
+    via the `WHERE chromatin < HETEROCHROMATIN` filter on every query.
+    """
+
+    def test_content_preserved_on_demotion(self, genome):
+        original = "def legit_function():\n    return 'real content with literal values'"
+        g = make_gene(original, domains=["python"])
+        g.source_id = "project/module.py"
+        genome.upsert_gene(g, apply_gate=False)
+
+        genome.compress_to_heterochromatin(g.gene_id)
+
+        retrieved = genome.get_gene(g.gene_id)
+        assert retrieved is not None
+        assert retrieved.chromatin == ChromatinState.HETEROCHROMATIN
+        assert retrieved.content == original, (
+            "content must survive heterochromatin demotion"
+        )
+
+    def test_complement_preserved_on_demotion(self, genome):
+        g = make_gene("some gene content", domains=["code"])
+        g.source_id = "project/file.py"
+        # make_gene builds a complement of form "Summary of: ..." — verify
+        # it's preserved across demotion
+        original_complement = g.complement
+        assert original_complement  # sanity
+        genome.upsert_gene(g, apply_gate=False)
+
+        genome.compress_to_heterochromatin(g.gene_id)
+
+        retrieved = genome.get_gene(g.gene_id)
+        assert retrieved.complement == original_complement
+
+    def test_codons_preserved_on_demotion(self, genome):
+        g = make_gene("codon test content", domains=["code"])
+        g.source_id = "project/file.py"
+        original_codons = list(g.codons)
+        assert original_codons  # sanity
+        genome.upsert_gene(g, apply_gate=False)
+
+        genome.compress_to_heterochromatin(g.gene_id)
+
+        retrieved = genome.get_gene(g.gene_id)
+        assert retrieved.codons == original_codons
+
+    def test_hot_retrieval_still_excludes_heterochromatin(self, genome):
+        """Non-destructive demotion must not leak demoted genes into hot retrieval."""
+        g = make_gene(
+            "def authenticate(user): return user.is_valid()",
+            domains=["python", "auth"],
+            entities=["authenticate", "user"],
+        )
+        g.source_id = "project/auth.py"
+        genome.upsert_gene(g, apply_gate=False)
+
+        # Verify it's findable BEFORE demotion
+        hot_before = genome.query_genes(domains=["auth"], entities=[], max_genes=10)
+        assert any(gene.gene_id == g.gene_id for gene in hot_before), (
+            "gene should be findable in hot retrieval before demotion"
+        )
+
+        genome.compress_to_heterochromatin(g.gene_id)
+
+        # After demotion, it must NOT appear in hot retrieval even though
+        # content is preserved. An empty result can arrive either as an
+        # empty list OR as a PromoterMismatch exception (query_genes raises
+        # when zero genes match across all tiers) — both mean "not found."
+        try:
+            hot_after = genome.query_genes(domains=["auth"], entities=[], max_genes=10)
+        except PromoterMismatch:
+            hot_after = []
+        assert not any(gene.gene_id == g.gene_id for gene in hot_after), (
+            "heterochromatin gene must be excluded from hot retrieval "
+            "despite content being preserved"
+        )
+
+    def test_idempotent_demotion(self, genome):
+        """Calling compress_to_heterochromatin twice must be stable and
+        still preserve content the second time."""
+        original = "stable content across idempotent demotion"
+        g = make_gene(original, domains=["test"])
+        g.source_id = "project/file.py"
+        genome.upsert_gene(g, apply_gate=False)
+
+        assert genome.compress_to_heterochromatin(g.gene_id) is True
+        first = genome.get_gene(g.gene_id)
+
+        assert genome.compress_to_heterochromatin(g.gene_id) is True
+        second = genome.get_gene(g.gene_id)
+
+        assert first.chromatin == second.chromatin == ChromatinState.HETEROCHROMATIN
+        assert first.content == second.content == original
+
+    def test_missing_gene_returns_false(self, genome):
+        assert genome.compress_to_heterochromatin("nonexistent_gene_id") is False
 
 
 # ── Threshold constants are sane ───────────────────────────────────────

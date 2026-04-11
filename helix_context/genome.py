@@ -1804,10 +1804,33 @@ class Genome:
 
     def compress_to_heterochromatin(self, gene_id: str) -> bool:
         """
-        Compress a gene to HETEROCHROMATIN tier: keep only ΣĒMA + metadata.
+        Move a gene to HETEROCHROMATIN tier (cold storage).
 
-        Keeps: gene_id, source_id, promoter, embedding, key_values
-        Drops: content, complement, codons, SPLADE terms
+        As of 2026-04-10 (C.1 of B→C), this is **non-destructive**. The
+        function only flips the ``chromatin`` and ``compression_tier``
+        flags — it does NOT drop ``content``, ``complement``, ``codons``,
+        SPLADE terms, or FTS5 index entries.
+
+        Rationale: the chromatin flag + ``WHERE chromatin < HETEROCHROMATIN``
+        filter on all hot-tier retrieval paths already excludes demoted
+        genes from normal ``/context`` queries. Destroying the underlying
+        content eliminated any possibility of cold-tier retrieval (via
+        ΣĒMA cosine similarity on the retained embedding) actually
+        returning useful data — you'd match the embedding but have
+        nothing to show.
+
+        With content preserved, the cold-tier retrieval path added in C.2
+        can reactivate demoted genes on-demand for queries that specifically
+        need them. The storage cost is modest — SPLADE terms and FTS5
+        index entries are small per-gene — and the optional nature of
+        cold-tier retrieval means hot queries are unaffected.
+
+        Callers who explicitly want to reclaim disk space on a known-dead
+        gene can call ``delete_gene()`` instead. Heterochromatin is now
+        strictly a **tier flag**, not a destructive compression.
+
+        Keeps: everything (content, complement, codons, SPLADE, FTS5)
+        Flips: ``chromatin = 2``, ``compression_tier = 2``
         """
         cur = self.conn.cursor()
         row = cur.execute(
@@ -1818,23 +1841,12 @@ class Genome:
             return False
 
         cur.execute(
-            "UPDATE genes SET "
-            "content = ?, complement = NULL, codons = '[]', "
-            "chromatin = 2, compression_tier = 2 "
+            "UPDATE genes SET chromatin = 2, compression_tier = 2 "
             "WHERE gene_id = ?",
-            (f"[COMPRESSED:heterochromatin] source={row['source_id'] or 'unknown'}", gene_id),
+            (gene_id,),
         )
-        # Remove SPLADE terms (no longer searchable via sparse retrieval)
-        if self._splade_enabled:
-            cur.execute("DELETE FROM splade_terms WHERE gene_id = ?", (gene_id,))
-        # Remove from FTS5 index
-        if self._fts_available:
-            try:
-                cur.execute("DELETE FROM genes_fts WHERE gene_id = ?", (gene_id,))
-            except Exception:
-                pass
         self.conn.commit()
-        log.debug("Compressed gene %s to HETEROCHROMATIN", gene_id)
+        log.debug("Moved gene %s to HETEROCHROMATIN (non-destructive)", gene_id)
         return True
 
     def compact_genome(self, dry_run: bool = False) -> Dict:
