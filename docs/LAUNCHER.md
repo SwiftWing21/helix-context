@@ -167,8 +167,20 @@ Usage:
 # Browser mode (default)
 helix-launcher
 
+# System tray icon — persistent, "close to tray" experience
+# (requires [launcher-tray] extra)
+helix-launcher --tray
+
+# Close-to-tray with native window (Windows only — see platform notes)
+helix-launcher --tray --native
+
 # Native window (requires [launcher-native] extra)
 helix-launcher --native
+
+# Install as a system service (systemd / launchd / NSSM recipe)
+helix-launcher install-service
+helix-launcher uninstall-service
+helix-launcher install-service --dry-run
 
 # Don't auto-start helix; just show the UI with a Start button
 helix-launcher --no-autostart
@@ -395,6 +407,72 @@ Poll interval is configurable via a CSS-free `--launcher-poll-interval`
 (default `2s`). Users can set `helix-launcher --poll-interval 5` to
 reduce chatter.
 
+## Orphan adoption
+
+The launcher adopts already-running helix processes in two situations:
+
+**1. On launcher startup** — `supervisor.adopt()` runs a two-stage check:
+
+   1. **State file**: if `~/.helix/launcher/state.json` has a `helix_pid`,
+      verify the process is alive and the command line still matches
+      `helix_context.server:app`. If yes → adopted, no further scan.
+   2. **Orphan scan**: use `psutil.net_connections()` to find the PID
+      listening on `helix_host:helix_port`. Verify its command line
+      matches helix uvicorn. Walk up to the uvicorn parent process (the
+      one `subprocess.Popen` would hand us). Write its PID + command
+      line to the state file.
+
+   This means: **the launcher adopts any helix running outside of it,
+   as long as the port matches**. No coordination required between
+   externally-started helix processes and the launcher.
+
+**2. On Start button click** — `supervisor.start()` checks port
+availability. If the port is busy:
+
+   - If the occupying process IS a helix uvicorn → adopt it (same
+     behavior as the startup orphan scan), return its PID, no spawn
+   - If the occupying process is something else (another dev server,
+     unrelated Python script) → raise `SupervisorError` and record it
+     as a `last_error` for the diagnostics panel
+
+This fixes the common UX trap where the launcher and a developer's
+`python -m uvicorn helix_context.server:app` race on port 11437 and
+the Start button returns a 500. Instead the launcher quietly adopts
+the external helix and the dashboard shows it as running.
+
+### Why we adopt without confirming
+
+A user asking "Start this" when a helix is already running on the
+target port almost always means "make the launcher aware of the
+existing helix," not "start a second helix" (which would fail anyway
+since both can't bind the same port). Silent adoption matches the
+user's intent; a confirmation prompt would be friction for the
+common case.
+
+If you want to explicitly refuse adoption and fail instead, kill
+the orphan first, then click Start.
+
+## Diagnostics panel
+
+A footer panel on the dashboard that always renders, regardless of
+helix state. Surfaces three kinds of information:
+
+**Last error:** if any `start`/`stop`/`restart` operation failed since
+the launcher started, its error message is displayed in a red-bordered
+strip. Cleared when the next operation succeeds. Fed by
+`supervisor.get_last_error()`.
+
+**Orphan warning:** when `supervisor.is_running()` is False but an
+unmanaged helix is detected on the port (e.g. started from a terminal
+outside the launcher), a yellow-bordered strip says:
+
+> **Orphan helix detected** — PID X is listening on port 11437 but
+> is not managed by this launcher. Click *Start* to adopt it.
+
+**Paths:** the state file location and the helix log location are
+always displayed so you can tail the log or inspect the state file
+without hunting for them.
+
 ## State file
 
 `~/.helix/launcher/state.json` (atomic write + rename):
@@ -531,6 +609,146 @@ if args.native:
 If `pywebview` is not installed, `--native` prints a helpful error and
 points at the install extras. Default behavior (no `--native`) opens
 the user's default browser at the launcher URL.
+
+## System tray mode
+
+Opt-in via `--tray`. Requires the `launcher-tray` extras (pystray +
+Pillow). Puts a persistent icon in the system notification area with
+a menu for controlling helix. Uvicorn runs in a daemon thread; pystray
+owns the main thread for its message pump.
+
+```bash
+pip install helix-context[launcher-tray]
+helix-launcher --tray
+```
+
+Tray menu:
+
+```
+┌──────────────────┐
+│ Open Dashboard   │  ← default action (left-click on icon)
+│──────────────────│
+│ Start helix      │  (disabled when running)
+│ Restart helix    │  (disabled when stopped)
+│ Stop helix       │  (disabled when stopped)
+│──────────────────│
+│ Quit             │  (stops helix + exits launcher)
+└──────────────────┘
+```
+
+In tray mode the **tray icon is the persistent surface**. You can
+open and close the browser tab freely — the launcher keeps running
+because the icon is alive. Only clicking **Quit** from the tray menu
+actually stops the launcher (and helix via the normal announce-then-
+kill path).
+
+**License note:** pystray is LGPL-3. It is installed as an optional
+runtime dep by the user — the helix-context wheel itself does not
+bundle pystray, so the core package stays Apache-2.0-clean. See
+`pyproject.toml` for the `launcher-tray` extras definition.
+
+### `--tray --native` combined (Windows only)
+
+When both flags are set on Windows, the launcher runs in **close-to-tray**
+mode: a native pywebview window AND a persistent tray icon, with the
+window's close button intercepted to hide the window instead of
+exiting. The tray menu gains `Show Window` / `Hide to Tray` items
+and `Quit` is the only way to fully stop.
+
+Threading model:
+
+    - Main thread      pywebview (WebView2 message pump)
+    - Background       uvicorn (daemon)
+    - Background       pystray (daemon, tray icon message pump)
+
+Close-to-tray flow:
+
+    User clicks X          →  window.events.closing returns False
+                              → window.hide()
+    Tray "Show Window"     →  window.show()
+    Tray "Hide to Tray"    →  window.hide()
+    Tray "Quit"            →  set quitting flag
+                              → window.destroy()
+                              → closing handler returns True
+                              → webview.start() returns
+                              → main() exits
+                              → daemon threads (uvicorn + pystray) die with process
+
+**Not supported on macOS or Linux** in this release:
+
+- macOS: pystray's Cocoa backend requires main-thread + NSApplication
+  event loop, which directly conflicts with pywebview's WebKit main
+  loop. The two libraries cannot share the main thread.
+- Linux: depends on the pystray backend (AppIndicator can run from a
+  thread, Xlib cannot). Opt-in once the Linux backend story is tested.
+
+On these platforms, passing `--tray --native` returns exit code 2
+with a clear error message. Pick one or the other.
+
+## Service install — `helix-launcher install-service`
+
+Once the deploy templates are validated for your platform, the
+launcher can install them for you in one command:
+
+```bash
+helix-launcher install-service
+```
+
+What it does (by platform):
+
+| Platform | Action |
+|---|---|
+| Linux | Writes `~/.config/systemd/user/helix-launcher.service` with `ExecStart` substituted to the actual `helix-launcher` binary path. Prints the `systemctl --user daemon-reload && systemctl --user enable --now` next steps. |
+| macOS | Writes `~/Library/LaunchAgents/com.swiftwing21.helix-launcher.plist` with `ProgramArguments` and `StandardOutPath` substituted. Prints the `launchctl load` next step. |
+| Windows | Prints the NSSM recipe. Does NOT install NSSM (licensing + download), does NOT register the service. User follows the printed steps. |
+
+The installer deliberately **never runs** `systemctl enable`,
+`launchctl load`, or `nssm install` — those are side effects that
+deserve explicit user consent, and it makes the installer reversible.
+
+Dry-run mode shows what would happen without writing anything:
+
+```bash
+helix-launcher install-service --dry-run
+```
+
+Uninstall removes the file and prints the disable command (again,
+doesn't run it):
+
+```bash
+helix-launcher uninstall-service
+```
+
+Windows users: see [`deploy/windows/README.md`](../deploy/windows/README.md)
+for the NSSM walkthrough.
+
+## Helix-side endpoint: `POST /admin/shutdown`
+
+Complements `POST /admin/announce_restart`. Where announce_restart
+signals an *intentional restart*, shutdown signals a clean
+*stop-and-stay-down*:
+
+```bash
+curl -X POST http://127.0.0.1:11437/admin/shutdown \
+  -H "Content-Type: application/json" \
+  -d '{"actor": "launcher", "reason": "user quit from tray menu"}'
+```
+
+Behavior:
+
+1. Stamps `server_state.json` with `state=stopped`
+2. Logs the shutdown reason
+3. Fires `SIGINT` on the helix process
+4. Uvicorn catches SIGINT and runs its graceful-shutdown path,
+   invoking the lifespan cleanup (WAL checkpoint, token metrics flush,
+   background tasks cancelled)
+5. Returns `200` immediately — the actual shutdown happens
+   asynchronously as uvicorn processes the signal
+6. Callers poll `GET /stats` until connection refused to confirm
+   the shutdown completed
+
+This is the endpoint whose 404 prompted "someone was trying
+/admin/shutdown" during an earlier test session — now it exists.
 
 ## Implementation checklist
 

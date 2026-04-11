@@ -780,6 +780,64 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             "backend_type": type(backend).__name__,
         }
 
+    @app.post("/admin/shutdown")
+    async def admin_shutdown(request: Request):
+        """Graceful shutdown — stamps the signal file and raises SIGINT.
+
+        Complements /admin/announce_restart for the case where the
+        caller wants helix to go DOWN (not restart). After this returns,
+        the server begins its lifespan shutdown sequence (WAL checkpoint,
+        bridge state stamp, token metrics flush) and then exits.
+
+        Body fields (all optional):
+            actor    — who is asking the server to stop (e.g. "launcher", "taude")
+            reason   — short human string for the signal + log
+
+        Returns 200 immediately after firing SIGINT on the current PID.
+        The actual shutdown happens asynchronously as uvicorn processes
+        the signal. Callers that need to wait for the port to free up
+        should poll GET /stats until connection refused.
+        """
+        import os as _os
+        import signal as _signal
+
+        try:
+            data = await request.json()
+        except Exception:
+            data = {}
+        actor = data.get("actor") or "unknown"
+        reason = data.get("reason") or "manual shutdown"
+
+        # Stamp the signal file so observers see the clean shutdown before
+        # the lifespan hook fires.
+        try:
+            bridge.write_signal("server_state", {
+                "state": "stopped",
+                "actor": actor,
+                "reason": reason,
+                "pid": _os.getpid(),
+                "expected_downtime_s": 0,
+                "phase": "shutting_down",
+            })
+        except Exception:
+            log.warning("Shutdown: failed to stamp signal", exc_info=True)
+
+        log.info("Shutdown requested by %s: %s", actor, reason)
+
+        # Fire SIGINT on self so uvicorn runs its graceful-shutdown path,
+        # which invokes the lifespan cleanup (WAL checkpoint, token flush).
+        try:
+            _os.kill(_os.getpid(), _signal.SIGINT)
+        except Exception:
+            log.warning("SIGINT on self failed", exc_info=True)
+
+        return {
+            "shutting_down": True,
+            "actor": actor,
+            "reason": reason,
+            "hint": "Poll GET /stats — connection refused means shutdown complete.",
+        }
+
     @app.post("/admin/announce_restart")
     async def admin_announce_restart(request: Request):
         """

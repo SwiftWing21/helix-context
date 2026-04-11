@@ -211,6 +211,41 @@ curl http://127.0.0.1:11437/stats
 
 Point any OpenAI-compatible client at `http://127.0.0.1:11437/v1` and start chatting. Context compression happens transparently.
 
+### Run it with the launcher (supervisor + dashboard)
+
+Instead of babysitting a terminal, use the bundled launcher — a
+separate supervisor process that spawns and monitors helix, with a
+live dashboard for status and Start/Restart/Stop controls.
+
+```bash
+# Install with the launcher extras
+pip install helix-context[launcher] --pre
+
+# Run it — opens http://127.0.0.1:11438/ in your browser
+helix-launcher
+
+# Or as a system tray app (requires [launcher-tray] for pystray)
+pip install helix-context[launcher-tray] --pre
+helix-launcher --tray
+```
+
+The launcher:
+
+- Spawns `helix` as a supervised child process on `:11437`
+- Shows parties / participants / models / tools / genes / tokens
+  panels in a live dashboard (polls every 2 seconds)
+- Wires Start / Restart / Stop buttons to the helix process via the
+  restart-protocol-compliant announce + kill path
+- **Adopts** an already-running helix via state file on startup —
+  you can restart the launcher without killing helix
+- Runs with a **system tray icon** in `--tray` mode: close browser
+  tabs freely, the launcher keeps running in the tray until you
+  click Quit
+
+System-service templates for running the launcher unattended live in
+[`deploy/`](deploy/) (systemd, launchd, and NSSM for Windows). See
+[`docs/LAUNCHER.md`](docs/LAUNCHER.md) for the full architecture.
+
 ## What You'll See
 
 After seeding the genome, `/stats` shows the state of your knowledge base:

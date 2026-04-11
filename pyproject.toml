@@ -40,6 +40,10 @@ embeddings = ["numpy", "sentence-transformers"]
 cpu = ["spacy>=3.7"]
 launcher = ["jinja2>=3.1", "psutil>=5.9"]
 launcher-native = ["jinja2>=3.1", "psutil>=5.9", "pywebview>=5.0"]
+# pystray is LGPL-3. It is a runtime-only optional dep that the user
+# installs explicitly; the helix-context wheel itself does not bundle
+# pystray, so the core package stays Apache-2.0-clean.
+launcher-tray = ["jinja2>=3.1", "psutil>=5.9", "pystray>=0.19", "Pillow>=10"]
 ast = [
     "tree-sitter>=0.23",
     "tree-sitter-python>=0.23",

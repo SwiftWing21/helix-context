@@ -14,7 +14,7 @@ from helix_context.launcher.collector import StateCollector
 
 
 @pytest.fixture
-def fake_supervisor():
+def fake_supervisor(tmp_path):
     sup = MagicMock()
     sup.helix_host = "127.0.0.1"
     sup.helix_port = 11437
@@ -23,6 +23,11 @@ def fake_supervisor():
     sup.get_uptime_s.return_value = 42.5
     sup.store.state.last_restart_reason = "test"
     sup.store.state.last_restart_at = time.time()
+    # Telemetry defaults — collector now reads these
+    sup.find_orphan_helix.return_value = None
+    sup.get_last_error.return_value = None
+    sup.store.path = tmp_path / "state.json"
+    sup.helix_log_path = tmp_path / "helix.log"
     return sup
 
 
@@ -53,6 +58,8 @@ def _mock_client(responses: dict):
 class TestCollectHelixDown:
     def test_returns_only_helix_field_when_stopped(self, collector, fake_supervisor):
         fake_supervisor.is_running.return_value = False
+        fake_supervisor.find_orphan_helix.return_value = None
+        fake_supervisor.get_last_error.return_value = None
         result = collector.collect()
         assert "helix" in result
         assert result["helix"]["running"] is False
@@ -60,6 +67,36 @@ class TestCollectHelixDown:
         assert "genes" not in result
         assert "parties" not in result
         assert "tools" not in result
+
+    def test_orphan_pid_surfaced_when_helix_down(self, collector, fake_supervisor):
+        fake_supervisor.is_running.return_value = False
+        fake_supervisor.find_orphan_helix.return_value = 45678
+        fake_supervisor.get_last_error.return_value = None
+        result = collector.collect()
+        assert result["helix"]["orphan_pid"] == 45678
+
+    def test_last_error_surfaced(self, collector, fake_supervisor):
+        fake_supervisor.is_running.return_value = False
+        fake_supervisor.find_orphan_helix.return_value = None
+        fake_supervisor.get_last_error.return_value = {
+            "operation": "start",
+            "message": "port 11437 occupied",
+            "at": 1775896000.0,
+        }
+        result = collector.collect()
+        assert result["helix"]["last_error"]["operation"] == "start"
+        assert "port 11437" in result["helix"]["last_error"]["message"]
+
+    def test_paths_always_present(self, collector, fake_supervisor, tmp_path):
+        fake_supervisor.is_running.return_value = False
+        fake_supervisor.find_orphan_helix.return_value = None
+        fake_supervisor.get_last_error.return_value = None
+        fake_supervisor.store.path = tmp_path / "state.json"
+        fake_supervisor.helix_log_path = tmp_path / "helix.log"
+        result = collector.collect()
+        assert "paths" in result["helix"]
+        assert "state_file" in result["helix"]["paths"]
+        assert "helix_log" in result["helix"]["paths"]
 
 
 class TestGenesPanel:

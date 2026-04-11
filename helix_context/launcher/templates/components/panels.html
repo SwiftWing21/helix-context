@@ -31,3 +31,7 @@
   {% endif %}
 
 {% endif %}
+
+{# Diagnostics always renders — surfaces errors, orphans, and paths
+   regardless of whether helix is up. #}
+{% include "components/diagnostics_panel.html" %}

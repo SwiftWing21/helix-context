@@ -368,6 +368,54 @@ button {
   color: var(--color-text);
 }
 
+/* ── Diagnostics panel ────────────────────────────────────────── */
+
+.panel--diagnostics {
+  opacity: 0.85;
+  transition: opacity var(--motion-fast);
+}
+
+.panel--diagnostics:hover {
+  opacity: 1;
+}
+
+.diagnostics-error {
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--color-danger);
+  background: var(--color-danger-soft);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+}
+
+.diagnostics-error strong {
+  color: var(--color-danger);
+}
+
+.diagnostics-warn {
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--color-warn);
+  background: rgba(245, 185, 113, 0.08);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+}
+
+.diagnostics-warn strong {
+  color: var(--color-warn);
+}
+
+.diagnostics-warn em {
+  color: var(--color-accent);
+  font-style: normal;
+  font-weight: 500;
+}
+
+.path-value {
+  font-family: var(--font-mono);
+  font-size: calc(var(--font-size-sm) * 0.9);
+  color: var(--color-text-muted);
+  word-break: break-all;
+}
+
 /* ── Poll-stale hint ──────────────────────────────────────────── */
 
 .panels[data-stale="true"] {

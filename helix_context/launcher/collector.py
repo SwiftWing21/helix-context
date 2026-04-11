@@ -96,6 +96,32 @@ class StateCollector:
             st = self.supervisor.store.state
             out["last_restart_reason"] = st.last_restart_reason
             out["last_restart_at"] = st.last_restart_at
+        else:
+            # When helix is down, surface an orphan warning if one is
+            # detected on the configured port — it's almost certainly
+            # the user's real problem.
+            try:
+                orphan_pid = self.supervisor.find_orphan_helix()
+                if orphan_pid is not None:
+                    out["orphan_pid"] = orphan_pid
+            except Exception:
+                log.debug("Orphan scan failed", exc_info=True)
+
+        # Last error — present whether helix is up or down.
+        last_error = self.supervisor.get_last_error()
+        if last_error is not None:
+            out["last_error"] = last_error
+
+        # Paths — static information the user wants visible for debugging.
+        try:
+            state_path = self.supervisor.store.path
+            out["paths"] = {
+                "state_file": str(state_path),
+                "helix_log": str(self.supervisor.helix_log_path),
+            }
+        except Exception:
+            pass
+
         return out
 
     # ── genes ──────────────────────────────────────────────────────

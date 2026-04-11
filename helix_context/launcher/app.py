@@ -161,6 +161,15 @@ def _parse_args(argv: Optional[list] = None) -> argparse.Namespace:
         prog="helix-launcher",
         description="Supervisor + dashboard for a helix-context server.",
     )
+    p.add_argument(
+        "command",
+        nargs="?",
+        default="run",
+        choices=["run", "install-service", "uninstall-service"],
+        help="Subcommand. 'run' (default) starts the launcher. "
+             "'install-service' writes a systemd/launchd service file for "
+             "the current platform. 'uninstall-service' removes it.",
+    )
     p.add_argument("--host", default="127.0.0.1", help="Launcher UI bind host (default: 127.0.0.1)")
     p.add_argument("--port", type=int, default=11438, help="Launcher UI port (default: 11438)")
     p.add_argument("--helix-host", default="127.0.0.1", help="Host for supervised helix (default: 127.0.0.1)")
@@ -169,9 +178,19 @@ def _parse_args(argv: Optional[list] = None) -> argparse.Namespace:
     p.add_argument("--no-browser", action="store_true", help="Don't open the dashboard in a browser")
     p.add_argument("--native", action="store_true", help="Use pywebview native window instead of browser")
     p.add_argument(
+        "--tray", action="store_true",
+        help="Run with a system tray icon (pystray required). "
+             "Click the tray icon to open the dashboard, click Quit from "
+             "its menu to stop the launcher. Mutually exclusive with --native.",
+    )
+    p.add_argument(
         "--ollama-base-url",
         default="http://127.0.0.1:11434",
         help="Ollama base URL for model discovery (default: http://127.0.0.1:11434)",
+    )
+    p.add_argument(
+        "--dry-run", action="store_true",
+        help="For install-service / uninstall-service: show what would happen without making changes",
     )
     p.add_argument("-v", "--verbose", action="store_true", help="Debug logging")
     return p.parse_args(argv)
@@ -184,6 +203,12 @@ def _check_native_available() -> bool:
         return True
     except ImportError:
         return False
+
+
+def _check_tray_available() -> bool:
+    """Return True if pystray + PIL can be imported. Used for --tray fail-fast."""
+    from .tray import is_tray_available
+    return is_tray_available()
 
 
 def _open_ui(url: str, native: bool, window_title: str = "Helix Launcher") -> None:
@@ -210,6 +235,21 @@ def _open_ui(url: str, native: bool, window_title: str = "Helix Launcher") -> No
             log.warning("Failed to open browser — navigate manually to %s", url)
 
 
+def _handle_service_command(command: str, dry_run: bool) -> int:
+    """Handle install-service / uninstall-service subcommands.
+
+    Returns exit code 0 on success, non-zero on failure. Prints the
+    result (which includes next-step instructions) to stdout.
+    """
+    from .installer import install_service, uninstall_service
+    if command == "install-service":
+        ok, msg = install_service(dry_run=dry_run)
+    else:  # uninstall-service
+        ok, msg = uninstall_service(dry_run=dry_run)
+    print(msg)
+    return 0 if ok else 1
+
+
 def main(argv: Optional[list] = None) -> int:
     args = _parse_args(argv)
 
@@ -218,11 +258,44 @@ def main(argv: Optional[list] = None) -> int:
         format="[%(asctime)s] %(name)s %(levelname)s: %(message)s",
     )
 
+    # Service install/uninstall subcommands — do not start any server.
+    if args.command in ("install-service", "uninstall-service"):
+        return _handle_service_command(args.command, dry_run=args.dry_run)
+
+    # --tray and --native combined is only supported on Windows today.
+    #
+    # Approach: pywebview on main thread, pystray on a detached background
+    # thread. Windows allows pystray's Win32 message pump to run outside
+    # the main thread when spawned via threading.Thread + icon.run(). On
+    # macOS this is fundamentally impossible because pystray's Cocoa
+    # backend requires main-thread + NSApplication event loop, which
+    # conflicts with pywebview's WebKit main loop. On Linux it depends
+    # on the pystray backend (AppIndicator works from a thread, Xlib
+    # does not), so we reject it too — opt into it explicitly later
+    # once the Linux-backend story is tested.
+    if args.tray and args.native:
+        if sys.platform != "win32":
+            log.error(
+                "--tray --native is only supported on Windows in this "
+                "release. On macOS and Linux, pystray's backend needs "
+                "the main thread and cannot be combined with pywebview. "
+                "Pick --tray or --native, not both."
+            )
+            return 2
+
     # Fail fast if --native is requested but pywebview isn't installed.
     if args.native and not _check_native_available():
         log.error(
             "--native requires pywebview. Install with: "
             "pip install helix-context[launcher-native]"
+        )
+        return 1
+
+    # Fail fast if --tray is requested but pystray/PIL aren't installed.
+    if args.tray and not _check_tray_available():
+        log.error(
+            "--tray requires pystray + Pillow. Install with: "
+            "pip install helix-context[launcher-tray]"
         )
         return 1
 
@@ -255,6 +328,37 @@ def main(argv: Optional[list] = None) -> int:
 
     url = f"http://{args.host}:{args.port}/"
 
+    if args.tray and args.native:
+        # Windows-only combined mode — see platform guard above.
+        return _run_tray_native_combined(
+            app, args.host, args.port, url, supervisor,
+        )
+
+    if args.tray:
+        # Uvicorn in daemon thread, pystray on main.
+        # pystray owns the process lifecycle — Quit from the tray menu
+        # calls icon.stop() which unblocks this main thread; main() returns
+        # and the daemon thread dies with the process.
+        from .tray import HelixTrayIcon
+
+        server_thread = threading.Thread(
+            target=_run_uvicorn,
+            args=(app, args.host, args.port),
+            daemon=True,
+            name="launcher-uvicorn",
+        )
+        server_thread.start()
+        time.sleep(0.4)  # let uvicorn bind
+
+        tray_icon = HelixTrayIcon(
+            supervisor=supervisor,
+            dashboard_url=url,
+        )
+        log.info("Tray mode active — dashboard at %s", url)
+        log.info("Click the tray icon to open the dashboard; Quit from its menu to exit.")
+        tray_icon.run()  # blocks until Quit
+        return 0
+
     if args.native:
         # Start uvicorn in a background thread so pywebview can own the main thread.
         server_thread = threading.Thread(
@@ -279,6 +383,199 @@ def main(argv: Optional[list] = None) -> int:
 def _current_pid() -> int:
     import os
     return os.getpid()
+
+
+def _run_tray_native_combined(
+    app: FastAPI,
+    host: str,
+    port: int,
+    url: str,
+    supervisor: HelixSupervisor,
+) -> int:
+    """Close-to-tray mode: pywebview window + persistent tray icon.
+
+    Windows-only (see _run_args guard). Threading model:
+
+      - Main thread:        pywebview (WebView2 message pump)
+      - Background thread:  uvicorn (daemon)
+      - Background thread:  pystray (daemon, owns tray icon message pump)
+
+    Window close behavior:
+      - User clicks X → closing event returns False, window.hide()
+      - Tray "Show Window" → window.show()
+      - Tray "Hide to Tray" → window.hide()
+      - Tray "Quit" → set flag, window.destroy() → closing returns True
+                     → webview.start() returns → main() exits
+
+    On quit, the daemon threads (uvicorn + pystray) are cleaned up
+    automatically when the process exits. The tray icon.stop() is also
+    called explicitly for good measure.
+    """
+    import webview  # type: ignore
+    import pystray  # type: ignore
+    from .tray import _build_icon_image
+
+    log.info("Tray + native mode — pywebview on main, pystray detached")
+
+    # ── background uvicorn ────────────────────────────────────────
+    server_thread = threading.Thread(
+        target=_run_uvicorn,
+        args=(app, host, port),
+        daemon=True,
+        name="launcher-uvicorn",
+    )
+    server_thread.start()
+    time.sleep(0.4)  # let uvicorn bind
+
+    # ── shared state for the close-to-tray dance ──────────────────
+    quitting = threading.Event()
+    window_holder: list = [None]  # mutable holder shared between threads
+    tray_holder: list = [None]
+
+    def on_window_closing():
+        """Hook for window.events.closing — intercept close, hide instead."""
+        if quitting.is_set():
+            return True  # allow close
+        w = window_holder[0]
+        if w is not None:
+            try:
+                w.hide()
+            except Exception:
+                log.warning("Hide-on-close failed", exc_info=True)
+        return False  # cancel the close
+
+    # ── tray menu action handlers ─────────────────────────────────
+    def _show_window(icon, item):  # noqa: ARG001
+        w = window_holder[0]
+        if w is not None:
+            try:
+                w.show()
+            except Exception:
+                log.warning("Show window failed", exc_info=True)
+
+    def _hide_window(icon, item):  # noqa: ARG001
+        w = window_holder[0]
+        if w is not None:
+            try:
+                w.hide()
+            except Exception:
+                log.warning("Hide window failed", exc_info=True)
+
+    def _open_browser(icon, item):  # noqa: ARG001
+        try:
+            webbrowser.open(url)
+        except Exception:
+            log.warning("Open browser failed", exc_info=True)
+
+    def _start_helix(icon, item):  # noqa: ARG001
+        try:
+            supervisor.start()
+        except Exception:
+            log.warning("Tray start failed", exc_info=True)
+
+    def _restart_helix(icon, item):  # noqa: ARG001
+        try:
+            supervisor.restart(reason="manual restart from tray menu")
+        except Exception:
+            log.warning("Tray restart failed", exc_info=True)
+
+    def _stop_helix(icon, item):  # noqa: ARG001
+        try:
+            supervisor.stop(reason="manual stop from tray menu")
+        except Exception:
+            log.warning("Tray stop failed", exc_info=True)
+
+    def _quit_all(icon, item):  # noqa: ARG001
+        log.info("Tray Quit — destroying window")
+        quitting.set()
+
+        try:
+            if supervisor.is_running():
+                supervisor.stop(reason="launcher quit from tray menu (native)")
+        except Exception:
+            log.warning("Helix stop during quit failed", exc_info=True)
+
+        w = window_holder[0]
+        if w is not None:
+            try:
+                w.destroy()
+            except Exception:
+                log.warning("Window destroy failed", exc_info=True)
+
+        tray = tray_holder[0]
+        if tray is not None:
+            try:
+                tray.stop()
+            except Exception:
+                log.warning("Tray stop failed", exc_info=True)
+
+    # ── build the tray menu ───────────────────────────────────────
+    tray_menu = pystray.Menu(
+        pystray.MenuItem("Show Window", _show_window, default=True),
+        pystray.MenuItem("Hide to Tray", _hide_window),
+        pystray.Menu.SEPARATOR,
+        pystray.MenuItem("Open in Browser", _open_browser),
+        pystray.Menu.SEPARATOR,
+        pystray.MenuItem(
+            "Start helix", _start_helix,
+            enabled=lambda item: not supervisor.is_running(),  # noqa: ARG005
+        ),
+        pystray.MenuItem(
+            "Restart helix", _restart_helix,
+            enabled=lambda item: supervisor.is_running(),  # noqa: ARG005
+        ),
+        pystray.MenuItem(
+            "Stop helix", _stop_helix,
+            enabled=lambda item: supervisor.is_running(),  # noqa: ARG005
+        ),
+        pystray.Menu.SEPARATOR,
+        pystray.MenuItem("Quit", _quit_all),
+    )
+
+    tray_icon = pystray.Icon(
+        name="helix-launcher",
+        icon=_build_icon_image(),
+        title="Helix Launcher",
+        menu=tray_menu,
+    )
+    tray_holder[0] = tray_icon
+
+    # ── start pystray on a background thread ──────────────────────
+    tray_thread = threading.Thread(
+        target=tray_icon.run,
+        daemon=True,
+        name="launcher-tray",
+    )
+    tray_thread.start()
+
+    # ── create the pywebview window on main thread ────────────────
+    window = webview.create_window(
+        "Helix Launcher",
+        url,
+        width=1000,
+        height=720,
+        resizable=True,
+    )
+    window_holder[0] = window
+
+    # Hook closing BEFORE start so the first close attempt is intercepted.
+    try:
+        window.events.closing += on_window_closing
+    except Exception:
+        log.warning("Could not hook window.events.closing — close-to-tray disabled", exc_info=True)
+
+    log.info("Combined mode active — dashboard at %s", url)
+    log.info("Close the window to hide to tray; Quit from tray menu to exit.")
+
+    webview.start()  # blocks until window.destroy() is called by _quit_all
+
+    # Cleanup
+    try:
+        tray_icon.stop()
+    except Exception:
+        pass
+    log.info("Combined mode: exited cleanly")
+    return 0
 
 
 def _schedule_open(url: str) -> None:

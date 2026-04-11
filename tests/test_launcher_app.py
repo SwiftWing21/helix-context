@@ -29,15 +29,19 @@ def fake_store():
 
 
 @pytest.fixture
-def fake_supervisor(fake_store):
+def fake_supervisor(fake_store, tmp_path):
     sup = MagicMock()
     sup.store = fake_store
+    sup.store.path = tmp_path / "state.json"
     sup.helix_host = "127.0.0.1"
     sup.helix_port = 11437
+    sup.helix_log_path = tmp_path / "helix.log"
     sup.is_running.return_value = False
     sup.get_pid.return_value = None
     sup.get_uptime_s.return_value = None
     sup.adopt.return_value = False
+    sup.find_orphan_helix.return_value = None
+    sup.get_last_error.return_value = None
     return sup
 
 

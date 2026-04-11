@@ -87,6 +87,10 @@ class HelixSupervisor:
         # Import psutil lazily so the module can be imported even when the
         # [launcher] extra is not installed.
         self._psutil = None
+        # Telemetry — stashed by start/stop/restart on failure, cleared on success.
+        self._last_error: Optional[str] = None
+        self._last_error_at: Optional[float] = None
+        self._last_error_operation: Optional[str] = None
 
     def _get_psutil(self):
         if self._psutil is None:
@@ -153,18 +157,146 @@ class HelixSupervisor:
             return None
         return max(0.0, time.time() - start)
 
+    # ── telemetry ──────────────────────────────────────────────────
+
+    def get_last_error(self) -> Optional[dict]:
+        """Return the last failed operation + message, or None if no error.
+
+        Cleared on successful start/stop/restart. Structure:
+            {"operation": "start" | "stop" | "restart", "message": str, "at": float}
+        """
+        if self._last_error is None:
+            return None
+        return {
+            "operation": self._last_error_operation,
+            "message": self._last_error,
+            "at": self._last_error_at,
+        }
+
+    def _record_error(self, operation: str, message: str) -> None:
+        self._last_error = message
+        self._last_error_at = time.time()
+        self._last_error_operation = operation
+
+    def _clear_error(self) -> None:
+        self._last_error = None
+        self._last_error_at = None
+        self._last_error_operation = None
+
+    # ── orphan detection ───────────────────────────────────────────
+
+    def find_orphan_helix(self) -> Optional[int]:
+        """Scan for an unmanaged helix uvicorn process on the configured port.
+
+        Uses psutil's process-wide connection table to find the listener
+        on helix_host:helix_port, then walks up to the uvicorn parent
+        process whose command line matches helix_context.server:app.
+
+        Returns the uvicorn **parent** PID (the one ``subprocess.Popen``
+        would hand us if we'd started helix ourselves), or None if no
+        matching orphan is found.
+
+        Never raises — returns None on any psutil failure.
+        """
+        try:
+            psutil = self._get_psutil()
+        except SupervisorError:
+            return None
+
+        # Step 1: find the PID listening on helix_port.
+        listener_pid: Optional[int] = None
+        try:
+            for conn in psutil.net_connections(kind="tcp"):
+                if (
+                    conn.status == "LISTEN"
+                    and conn.laddr
+                    and conn.laddr.port == self.helix_port
+                    and conn.pid is not None
+                ):
+                    listener_pid = conn.pid
+                    break
+        except (psutil.AccessDenied, PermissionError):
+            log.debug("Orphan scan: net_connections denied (need admin?)", exc_info=True)
+            return None
+        except Exception:
+            log.debug("Orphan scan: net_connections failed", exc_info=True)
+            return None
+
+        if listener_pid is None:
+            return None
+
+        # Step 2: verify the listener is actually a helix uvicorn process.
+        try:
+            listener_proc = psutil.Process(listener_pid)
+            listener_cmdline = listener_proc.cmdline()
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            return None
+
+        expected_marker = "helix_context.server:app"
+        if not any(expected_marker in part for part in listener_cmdline):
+            log.debug(
+                "Orphan scan: PID %d listens on %d but is not helix (%r)",
+                listener_pid, self.helix_port, listener_cmdline[:3],
+            )
+            return None
+
+        # Step 3: walk up to the uvicorn parent (matches what subprocess.Popen
+        # would hand us for our own spawned helix). On Windows the listener
+        # is typically the worker (uvicorn spawns a child process); its
+        # parent is the top-level uvicorn entrypoint.
+        try:
+            parent = listener_proc.parent()
+            if parent is not None:
+                parent_cmdline = parent.cmdline()
+                if any(expected_marker in part for part in parent_cmdline):
+                    return parent.pid
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            pass
+
+        # Parent doesn't match (or we couldn't read it) — track the listener itself.
+        return listener_pid
+
     # ── lifecycle ──────────────────────────────────────────────────
 
     def start(self, wait_ready: bool = True, timeout: float = 30.0) -> int:
-        """Spawn a new helix uvicorn subprocess. Returns the PID."""
+        """Spawn a new helix uvicorn subprocess, or adopt an existing one.
+
+        If the port is occupied by another helix uvicorn process (e.g.
+        started outside the launcher by a developer's bash shell), the
+        start path adopts that process instead of failing. Only when
+        the port is occupied by a *non-helix* process does start() raise.
+        """
         if self.is_running():
             raise AlreadyRunning(f"helix already running (pid={self.get_pid()})")
 
         if not _port_is_free(self.helix_host, self.helix_port):
-            raise SupervisorError(
+            # Port is busy — check whether it's a helix we can adopt.
+            orphan_pid = self.find_orphan_helix()
+            if orphan_pid is not None:
+                log.info(
+                    "Start: port %d busy with orphan helix (pid=%d) — adopting instead",
+                    self.helix_port, orphan_pid,
+                )
+                try:
+                    psutil = self._get_psutil()
+                    proc = psutil.Process(orphan_pid)
+                    cmdline = proc.cmdline()
+                except Exception:
+                    cmdline = self._command()
+                self.store.set_helix(
+                    pid=orphan_pid,
+                    command=cmdline,
+                    port=self.helix_port,
+                )
+                self._clear_error()
+                return orphan_pid
+
+            msg = (
                 f"Port {self.helix_host}:{self.helix_port} is already in use "
-                "by an unmanaged process"
+                "by a non-helix process. Free the port or change --helix-port."
             )
+            self._record_error("start", msg)
+            raise SupervisorError(msg)
 
         cmd = self._command()
         log.info("Starting helix: %s", " ".join(cmd))
@@ -196,16 +328,18 @@ class HelixSupervisor:
         if wait_ready:
             try:
                 self._wait_for_ready(timeout=timeout)
-            except StartupTimeout:
+            except StartupTimeout as exc:
                 # Roll back: kill whatever started and clear state.
                 try:
                     self._kill_tree(proc.pid)
                 except Exception:
                     pass
                 self.store.clear_helix()
+                self._record_error("start", str(exc))
                 raise
 
         log.info("Helix started (pid=%d)", proc.pid)
+        self._clear_error()
         return proc.pid
 
     def stop(
@@ -235,31 +369,72 @@ class HelixSupervisor:
             if _port_is_free(self.helix_host, self.helix_port):
                 self.store.clear_helix()
                 log.info("Helix stopped (pid=%d)", pid)
+                self._clear_error()
                 return
             time.sleep(0.2)
 
-        raise ShutdownTimeout(
+        msg = (
             f"Port {self.helix_port} did not free up within {timeout}s after kill"
         )
+        self._record_error("stop", msg)
+        raise ShutdownTimeout(msg)
 
     def restart(self, reason: str = "manual restart from launcher") -> int:
-        if self.is_running():
-            self.stop(reason=reason)
-        return self.start()
+        try:
+            if self.is_running():
+                self.stop(reason=reason)
+            pid = self.start()
+            self._clear_error()
+            return pid
+        except SupervisorError as exc:
+            self._record_error("restart", str(exc))
+            raise
 
     def adopt(self) -> bool:
-        """Try to adopt an already-running helix from state file.
+        """Try to adopt an already-running helix.
 
-        Called once at launcher startup. Returns True if adopted, False
-        if no valid running helix was found.
+        Two-stage:
+            1. Stored PID in state file → is_running() verifies and returns
+            2. Orphan scan → find any helix on the configured port and
+               adopt it by writing its PID to the state file
+
+        Returns True if a helix was adopted by either path, False
+        otherwise.
         """
+        # Stage 1: stored PID
         if self.is_running():
             log.info(
-                "Adopted existing helix (pid=%d, port=%d)",
+                "Adopted existing helix via state file (pid=%d, port=%d)",
                 self.store.state.helix_pid, self.store.state.helix_port,
             )
             return True
-        return False
+
+        # Stage 2: orphan scan
+        orphan_pid = self.find_orphan_helix()
+        if orphan_pid is None:
+            return False
+
+        # Reconstruct the expected command line so is_running() will
+        # validate it. We pull the actual cmdline from psutil rather
+        # than synthesizing it — the orphan may have been launched
+        # with a slightly different argv order than our _command().
+        try:
+            psutil = self._get_psutil()
+            proc = psutil.Process(orphan_pid)
+            cmdline = proc.cmdline()
+        except Exception:
+            cmdline = self._command()
+
+        self.store.set_helix(
+            pid=orphan_pid,
+            command=cmdline,
+            port=self.helix_port,
+        )
+        log.info(
+            "Adopted orphan helix on %s:%d (pid=%d)",
+            self.helix_host, self.helix_port, orphan_pid,
+        )
+        return True
 
     # ── internals ──────────────────────────────────────────────────
 

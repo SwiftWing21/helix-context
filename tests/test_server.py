@@ -6,6 +6,8 @@ The HelixContextManager is initialized with a mock ribosome backend.
 """
 
 import json
+from unittest.mock import patch
+
 import pytest
 
 from fastapi.testclient import TestClient
@@ -83,6 +85,40 @@ class TestStatsEndpoint:
         assert "total_genes" in data
         assert "config" in data
         assert "pending_replications" in data
+
+
+class TestAdminShutdownEndpoint:
+    """The /admin/shutdown endpoint should return 200 and stamp the
+    signal file. We can't actually test the SIGINT-on-self path
+    without spawning a real subprocess — in-process TestClient would
+    die if we sent SIGINT here. Instead, patch os.kill and verify
+    it was called."""
+
+    def test_shutdown_returns_200_and_fires_signal(self, client):
+        # The endpoint imports os lazily inside the handler, so we patch
+        # the os module's kill attribute directly — TestClient would die
+        # if we actually let SIGINT reach this process.
+        import os
+        with patch.object(os, "kill") as mock_kill:
+            resp = client.post("/admin/shutdown", json={
+                "actor": "test",
+                "reason": "unit test",
+            })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["shutting_down"] is True
+        assert data["actor"] == "test"
+        assert data["reason"] == "unit test"
+        mock_kill.assert_called_once()
+
+    def test_shutdown_with_empty_body_uses_defaults(self, client):
+        import os
+        with patch.object(os, "kill"):
+            resp = client.post("/admin/shutdown", json={})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["actor"] == "unknown"
+        assert "manual shutdown" in data["reason"]
 
 
 class TestContextCitationEnrichment:
