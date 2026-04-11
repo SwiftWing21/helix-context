@@ -606,7 +606,7 @@ class Genome:
         self,
         query_text: str,
         k: int = 3,
-        min_cosine: float = 0.25,
+        min_cosine: float = 0.15,
     ) -> List[Gene]:
         """Search heterochromatin-tier genes by ΣĒMA cosine similarity.
 

@@ -43,10 +43,19 @@ entity_graph = true                     # Phase 5: entity-based co-activation li
 # few results, this fallthrough consults cold-tier genes via SEMA cosine
 # similarity in 20-dim space. Off by default — opt in here OR per-request
 # via `include_cold: true` in the /context POST body.
+#
+# Note on min_cosine: SEMA's 20-dim projection is SPARSE by design.
+# Empirical anchor — typical close-paraphrase pairs in 20-dim score:
+#   "def authenticate_user(...)" vs "user authentication password" -> 0.18
+#   "factorio mod portal license" vs Factorio EULA gene             -> 0.10-0.20
+# These are NOT 0.6-0.9 like full 384-dim sentence embeddings would
+# produce. Setting min_cosine too high (e.g. 0.25) means cold-tier
+# returns nothing on real NIAH queries. 0.15 is calibrated to surface
+# weak-but-relevant matches without flooding the result set with noise.
 cold_tier_enabled = false               # master opt-in
 cold_tier_min_hot_genes = 0             # fall through when hot returns <= this many genes (0 = only on empty)
 cold_tier_k = 3                         # max cold-tier genes per query
-cold_tier_min_cosine = 0.25             # SEMA cosine floor (sparse 20-dim — typical close pairs score 0.15-0.30)
+cold_tier_min_cosine = 0.15             # SEMA cosine floor (sparse 20-dim — see comment above)
 
 [synonyms]
 # Fix 1: lightweight synonym expansion for promoter queries

@@ -50,6 +50,21 @@ OUTPUT_PATH = os.environ.get("OUTPUT", "F:/Projects/helix-context/benchmarks/nee
 # Opt-in to legacy v1 behavior (no-op fixes) for reproducing old runs.
 LEGACY_HARVEST = os.environ.get("BENCH_LEGACY_HARVEST") == "1"
 
+# Cold-tier opt-in (C.2 of B->C, 2026-04-10).
+# When set to "1"/"true", every /context call sends include_cold=true in the
+# request body, forcing the server to consult heterochromatin genes via SEMA
+# cosine fallthrough. Lets a single bench script measure both hot-only and
+# hot+cold ceilings on the same harness/seed/model without restarting the
+# server. None/false means honor whatever the server's [context]
+# cold_tier_enabled config flag is set to.
+_INCLUDE_COLD_RAW = os.environ.get("INCLUDE_COLD_TIER", "").lower()
+if _INCLUDE_COLD_RAW in ("1", "true", "yes", "on"):
+    INCLUDE_COLD_TIER: Optional[bool] = True
+elif _INCLUDE_COLD_RAW in ("0", "false", "no", "off"):
+    INCLUDE_COLD_TIER = False
+else:
+    INCLUDE_COLD_TIER = None  # Honor server config
+
 # Stratification targets (sum to 1.0)
 # Weights favor signal-bearing sources but keep noise at ~30% to test
 # noise resistance (mirrors the natural ~34% signal / 66% noise genome).
@@ -338,11 +353,14 @@ def run_needle(client: httpx.Client, needle: dict) -> dict:
 
     # Step 1: retrieval (stateless — no benchmark_mode flag needed for current harness)
     t0 = time.time()
+    context_payload = {
+        "query": query,
+        "decoder_mode": "none",
+    }
+    if INCLUDE_COLD_TIER is not None:
+        context_payload["include_cold"] = INCLUDE_COLD_TIER
     try:
-        resp = client.post(f"{HELIX_URL}/context", json={
-            "query": query,
-            "decoder_mode": "none",
-        }, timeout=30)
+        resp = client.post(f"{HELIX_URL}/context", json=context_payload, timeout=30)
     except Exception as e:
         result.update({
             "retrieved": False, "answered": False,
@@ -423,6 +441,8 @@ def run_needle(client: httpx.Client, needle: dict) -> dict:
         "injected_tokens_est": injected,
         "compression_ratio": round(compression, 3) if compression else 0,
         "budget_utilization": round(injected / budget, 3) if budget else 0,
+        "cold_tier_used": agent_meta.get("cold_tier_used", False),
+        "cold_tier_count": agent_meta.get("cold_tier_count", 0),
         "answer_preview": answer_text[:150],
     })
     return result

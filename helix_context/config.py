@@ -87,7 +87,7 @@ class ContextConfig:
     cold_tier_enabled: bool = False         # Master opt-in for cold-tier fallthrough
     cold_tier_min_hot_genes: int = 0        # Fall through when hot returns <= this many genes (0 = only on empty)
     cold_tier_k: int = 3                    # Max cold-tier genes to retrieve per query
-    cold_tier_min_cosine: float = 0.25      # SEMA cosine floor (sparse 20-dim — see Genome.query_cold_tier)
+    cold_tier_min_cosine: float = 0.15      # SEMA cosine floor (sparse 20-dim — see Genome.query_cold_tier)
 
 
 @dataclass

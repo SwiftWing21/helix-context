@@ -872,10 +872,22 @@ class HelixContextManager:
                 deduped.append(g)
 
         # ── Cold-tier fallthrough (C.2 of B→C, opt-in) ──────────────────
-        # When the hot-tier returns too few results AND cold-tier is enabled
-        # (either via config or per-call override), consult heterochromatin
-        # genes via SEMA cosine similarity. Cold genes still hold their
-        # content thanks to C.1's non-destructive demotion.
+        # When cold-tier is enabled, consult heterochromatin genes via
+        # SEMA cosine similarity. Cold genes still hold their content
+        # thanks to C.1's non-destructive demotion.
+        #
+        # Trigger semantics:
+        #   include_cold=True (explicit override): ALWAYS try cold-tier,
+        #     regardless of min_hot_genes. The caller has explicitly asked
+        #     for cold-tier results — honor that even when hot returned
+        #     some (possibly wrong) candidates. Cold-tier results are
+        #     still subject to the SEMA cosine threshold; this just
+        #     bypasses the "hot-was-empty" gate.
+        #   include_cold=None (config-driven): consult cold-tier only when
+        #     hot returns ≤ cold_tier_min_hot_genes. This is the auto-
+        #     fallthrough mode for production traffic — fire cold only
+        #     when hot is actually thin.
+        #   include_cold=False: never fire cold-tier (overrides config).
         ctx_cfg = getattr(self.config, "context", None)
         cold_enabled = (
             include_cold
@@ -883,8 +895,10 @@ class HelixContextManager:
             else (bool(ctx_cfg.cold_tier_enabled) if ctx_cfg is not None else False)
         )
         if cold_enabled and query_text:
+            explicit_override = include_cold is True
             min_hot = ctx_cfg.cold_tier_min_hot_genes if ctx_cfg is not None else 0
-            if len(deduped) <= min_hot:
+            should_fire = explicit_override or len(deduped) <= min_hot
+            if should_fire:
                 k = ctx_cfg.cold_tier_k if ctx_cfg is not None else 3
                 min_cos = ctx_cfg.cold_tier_min_cosine if ctx_cfg is not None else 0.25
                 try:

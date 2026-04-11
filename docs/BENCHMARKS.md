@@ -201,6 +201,8 @@ A 4th "desperate" tier (ratio < 1.0, 18 genes, ~17K tokens) is designed but not 
 | 8 | 50 | qwen3:8b | **v1 legacy** | Headroom | **38.0%** | **28.0%** | 6.0 min | 4.9s | **v1-vs-v2 reference baseline** (clean triple) |
 | 9 | 50 | qwen3:8b | **v2** | disabled | **16.0%** | **12.0%** | 14.1 min | 8.2s | **v2 honest floor — raw content** |
 | 10 | 50 | qwen3:8b | **v2** | Headroom | **18.0%** | **14.0%** | 12.8 min | 7.8s | **v2 Headroom A/B** |
+| 11 | 50 | qwen3:8b | **v2 post-B/C** | Headroom | **20.0%** | **16.0%** | 10.4 min | 6.6s | **post-recovery hot-only — Struggle 1 +4pp** |
+| 12 | 50 | qwen3:8b | **v2 post-B/C** | Headroom + cold | **20.0%** | **16.0%** | 12.3 min | 6.6s | **hot+cold (96% fire) — net 0 vs hot-only** |
 
 **⚠ Dual-load warning (runs #1 and #2):** During the initial static-budget runs the
 GPU held both `gemma4:e4b` (ribosome, 3.6 GB) and `qwen3:4b` (downstream, 3.7 GB)
@@ -308,11 +310,90 @@ codec.encode("user authentication login password check")
 → cosine = 0.18
 ```
 
-**A separate hot+cold N=50 measurement is queued for the next run cycle**,
-after the live genome is restored from `genome.db.pre-compact.1775865733.bak`
-and re-swept with B's corrected deny list (steam/game content preserved) and
-C.1's non-destructive compression. That run will produce the first published
-hot vs hot+cold delta on real data.
+### Post-recovery measurement (2026-04-11)
+
+After committing B/C.1/C.2, the live genome was restored from
+`genome.db.pre-compact.1775865733.bak`, the replicas were re-synced from the
+restored master, and the new sweep was run with B's corrected deny list +
+C.1's non-destructive compression:
+
+```
+Density gate compaction sweep (APPLIED, post B+C)
+  scanned               : 8100
+  WOULD stay OPEN       : 6717
+  WOULD demote EUCHRO   : 13
+  WOULD demote HETERO   : 1370
+  total demoted         : 1383  (17.1%)
+
+  Reasons:
+    deny_list             745   (was 3492 in raude's pre-B sweep — diff is steam preserved)
+    low_score_hetero     1243
+    low_score_euchro      337
+    access_override      1162   (kept OPEN regardless)
+    open                 4613
+```
+
+**99.9% of steam content preserved (2,696 / 2,700 OPEN)** — the user's
+"steam is high-SNR signal" reframe is in production. The 4 demoted steam
+genes hit the score gate individually (genuinely low density), not the
+deny list. **Heterochromatin content is intact** (verified on Factorio
+EULA, Afrikaans/Arabic localization samples — `compress_to_heterochromatin`
+non-destructive contract holds).
+
+#### N=50 v2 hot-only vs hot+cold (qwen3:8b, seed 42, restored + re-swept genome)
+
+| Run | Headroom | include_cold | Retrieval | Answer | Errors | Cold-tier fired |
+|---|---|---|---:|---:|---:|---:|
+| #11 (post-B/C hot-only) | enabled | false | **20.0%** (10/50) | **16.0%** (8/50) | 1 | 0/50 |
+| #12 (post-B/C hot+cold) | enabled | true | **20.0%** (10/50) | **16.0%** (8/50) | 2 | 48/50 |
+
+**Hot-only: +4pp retrieval / +4pp answer over pre-sweep v2** — same as raude's
+old destructive-sweep result (20%/16% vs my pre-sweep 16%/12%). The Struggle 1
+noise-reduction effect at the retrieval layer is real and replicable. **The
+sweep is helping even though the demoted set is mostly build artifacts**.
+
+**Hot+cold: identical headline numbers, but the result composition shifts**:
+
+| Category | Hot-only retr / ans | Hot+cold retr / ans | Δ |
+|---|---:|---:|---|
+| steam | 50.0% / 50.0% | 42.9% / 50.0% | −1 retr (one steam needle displaced from result) |
+| tally | 0.0% / 0.0% | 25.0% / 0.0% | **+1 retr (rescued from heterochromatin via SEMA)** |
+| education_public | 13.3% / 6.7% | 13.3% / 6.7% | — |
+| helix | 14.3% / 0.0% | 14.3% / 0.0% | — |
+| cosmic / scorerift / other | 0% / 0% | 0% / 0% | — |
+
+**Cold-tier fires on 96% of queries** (48/50, returning 144 cold-gene
+candidates total at k=3 each) but the rerank produces the same number of
+final answers as hot-only. Reading: **the demoted set (1,370 genes,
+mostly Next.js build artifacts under cosmic) doesn't overlap meaningfully
+with where the NIAH benchmark needles live.** Cold-tier rescues a single
+tally needle (the historic blind zone — extraction failed afterward
+because qwen3:8b consistently misreads tally content), but displaces a
+steam needle in the rerank.
+
+**Net: cold-tier adds optionality without a headline win on this workload.**
+The infrastructure is in place; the value will materialize when:
+1. Future demotion patterns better match the query distribution
+2. Stronger downstream models extract correctly from the rescued tally content
+3. The benchmark needle distribution shifts toward content the gate is actually demoting
+
+**SEMA cosine threshold note (calibration finding):** Initial default of
+`min_cosine = 0.25` was too strict — cold-tier returned 0 results for
+typical NIAH queries even when 754 vectors were in the cold cache. Empirical
+distribution on the live genome showed top-10 matches at 0.79–0.84 for some
+queries (Factorio mod portal example) and 0.10–0.20 for others (sparse
+auth-paraphrase pair). **Default lowered to 0.15** in `helix.toml` and
+`Genome.query_cold_tier`. Tests use 0.05 in fixtures because in-memory
+synthetic content scores even lower.
+
+**Coordination footnote on the recovery:** the running server reads from
+SQLite replicas (`C:/helix-cache/genome.db`, `E:/helix-cache/genome.db`)
+configured in `helix.toml [genome]`. The sweep modifies the master only —
+replicas need to be synced separately for the live server to see the new
+chromatin state. Forgetting this step means the live `_cold_sema_cache`
+builds from stale replica state and returns no results despite the master
+being correct. Worth noting in the launcher / supervisor track if it
+manages replica sync.
 
 ### Claude API tiers on the synthetic floor (N=50)
 
