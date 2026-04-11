@@ -401,6 +401,39 @@ class Registry:
             authored_at=r["authored_at"],
         )
 
+    def get_attributions_for_genes(
+        self, gene_ids: List[str]
+    ) -> dict:
+        """Batch lookup — returns ``{gene_id: {party_id, participant_id, handle}}``.
+
+        Used by the /context citation enrichment path. JOINs gene_attribution
+        with participants to resolve the participant's CURRENT handle (handles
+        are mutable across re-registrations of the same logical persona, so
+        we resolve at read time rather than caching at write time).
+
+        Genes without an attribution row are simply absent from the result.
+        Empty input returns ``{}`` without hitting the database.
+        """
+        if not gene_ids:
+            return {}
+        cur = self.genome.conn.cursor()
+        placeholders = ",".join("?" * len(gene_ids))
+        rows = cur.execute(
+            f"SELECT ga.gene_id, ga.party_id, ga.participant_id, p.handle "
+            f"FROM gene_attribution ga "
+            f"LEFT JOIN participants p ON p.participant_id = ga.participant_id "
+            f"WHERE ga.gene_id IN ({placeholders})",
+            gene_ids,
+        ).fetchall()
+        return {
+            r["gene_id"]: {
+                "party_id": r["party_id"],
+                "participant_id": r["participant_id"],
+                "handle": r["handle"],
+            }
+            for r in rows
+        }
+
     # ── maintenance ─────────────────────────────────────────────────
 
     def sweep(self, now: Optional[float] = None) -> dict:

@@ -374,6 +374,126 @@ class TestSweep:
         assert row["status"] == "stale"
 
 
+class TestBackgroundSweepTask:
+    """Item 7 — _background_registry_sweep async helper.
+
+    The lifespan integration is hard to unit-test in isolation, but
+    the loop body itself is just `sweep() + log + sleep`. We verify
+    the function exists, calls sweep(), and survives sweep() raising.
+    """
+
+    @pytest.mark.asyncio
+    async def test_sweep_called_at_least_once_within_interval(self, registry, monkeypatch):
+        import asyncio
+        from helix_context import server as server_mod
+
+        # Shrink the interval so the test runs in <1s
+        monkeypatch.setattr(server_mod, "_REGISTRY_SWEEP_INTERVAL", 0.05)
+
+        call_count = {"n": 0}
+        original_sweep = registry.sweep
+
+        def counting_sweep(*args, **kwargs):
+            call_count["n"] += 1
+            return original_sweep(*args, **kwargs)
+
+        registry.sweep = counting_sweep  # type: ignore[method-assign]
+
+        task = asyncio.create_task(server_mod._background_registry_sweep(registry))
+        try:
+            await asyncio.sleep(0.2)  # ~4 sweep cycles
+        finally:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+        assert call_count["n"] >= 1
+
+    @pytest.mark.asyncio
+    async def test_sweep_loop_survives_sweep_exception(self, registry, monkeypatch):
+        import asyncio
+        from helix_context import server as server_mod
+
+        monkeypatch.setattr(server_mod, "_REGISTRY_SWEEP_INTERVAL", 0.05)
+
+        call_count = {"n": 0}
+
+        def angry_sweep(*args, **kwargs):
+            call_count["n"] += 1
+            raise RuntimeError("simulated sweep failure")
+
+        registry.sweep = angry_sweep  # type: ignore[method-assign]
+
+        task = asyncio.create_task(server_mod._background_registry_sweep(registry))
+        try:
+            await asyncio.sleep(0.2)
+        finally:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+        # Loop should have called sweep multiple times despite each raising
+        assert call_count["n"] >= 2
+
+
+class TestGetAttributionsForGenes:
+    """Item 6 — batch attribution lookup for /context citation enrichment."""
+
+    def test_empty_input_returns_empty_dict(self, registry):
+        assert registry.get_attributions_for_genes([]) == {}
+
+    def test_returns_party_participant_handle_for_attributed(self, registry, genome):
+        p = registry.register_participant(party_id="max@local", handle="taude")
+        gene = make_gene(content="cite me")
+        genome.upsert_gene(gene)
+        registry.attribute_gene(gene_id=gene.gene_id, participant_id=p.participant_id)
+
+        out = registry.get_attributions_for_genes([gene.gene_id])
+        assert gene.gene_id in out
+        assert out[gene.gene_id]["party_id"] == "max@local"
+        assert out[gene.gene_id]["participant_id"] == p.participant_id
+        assert out[gene.gene_id]["handle"] == "taude"
+
+    def test_unattributed_genes_omitted(self, registry, genome):
+        gene = make_gene(content="orphan")
+        genome.upsert_gene(gene)
+        out = registry.get_attributions_for_genes([gene.gene_id, "nonexistent-id"])
+        assert gene.gene_id not in out
+        assert "nonexistent-id" not in out
+        assert out == {}
+
+    def test_party_only_attribution_returns_null_handle(self, registry, genome):
+        # Server-side ingest with party_id but no participant
+        genome.conn.execute(
+            "INSERT INTO parties (party_id, display_name, trust_domain, created_at) "
+            "VALUES ('server@local', 'server', 'local', ?)",
+            (time.time(),),
+        )
+        genome.conn.commit()
+        gene = make_gene(content="server-authored")
+        genome.upsert_gene(gene)
+        registry.attribute_gene(gene_id=gene.gene_id, party_id="server@local")
+
+        out = registry.get_attributions_for_genes([gene.gene_id])
+        assert out[gene.gene_id]["party_id"] == "server@local"
+        assert out[gene.gene_id]["participant_id"] is None
+        assert out[gene.gene_id]["handle"] is None  # LEFT JOIN, no participant row
+
+    def test_batch_lookup_handles_mixed(self, registry, genome):
+        p = registry.register_participant(party_id="max@local", handle="taude")
+        attributed = make_gene(content="attributed gene")
+        orphan = make_gene(content="orphan gene")
+        genome.upsert_gene(attributed)
+        genome.upsert_gene(orphan)
+        registry.attribute_gene(gene_id=attributed.gene_id, participant_id=p.participant_id)
+
+        out = registry.get_attributions_for_genes([attributed.gene_id, orphan.gene_id])
+        assert attributed.gene_id in out
+        assert orphan.gene_id not in out
+
+
 # ═══ Endpoint integration tests ═══════════════════════════════════════
 
 

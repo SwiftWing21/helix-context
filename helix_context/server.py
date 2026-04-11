@@ -39,6 +39,7 @@ from .registry import DEFAULT_HEARTBEAT_INTERVAL_S, DEFAULT_TTL_S, Registry
 log = logging.getLogger("helix.server")
 
 _CHECKPOINT_INTERVAL = 60  # seconds between background WAL checkpoints
+_REGISTRY_SWEEP_INTERVAL = 60  # seconds between session registry status sweeps
 
 
 async def _background_checkpoint(helix: HelixContextManager) -> None:
@@ -49,6 +50,32 @@ async def _background_checkpoint(helix: HelixContextManager) -> None:
             helix.genome.checkpoint("PASSIVE")
         except Exception:
             log.warning("Background WAL checkpoint failed", exc_info=True)
+
+
+async def _background_registry_sweep(registry_obj) -> None:
+    """Periodically sweep session registry status.
+
+    Updates the persisted ``status`` column on participants based on
+    ``last_heartbeat`` age, transitioning active -> idle -> stale -> gone
+    on schedule. Hard-deletes participants whose ``gone`` state has aged
+    past 7 days, NULLing their gene_attribution.participant_id while
+    preserving party_id.
+
+    The sweep is non-destructive for live data — observers can call
+    list_participants() at any time and get correct status regardless
+    of when the sweep last ran (live status is recomputed from
+    last_heartbeat). The sweep exists so the persisted column stays
+    consistent for any code that filters by it directly.
+    """
+    while True:
+        await asyncio.sleep(_REGISTRY_SWEEP_INTERVAL)
+        try:
+            counts = registry_obj.sweep()
+            # Only log when something interesting happened
+            if counts.get("hard_deleted", 0) > 0 or counts.get("gone", 0) > 0:
+                log.info("Registry sweep: %s", counts)
+        except Exception:
+            log.warning("Background registry sweep failed", exc_info=True)
 
 
 def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
@@ -94,12 +121,15 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             log.warning("Startup: failed to stamp server_state signal", exc_info=True)
 
         task = asyncio.create_task(_background_checkpoint(helix))
+        sweep_task = asyncio.create_task(_background_registry_sweep(registry))
         yield
         task.cancel()
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
+        sweep_task.cancel()
+        for _t in (task, sweep_task):
+            try:
+                await _t
+            except asyncio.CancelledError:
+                pass
         helix.genome.checkpoint("TRUNCATE")
 
         # Flush token counter so lifetime totals persist across restart.
@@ -319,6 +349,18 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
                     gene_ids,
                 ).fetchall()
                 row_map = {r["gene_id"]: r for r in rows}
+
+                # Session registry citation enrichment (item 6 of SESSION_REGISTRY.md):
+                # batch-resolve attribution for the expressed genes so each
+                # citation can carry authored_by_party / authored_by_handle
+                # when available. Soft-fails — citations still render without
+                # attribution if the registry is unreachable.
+                attribution_map: dict = {}
+                try:
+                    attribution_map = registry.get_attributions_for_genes(gene_ids)
+                except Exception:
+                    log.debug("Citation attribution lookup failed", exc_info=True)
+
                 for gid in gene_ids:
                     r = row_map.get(gid)
                     if r is None:
@@ -328,6 +370,11 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
                         "source": r["source_id"] or "",
                         "score": round(scores.get(gid, 0.0), 3),
                     }
+                    attribution = attribution_map.get(gid)
+                    if attribution:
+                        citation["authored_by_party"] = attribution.get("party_id")
+                        if attribution.get("handle"):
+                            citation["authored_by_handle"] = attribution["handle"]
                     if verbose:
                         # Include promoter tags for deeper inspection
                         try:
