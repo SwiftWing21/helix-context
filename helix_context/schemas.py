@@ -8,7 +8,7 @@ for SQLite storage (via model_dump_json / model_validate_json).
 from __future__ import annotations
 
 import time
-from enum import IntEnum
+from enum import Enum, IntEnum
 from typing import List, Optional
 
 from pydantic import BaseModel, Field
@@ -200,3 +200,57 @@ class GeneAttribution(BaseModel):
     party_id: str
     participant_id: Optional[str] = None
     authored_at: float
+
+
+# ── HITL event logging (see ~/.helix/shared/handoffs/2026-04-11_hitl_observation.md) ──
+
+
+class HITLPauseType(str, Enum):
+    """Category of Human-In-The-Loop pause event.
+
+    Stored as string in SQLite for readability. Extend by adding new
+    values here and updating the DAL's validation path. `other` is a
+    deliberate escape hatch for pauses that don't fit the taxonomy —
+    instrumentation should not fail because of a schema gap.
+    """
+    permission_request = "permission_request"   # session asked operator before acting
+    uncertainty_check  = "uncertainty_check"    # session asked "is this right?" mid-task
+    rollback_confirm   = "rollback_confirm"     # session asked before a revert/undo
+    other              = "other"
+
+
+class HITLEvent(BaseModel):
+    """A single HITL pause event, suitable for storage in hitl_events.
+
+    Motivated by laude's 2026-04-11 HITL observation (handoff off-git)
+    and raude's M1 discriminating test which established that the
+    mechanism behind the 2026-04-10 HITL shift was NOT genome-mediated.
+    This means the logger needs to record chat-channel signals in
+    addition to genome-state snapshots — see the optional fields below.
+
+    All signal fields are nullable; the minimal valid event has only
+    `party_id`, `ts`, and `pause_type`. Additional fields are populated
+    when the caller can compute them.
+    """
+    event_id: str
+    party_id: str
+    participant_id: Optional[str] = None
+    ts: float
+
+    # Core pause signals (always populated)
+    pause_type: HITLPauseType
+    task_context: Optional[str] = None
+    resolved_without_operator: bool = False
+
+    # Chat-channel signals (added per M1 finding — mechanism was non-genome)
+    operator_tone_uncertainty: Optional[float] = None     # 0-1 proxy score
+    operator_risk_keywords: List[str] = Field(default_factory=list)
+    time_since_last_risk_event: Optional[float] = None    # seconds
+    recoverability_signal: Optional[str] = None           # "recoverable" | "uncertain" | "lost"
+
+    # Genome state snapshot (for M3 prospective correlation)
+    genome_total_genes: Optional[int] = None
+    genome_hetero_count: Optional[int] = None
+    cold_cache_size: Optional[int] = None
+
+    metadata: Optional[dict] = None

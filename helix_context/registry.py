@@ -46,7 +46,14 @@ import uuid
 from typing import List, Optional, Tuple
 
 from .accel import json_dumps, json_loads
-from .schemas import GeneAttribution, Participant, ParticipantInfo, Party
+from .schemas import (
+    GeneAttribution,
+    HITLEvent,
+    HITLPauseType,
+    Participant,
+    ParticipantInfo,
+    Party,
+)
 
 log = logging.getLogger(__name__)
 
@@ -434,6 +441,303 @@ class Registry:
             for r in rows
         }
 
+    # ── HITL event logging ──────────────────────────────────────────
+    #
+    # Motivated by laude's 2026-04-11 HITL observation handoff and
+    # raude's M1 discriminating test. The M1 test ruled out genome-
+    # mediated propagation of the HITL shift — the mechanism lives in
+    # the chat channel, not in the genome substrate. So the logger
+    # records chat-channel signals in addition to genome-state snapshots.
+    # See ~/.helix/shared/handoffs/2026-04-11_hitl_observation.md.
+    #
+    # None of the methods below raise on bad input — instrumentation
+    # must never fail a session because of a logging error.
+
+    def emit_hitl_event(
+        self,
+        participant_id: Optional[str],
+        pause_type: str,
+        task_context: Optional[str] = None,
+        resolved_without_operator: bool = False,
+        chat_signals: Optional[dict] = None,
+        genome_snapshot: Optional[dict] = None,
+        metadata: Optional[dict] = None,
+        party_id: Optional[str] = None,
+    ) -> Optional[str]:
+        """Record a HITL pause event on the session registry.
+
+        Returns the generated ``event_id`` on success, or ``None`` if the
+        event could not be written (unknown participant + no party_id,
+        invalid pause_type, etc). Never raises.
+
+        Resolution rules:
+          - If ``participant_id`` is provided and known, ``party_id`` is
+            resolved automatically from the participants table.
+          - If ``participant_id`` is unknown, logs a warning and returns None.
+          - If ``participant_id`` is None, the caller must supply ``party_id``
+            explicitly (used by server-side emit flows that know the party
+            but not a specific participant).
+
+        ``chat_signals`` is an optional dict that may contain any of:
+          - ``tone_uncertainty`` (float 0-1)
+          - ``risk_keywords`` (list of strings)
+          - ``time_since_last_risk`` (seconds, float)
+          - ``recoverability`` (str: "recoverable" / "uncertain" / "lost")
+
+        ``genome_snapshot`` is an optional dict that may contain any of:
+          - ``total_genes`` (int)
+          - ``hetero_count`` (int)
+          - ``cold_cache_size`` (int)
+
+        Both dicts are tolerant to missing keys. Unknown keys are ignored.
+
+        As with ``attribute_gene``, this implicitly refreshes the
+        participant's heartbeat — HITL events are activity signals.
+        """
+        # Validate pause_type
+        try:
+            pause_enum = HITLPauseType(pause_type)
+        except ValueError:
+            log.warning("emit_hitl_event: unknown pause_type=%r; coercing to 'other'", pause_type)
+            pause_enum = HITLPauseType.other
+
+        # Resolve party_id
+        resolved_party = party_id
+        if participant_id:
+            cur = self.genome.conn.cursor()
+            row = cur.execute(
+                "SELECT party_id FROM participants WHERE participant_id = ?",
+                (participant_id,),
+            ).fetchone()
+            if row is None:
+                log.warning(
+                    "emit_hitl_event: unknown participant_id=%s; event not written",
+                    participant_id,
+                )
+                return None
+            resolved_party = row["party_id"]
+
+        if not resolved_party:
+            log.warning("emit_hitl_event: no participant_id and no party_id; event not written")
+            return None
+
+        now = time.time()
+        event_id = uuid.uuid4().hex
+
+        cs = chat_signals or {}
+        gs = genome_snapshot or {}
+        risk_keywords_json = json_dumps(cs.get("risk_keywords", [])) if "risk_keywords" in cs else None
+
+        cur = self.genome.conn.cursor()
+        cur.execute(
+            """INSERT INTO hitl_events (
+                event_id, party_id, participant_id, ts,
+                pause_type, task_context, resolved_without_operator,
+                operator_tone_uncertainty, operator_risk_keywords,
+                time_since_last_risk_event, recoverability_signal,
+                genome_total_genes, genome_hetero_count, cold_cache_size,
+                metadata
+            ) VALUES (?, ?, ?, ?,   ?, ?, ?,   ?, ?, ?, ?,   ?, ?, ?,   ?)""",
+            (
+                event_id,
+                resolved_party,
+                participant_id,
+                now,
+                pause_enum.value,
+                task_context,
+                1 if resolved_without_operator else 0,
+                cs.get("tone_uncertainty"),
+                risk_keywords_json,
+                cs.get("time_since_last_risk"),
+                cs.get("recoverability"),
+                gs.get("total_genes"),
+                gs.get("hetero_count"),
+                gs.get("cold_cache_size"),
+                json_dumps(metadata) if metadata else None,
+            ),
+        )
+
+        # Implicit heartbeat — a HITL event is session activity.
+        if participant_id:
+            self.touch_heartbeat(participant_id)
+        self.genome.conn.commit()
+        return event_id
+
+    def get_hitl_events(
+        self,
+        party_id: Optional[str] = None,
+        participant_id: Optional[str] = None,
+        since: Optional[float] = None,
+        until: Optional[float] = None,
+        pause_type: Optional[str] = None,
+        limit: int = 100,
+    ) -> List[dict]:
+        """Query HITL events with optional filters.
+
+        Returns a list of dicts (not Pydantic models) ordered by ``ts`` DESC.
+        Matches the ``get_recent_by_handle`` return shape — the caller
+        decides whether to hydrate into ``HITLEvent`` models.
+
+        All filter arguments are optional; omit them to get the most
+        recent ``limit`` events globally. An empty result is a list,
+        not None.
+        """
+        cur = self.genome.conn.cursor()
+        sql = (
+            "SELECT event_id, party_id, participant_id, ts, pause_type, "
+            "       task_context, resolved_without_operator, "
+            "       operator_tone_uncertainty, operator_risk_keywords, "
+            "       time_since_last_risk_event, recoverability_signal, "
+            "       genome_total_genes, genome_hetero_count, cold_cache_size, "
+            "       metadata "
+            "FROM hitl_events"
+        )
+        conditions: list = []
+        params: list = []
+        if party_id is not None:
+            conditions.append("party_id = ?")
+            params.append(party_id)
+        if participant_id is not None:
+            conditions.append("participant_id = ?")
+            params.append(participant_id)
+        if since is not None:
+            conditions.append("ts >= ?")
+            params.append(since)
+        if until is not None:
+            conditions.append("ts <= ?")
+            params.append(until)
+        if pause_type is not None:
+            conditions.append("pause_type = ?")
+            params.append(pause_type)
+        if conditions:
+            sql += " WHERE " + " AND ".join(conditions)
+        sql += " ORDER BY ts DESC LIMIT ?"
+        params.append(int(limit))
+
+        rows = cur.execute(sql, params).fetchall()
+        out: list[dict] = []
+        for r in rows:
+            try:
+                risk_kw = json_loads(r["operator_risk_keywords"]) if r["operator_risk_keywords"] else []
+            except Exception:
+                risk_kw = []
+            try:
+                md = json_loads(r["metadata"]) if r["metadata"] else None
+            except Exception:
+                md = None
+            out.append({
+                "event_id": r["event_id"],
+                "party_id": r["party_id"],
+                "participant_id": r["participant_id"],
+                "ts": r["ts"],
+                "pause_type": r["pause_type"],
+                "task_context": r["task_context"],
+                "resolved_without_operator": bool(r["resolved_without_operator"]),
+                "operator_tone_uncertainty": r["operator_tone_uncertainty"],
+                "operator_risk_keywords": risk_kw,
+                "time_since_last_risk_event": r["time_since_last_risk_event"],
+                "recoverability_signal": r["recoverability_signal"],
+                "genome_total_genes": r["genome_total_genes"],
+                "genome_hetero_count": r["genome_hetero_count"],
+                "cold_cache_size": r["cold_cache_size"],
+                "metadata": md,
+            })
+        return out
+
+    def hitl_rate(
+        self,
+        participant_id: str,
+        window_seconds: float = 3600.0,
+    ) -> float:
+        """HITL events per second over the last ``window_seconds`` for a
+        given participant.
+
+        Mirrors ``EpigeneticMarkers.access_rate`` — same bell-curve /
+        sliding-window idea applied to a different table. Returns 0.0
+        for unknown participants, empty windows, or non-positive windows.
+        """
+        if window_seconds <= 0:
+            return 0.0
+        cutoff = time.time() - window_seconds
+        cur = self.genome.conn.cursor()
+        row = cur.execute(
+            "SELECT COUNT(*) AS n FROM hitl_events "
+            "WHERE participant_id = ? AND ts >= ?",
+            (participant_id, cutoff),
+        ).fetchone()
+        if row is None:
+            return 0.0
+        return float(row["n"]) / window_seconds
+
+    def hitl_stats(
+        self,
+        party_id: Optional[str] = None,
+        since: Optional[float] = None,
+    ) -> dict:
+        """Aggregate HITL stats for analysis / dashboard consumption.
+
+        Returns a dict with:
+          - ``total``: total event count
+          - ``by_pause_type``: dict mapping pause_type -> count
+          - ``resolved_without_operator``: count of self-resolved events
+          - ``mean_gap_s``: mean seconds between consecutive events (None
+            if fewer than 2 events in scope)
+
+        ``party_id`` scopes the aggregate; ``since`` is a lower-bound ts
+        filter. Both optional.
+
+        NOT a hot-path method — intended for offline analysis and
+        dashboards. Safe to call at any frequency the UI needs.
+        """
+        cur = self.genome.conn.cursor()
+        conditions: list = []
+        params: list = []
+        if party_id is not None:
+            conditions.append("party_id = ?")
+            params.append(party_id)
+        if since is not None:
+            conditions.append("ts >= ?")
+            params.append(since)
+        where = (" WHERE " + " AND ".join(conditions)) if conditions else ""
+
+        total_row = cur.execute(
+            f"SELECT COUNT(*) AS n FROM hitl_events{where}", params
+        ).fetchone()
+        total = total_row["n"] if total_row else 0
+
+        # Breakdown by pause_type
+        by_type: dict = {}
+        for r in cur.execute(
+            f"SELECT pause_type, COUNT(*) AS n FROM hitl_events{where} GROUP BY pause_type",
+            params,
+        ).fetchall():
+            by_type[r["pause_type"]] = r["n"]
+
+        resolved_row = cur.execute(
+            f"SELECT COUNT(*) AS n FROM hitl_events{where}{' AND' if where else ' WHERE'} resolved_without_operator = 1",
+            params,
+        ).fetchone()
+        resolved = resolved_row["n"] if resolved_row else 0
+
+        # Mean gap between consecutive events (in-scope only)
+        gap_rows = cur.execute(
+            f"SELECT ts FROM hitl_events{where} ORDER BY ts ASC",
+            params,
+        ).fetchall()
+        if len(gap_rows) >= 2:
+            timestamps = [r["ts"] for r in gap_rows]
+            gaps = [timestamps[i] - timestamps[i-1] for i in range(1, len(timestamps))]
+            mean_gap = sum(gaps) / len(gaps) if gaps else None
+        else:
+            mean_gap = None
+
+        return {
+            "total": total,
+            "by_pause_type": by_type,
+            "resolved_without_operator": resolved,
+            "mean_gap_s": mean_gap,
+        }
+
     # ── maintenance ─────────────────────────────────────────────────
 
     def sweep(self, now: Optional[float] = None) -> dict:
@@ -476,6 +780,14 @@ class Registry:
             pid = r["participant_id"]
             cur.execute(
                 "UPDATE gene_attribution SET participant_id = NULL "
+                "WHERE participant_id = ?",
+                (pid,),
+            )
+            # HITL events survive participant hard-delete with participant_id NULLed,
+            # same pattern as gene_attribution. Preserves the historical record for
+            # aggregate analysis while honoring the ON DELETE SET NULL contract.
+            cur.execute(
+                "UPDATE hitl_events SET participant_id = NULL "
                 "WHERE participant_id = ?",
                 (pid,),
             )

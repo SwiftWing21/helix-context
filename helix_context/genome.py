@@ -463,6 +463,51 @@ class Genome:
             "ON gene_attribution(participant_id, authored_at DESC)"
         )
 
+        # hitl_events — per-session HITL pause log, added 2026-04-11 following
+        # laude's HITL observation handoff and raude's M1 discriminating test.
+        # The chat-channel signal columns (operator_tone_uncertainty, etc) are
+        # deliberately broad because the M1 finding ruled out genome-mediated
+        # propagation of the HITL effect — the mechanism lives in the chat
+        # channel and must be instrumented there. See handoff
+        # ~/.helix/shared/handoffs/2026-04-11_hitl_observation.md
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS hitl_events (
+            event_id                   TEXT PRIMARY KEY,
+            party_id                   TEXT NOT NULL
+                                       REFERENCES parties(party_id),
+            participant_id             TEXT
+                                       REFERENCES participants(participant_id) ON DELETE SET NULL,
+            ts                         REAL NOT NULL,
+
+            pause_type                 TEXT NOT NULL,
+            task_context               TEXT,
+            resolved_without_operator  INTEGER NOT NULL DEFAULT 0,
+
+            operator_tone_uncertainty  REAL,
+            operator_risk_keywords     TEXT,
+            time_since_last_risk_event REAL,
+            recoverability_signal      TEXT,
+
+            genome_total_genes         INTEGER,
+            genome_hetero_count        INTEGER,
+            cold_cache_size            INTEGER,
+
+            metadata                   TEXT
+        )
+        """)
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_hitl_party_time "
+            "ON hitl_events(party_id, ts DESC)"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_hitl_participant_time "
+            "ON hitl_events(participant_id, ts DESC)"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_hitl_pause_type "
+            "ON hitl_events(pause_type)"
+        )
+
     # ── WAL snapshot management ──────────────────────────────────────
 
     def _refresh_snapshot(self) -> None:

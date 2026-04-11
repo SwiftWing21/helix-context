@@ -58,6 +58,7 @@ class TestSchemaMigration:
         assert "parties" in tables
         assert "participants" in tables
         assert "gene_attribution" in tables
+        assert "hitl_events" in tables
 
     def test_registry_indexes_created(self, genome):
         cur = genome.conn.cursor()
@@ -69,6 +70,27 @@ class TestSchemaMigration:
         assert "idx_participants_handle" in indexes
         assert "idx_attribution_party_time" in indexes
         assert "idx_attribution_participant_time" in indexes
+        # HITL event logger (added 2026-04-11 per HITL observation handoff)
+        assert "idx_hitl_party_time" in indexes
+        assert "idx_hitl_participant_time" in indexes
+        assert "idx_hitl_pause_type" in indexes
+
+    def test_hitl_events_schema_has_expected_columns(self, genome):
+        """Guard against accidental column renames — the chat-channel
+        signal columns are load-bearing per the M1 finding."""
+        cur = genome.conn.cursor()
+        rows = cur.execute("PRAGMA table_info(hitl_events)").fetchall()
+        columns = {row[1] for row in rows}  # row[1] is the column name
+        expected = {
+            "event_id", "party_id", "participant_id", "ts",
+            "pause_type", "task_context", "resolved_without_operator",
+            "operator_tone_uncertainty", "operator_risk_keywords",
+            "time_since_last_risk_event", "recoverability_signal",
+            "genome_total_genes", "genome_hetero_count", "cold_cache_size",
+            "metadata",
+        }
+        missing = expected - columns
+        assert not missing, f"hitl_events missing columns: {missing}"
 
     def test_migration_is_idempotent(self, genome):
         """Running the migration twice should not raise."""
@@ -492,6 +514,319 @@ class TestGetAttributionsForGenes:
         out = registry.get_attributions_for_genes([attributed.gene_id, orphan.gene_id])
         assert attributed.gene_id in out
         assert orphan.gene_id not in out
+
+
+class TestHITLEvents:
+    """HITL event logger DAL — Item HITL-1 of the 8D dimensional roadmap.
+
+    Motivated by laude's 2026-04-11 HITL observation handoff and raude's
+    M1 discriminating test (which established the mechanism is non-genome-
+    mediated, hence the chat-channel signal columns).
+
+    Covers:
+      - emit (success / unknown participant / no-participant-no-party /
+        with chat signals / with genome snapshot / implicit heartbeat)
+      - get (by party / by participant / by time window / by pause type /
+        limit / ordering)
+      - hitl_rate helper (windowed count-per-second, mirrors access_rate)
+      - hitl_stats aggregate (total, by_pause_type, resolved, mean_gap_s)
+      - Hard-delete semantics: events survive with participant_id NULLed
+    """
+
+    # ── emit_hitl_event ──
+
+    def test_emit_returns_event_id_on_success(self, registry):
+        p = registry.register_participant(party_id="max@local", handle="raude")
+        eid = registry.emit_hitl_event(
+            participant_id=p.participant_id,
+            pause_type="permission_request",
+            task_context="about to run destructive sweep",
+        )
+        assert eid is not None
+        assert isinstance(eid, str)
+        assert len(eid) > 0
+
+    def test_emit_unknown_participant_returns_none(self, registry):
+        eid = registry.emit_hitl_event(
+            participant_id="does-not-exist",
+            pause_type="uncertainty_check",
+        )
+        assert eid is None
+
+    def test_emit_without_participant_or_party_returns_none(self, registry):
+        eid = registry.emit_hitl_event(
+            participant_id=None,
+            pause_type="other",
+        )
+        assert eid is None
+
+    def test_emit_with_only_party_id_succeeds(self, registry, genome):
+        """Server-side emit path: caller knows party but no specific participant."""
+        genome.conn.execute(
+            "INSERT INTO parties (party_id, display_name, trust_domain, created_at) "
+            "VALUES ('server@local', 'server', 'local', ?)",
+            (time.time(),),
+        )
+        genome.conn.commit()
+        eid = registry.emit_hitl_event(
+            participant_id=None,
+            party_id="server@local",
+            pause_type="rollback_confirm",
+        )
+        assert eid is not None
+
+    def test_emit_unknown_pause_type_coerces_to_other(self, registry):
+        """Unknown pause types must not fail the emit — instrumentation
+        should be tolerant of new event types being introduced in client
+        code before the schema catches up."""
+        p = registry.register_participant(party_id="max@local", handle="laude")
+        eid = registry.emit_hitl_event(
+            participant_id=p.participant_id,
+            pause_type="bogus_not_in_enum",
+        )
+        assert eid is not None
+        rows = registry.get_hitl_events(participant_id=p.participant_id)
+        assert rows[0]["pause_type"] == "other"
+
+    def test_emit_with_chat_signals(self, registry):
+        """Chat-channel signals are the load-bearing addition per the M1 finding.
+        Verify all four optional signal fields round-trip through the DAL."""
+        p = registry.register_participant(party_id="max@local", handle="raude")
+        eid = registry.emit_hitl_event(
+            participant_id=p.participant_id,
+            pause_type="uncertainty_check",
+            chat_signals={
+                "tone_uncertainty": 0.85,
+                "risk_keywords": ["backup", "damage", "recovery"],
+                "time_since_last_risk": 42.0,
+                "recoverability": "uncertain",
+            },
+        )
+        assert eid is not None
+        rows = registry.get_hitl_events(participant_id=p.participant_id)
+        row = rows[0]
+        assert row["operator_tone_uncertainty"] == 0.85
+        assert row["operator_risk_keywords"] == ["backup", "damage", "recovery"]
+        assert row["time_since_last_risk_event"] == 42.0
+        assert row["recoverability_signal"] == "uncertain"
+
+    def test_emit_with_genome_snapshot(self, registry):
+        """Genome snapshot fields are the M3 correlation substrate."""
+        p = registry.register_participant(party_id="max@local", handle="raude")
+        eid = registry.emit_hitl_event(
+            participant_id=p.participant_id,
+            pause_type="permission_request",
+            genome_snapshot={
+                "total_genes": 8133,
+                "hetero_count": 1370,
+                "cold_cache_size": 754,
+            },
+        )
+        assert eid is not None
+        rows = registry.get_hitl_events(participant_id=p.participant_id)
+        row = rows[0]
+        assert row["genome_total_genes"] == 8133
+        assert row["genome_hetero_count"] == 1370
+        assert row["cold_cache_size"] == 754
+
+    def test_emit_with_metadata(self, registry):
+        p = registry.register_participant(party_id="max@local", handle="raude")
+        eid = registry.emit_hitl_event(
+            participant_id=p.participant_id,
+            pause_type="other",
+            metadata={"turn_index": 42, "tool_name": "Bash"},
+        )
+        assert eid is not None
+        rows = registry.get_hitl_events(participant_id=p.participant_id)
+        assert rows[0]["metadata"] == {"turn_index": 42, "tool_name": "Bash"}
+
+    def test_emit_touches_heartbeat(self, registry):
+        """Emitting a HITL event is session activity — must refresh heartbeat."""
+        p = registry.register_participant(party_id="max@local", handle="raude")
+        # Age the heartbeat artificially
+        registry.genome.conn.execute(
+            "UPDATE participants SET last_heartbeat = ? WHERE participant_id = ?",
+            (time.time() - 1000, p.participant_id),
+        )
+        registry.genome.conn.commit()
+
+        registry.emit_hitl_event(
+            participant_id=p.participant_id,
+            pause_type="uncertainty_check",
+        )
+        fetched = registry.get_participant(p.participant_id)
+        assert fetched.last_heartbeat > time.time() - 5.0  # recent
+
+    # ── get_hitl_events ──
+
+    def test_get_filters_by_participant(self, registry):
+        p1 = registry.register_participant(party_id="max@local", handle="raude")
+        p2 = registry.register_participant(party_id="max@local", handle="laude")
+        registry.emit_hitl_event(participant_id=p1.participant_id, pause_type="other")
+        registry.emit_hitl_event(participant_id=p2.participant_id, pause_type="other")
+        registry.emit_hitl_event(participant_id=p1.participant_id, pause_type="other")
+
+        p1_events = registry.get_hitl_events(participant_id=p1.participant_id)
+        assert len(p1_events) == 2
+        assert all(e["participant_id"] == p1.participant_id for e in p1_events)
+
+    def test_get_filters_by_party(self, registry):
+        registry.register_participant(party_id="max@local", handle="raude")
+        registry.register_participant(party_id="other@local", handle="other")
+
+        max_p = registry.register_participant(party_id="max@local", handle="laude")
+        other_p = registry.register_participant(party_id="other@local", handle="other2")
+        registry.emit_hitl_event(participant_id=max_p.participant_id, pause_type="other")
+        registry.emit_hitl_event(participant_id=other_p.participant_id, pause_type="other")
+
+        max_events = registry.get_hitl_events(party_id="max@local")
+        assert len(max_events) == 1
+        assert max_events[0]["party_id"] == "max@local"
+
+    def test_get_filters_by_time_window(self, registry):
+        p = registry.register_participant(party_id="max@local", handle="raude")
+        registry.emit_hitl_event(participant_id=p.participant_id, pause_type="other")
+        now = time.time()
+
+        windowed = registry.get_hitl_events(
+            participant_id=p.participant_id,
+            since=now - 5.0,
+            until=now + 5.0,
+        )
+        assert len(windowed) == 1
+
+        empty = registry.get_hitl_events(
+            participant_id=p.participant_id,
+            since=now + 3600.0,  # future window
+        )
+        assert empty == []
+
+    def test_get_filters_by_pause_type(self, registry):
+        p = registry.register_participant(party_id="max@local", handle="raude")
+        registry.emit_hitl_event(participant_id=p.participant_id, pause_type="permission_request")
+        registry.emit_hitl_event(participant_id=p.participant_id, pause_type="uncertainty_check")
+        registry.emit_hitl_event(participant_id=p.participant_id, pause_type="permission_request")
+
+        perms = registry.get_hitl_events(
+            participant_id=p.participant_id,
+            pause_type="permission_request",
+        )
+        assert len(perms) == 2
+        assert all(e["pause_type"] == "permission_request" for e in perms)
+
+    def test_get_orders_by_ts_desc(self, registry):
+        """Most recent first — matches get_recent_by_handle convention."""
+        p = registry.register_participant(party_id="max@local", handle="raude")
+        for i in range(5):
+            registry.emit_hitl_event(
+                participant_id=p.participant_id,
+                pause_type="other",
+                task_context=f"event {i}",
+            )
+            time.sleep(0.001)  # ensure distinct timestamps
+
+        events = registry.get_hitl_events(participant_id=p.participant_id)
+        timestamps = [e["ts"] for e in events]
+        assert timestamps == sorted(timestamps, reverse=True)
+
+    def test_get_respects_limit(self, registry):
+        p = registry.register_participant(party_id="max@local", handle="raude")
+        for _ in range(10):
+            registry.emit_hitl_event(participant_id=p.participant_id, pause_type="other")
+
+        events = registry.get_hitl_events(participant_id=p.participant_id, limit=3)
+        assert len(events) == 3
+
+    def test_get_empty_result_returns_empty_list(self, registry):
+        assert registry.get_hitl_events(participant_id="never-existed") == []
+
+    # ── hitl_rate ──
+
+    def test_hitl_rate_empty_participant_returns_zero(self, registry):
+        assert registry.hitl_rate("does-not-exist") == 0.0
+
+    def test_hitl_rate_zero_window_returns_zero(self, registry):
+        p = registry.register_participant(party_id="max@local", handle="raude")
+        registry.emit_hitl_event(participant_id=p.participant_id, pause_type="other")
+        assert registry.hitl_rate(p.participant_id, window_seconds=0) == 0.0
+
+    def test_hitl_rate_counts_events_in_window(self, registry):
+        p = registry.register_participant(party_id="max@local", handle="raude")
+        for _ in range(5):
+            registry.emit_hitl_event(participant_id=p.participant_id, pause_type="other")
+
+        rate = registry.hitl_rate(p.participant_id, window_seconds=3600.0)
+        assert rate == pytest.approx(5 / 3600.0, rel=1e-9)
+
+    # ── hitl_stats ──
+
+    def test_hitl_stats_total_and_breakdown(self, registry):
+        p = registry.register_participant(party_id="max@local", handle="raude")
+        registry.emit_hitl_event(participant_id=p.participant_id, pause_type="permission_request")
+        registry.emit_hitl_event(participant_id=p.participant_id, pause_type="permission_request")
+        registry.emit_hitl_event(participant_id=p.participant_id, pause_type="uncertainty_check")
+        registry.emit_hitl_event(
+            participant_id=p.participant_id,
+            pause_type="rollback_confirm",
+            resolved_without_operator=True,
+        )
+
+        stats = registry.hitl_stats(party_id="max@local")
+        assert stats["total"] == 4
+        assert stats["by_pause_type"]["permission_request"] == 2
+        assert stats["by_pause_type"]["uncertainty_check"] == 1
+        assert stats["by_pause_type"]["rollback_confirm"] == 1
+        assert stats["resolved_without_operator"] == 1
+
+    def test_hitl_stats_mean_gap(self, registry):
+        p = registry.register_participant(party_id="max@local", handle="raude")
+        registry.emit_hitl_event(participant_id=p.participant_id, pause_type="other")
+        time.sleep(0.02)
+        registry.emit_hitl_event(participant_id=p.participant_id, pause_type="other")
+        time.sleep(0.02)
+        registry.emit_hitl_event(participant_id=p.participant_id, pause_type="other")
+
+        stats = registry.hitl_stats(party_id="max@local")
+        # Mean gap between 3 events should be ~0.02 seconds
+        assert stats["mean_gap_s"] is not None
+        assert stats["mean_gap_s"] > 0
+
+    def test_hitl_stats_fewer_than_two_events_has_none_mean_gap(self, registry):
+        p = registry.register_participant(party_id="max@local", handle="raude")
+        registry.emit_hitl_event(participant_id=p.participant_id, pause_type="other")
+        stats = registry.hitl_stats(party_id="max@local")
+        assert stats["mean_gap_s"] is None
+
+    # ── hard-delete semantics ──
+
+    def test_events_survive_participant_hard_delete(self, registry):
+        """When a participant is hard-deleted by sweep, their HITL events
+        must survive with participant_id NULLed — matching gene_attribution."""
+        p = registry.register_participant(party_id="max@local", handle="raude")
+        eid = registry.emit_hitl_event(
+            participant_id=p.participant_id,
+            pause_type="permission_request",
+        )
+        assert eid is not None
+
+        # Force participant into gone state past hard-delete cutoff
+        from helix_context.registry import HARD_DELETE_AFTER_S
+        registry.genome.conn.execute(
+            "UPDATE participants SET last_heartbeat = ?, status = 'gone' "
+            "WHERE participant_id = ?",
+            (time.time() - HARD_DELETE_AFTER_S - 100, p.participant_id),
+        )
+        registry.genome.conn.commit()
+
+        counts = registry.sweep()
+        assert counts["hard_deleted"] >= 1
+
+        # Event should survive with participant_id NULL
+        events = registry.get_hitl_events(party_id="max@local")
+        assert len(events) == 1
+        assert events[0]["event_id"] == eid
+        assert events[0]["participant_id"] is None
+        assert events[0]["party_id"] == "max@local"
 
 
 # ═══ Endpoint integration tests ═══════════════════════════════════════
