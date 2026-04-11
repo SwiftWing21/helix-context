@@ -23,6 +23,8 @@ from helix_context.genome import (
     _DENSITY_HETEROCHROMATIN_THRESHOLD,
     _DENSITY_EUCHROMATIN_THRESHOLD,
     _DENSITY_ACCESS_OVERRIDE,
+    _DENSITY_RATE_WINDOW,
+    _DENSITY_RATE_MIN_HITS,
 )
 from helix_context.exceptions import PromoterMismatch
 from helix_context.schemas import (
@@ -217,6 +219,101 @@ class TestApplyDensityGate:
         assert state == ChromatinState.HETEROCHROMATIN
         assert reason == "deny_list"
 
+    # ── Phase 1 slice 2: windowed access-rate override ──────────────
+
+    def test_rate_override_promotes_recently_active_gene(self, genome):
+        """A gene with N>=min_hits accesses in the last window gets the
+        access_rate_override path, even if its static density is low.
+
+        This is the headline Slice 2 test — proves the rate signal sees
+        what the monotonic counter cannot.
+        """
+        import time
+        g = _gene_with_access(
+            content="boilerplate " * 100,  # 1200 chars, no tags, no KVs
+            domains=[],
+            kvs=[],
+            access=0,  # monotonic counter is ZERO — only the rate signal can save it
+            source_id="legit/path/file.txt",
+        )
+        # Burst of 5 accesses in the last minute
+        now = time.time()
+        g.epigenetics.recent_accesses = [now - 300, now - 240, now - 180, now - 60, now - 1]
+        state, reason = genome.apply_density_gate(g)
+        assert state == ChromatinState.OPEN
+        assert reason == "access_rate_override"
+
+    def test_rate_override_does_not_fire_for_old_accesses(self, genome):
+        """A gene whose recent_accesses are all OUTSIDE the window does
+        not get the rate override. Falls through to the count fallback,
+        and if access_count is also low, falls through to score-based.
+        """
+        import time
+        g = _gene_with_access(
+            content="boilerplate " * 100,  # low static density
+            domains=[],
+            kvs=[],
+            access=0,  # also low count
+            source_id="legit/path/file.txt",
+        )
+        # Buffer has entries, but they're all from a year ago — outside the 1h window
+        year_ago = time.time() - (365 * 86400)
+        g.epigenetics.recent_accesses = [year_ago + i * 60 for i in range(10)]
+        state, reason = genome.apply_density_gate(g)
+        # Neither rate nor count override fires; gene drops to its score-based tier
+        assert reason != "access_rate_override"
+        assert reason != "access_override"
+
+    def test_legacy_gene_with_empty_buffer_still_uses_count_override(self, genome):
+        """A pre-Phase-1 gene has recent_accesses=[] but access_count>=5.
+
+        The rate path returns 0.0 (empty buffer), falls through cleanly
+        to the legacy count override. This is the backward-compatibility
+        guarantee — existing genes don't lose their override status when
+        slice 2 lands.
+        """
+        g = _gene_with_access(
+            content="boilerplate " * 100,
+            domains=[],
+            kvs=[],
+            access=_DENSITY_ACCESS_OVERRIDE + 1,  # 6 monotonic accesses
+            source_id="legit/path/file.txt",
+        )
+        # No rate buffer at all — pretend this gene predates slice 1
+        assert g.epigenetics.recent_accesses == []
+        state, reason = genome.apply_density_gate(g)
+        assert state == ChromatinState.OPEN
+        assert reason == "access_override"  # legacy fallback path
+
+    def test_rate_override_takes_priority_over_count_override(self, genome):
+        """When BOTH paths would qualify, the rate path wins (it ships
+        the more informative reason code)."""
+        import time
+        g = _gene_with_access(
+            content="boilerplate " * 100,
+            domains=[],
+            kvs=[],
+            access=20,  # would trigger count override on its own
+            source_id="legit/path/file.txt",
+        )
+        now = time.time()
+        # Also recently active enough to trigger the rate override
+        g.epigenetics.recent_accesses = [now - 30, now - 20, now - 10]
+        state, reason = genome.apply_density_gate(g)
+        assert state == ChromatinState.OPEN
+        assert reason == "access_rate_override"  # rate takes priority
+
+    def test_rate_threshold_constants_are_sane(self):
+        """Defensive: the constants must produce a positive threshold
+        and not collapse to zero or NaN."""
+        threshold = _DENSITY_RATE_MIN_HITS / _DENSITY_RATE_WINDOW
+        assert threshold > 0
+        assert threshold < 1.0  # less than 1 access/second is reasonable
+        assert _DENSITY_RATE_WINDOW > 0
+        assert _DENSITY_RATE_MIN_HITS >= 1
+
+    # ── Existing score-based stage tests ────────────────────────────
+
     def test_high_density_stays_open(self, genome):
         """Signal-grade content with rich tags stays OPEN."""
         g = _gene_with_access(
@@ -283,6 +380,93 @@ class TestApplyDensityGate:
             ChromatinState.EUCHROMATIN,
             ChromatinState.HETEROCHROMATIN,
         )
+
+
+# ── Phase 1 slice 2: touch_genes populates recent_accesses ─────────────
+
+
+class TestTouchPopulatesRecentAccesses:
+    """Tests that genome.touch_genes() writes timestamps into the
+    recent_accesses buffer added in Slice 1, in addition to the existing
+    monotonic access_count increment."""
+
+    def test_touch_appends_timestamp_to_buffer(self, genome):
+        """A single touch appends one timestamp to recent_accesses."""
+        import time
+        gene = make_gene(content="touch test 1", domains=["test"])
+        genome.upsert_gene(gene, apply_gate=False)
+
+        # Pre-condition: empty buffer
+        before = genome.get_gene(gene.gene_id)
+        assert before.epigenetics.recent_accesses == []
+
+        t0 = time.time()
+        genome.touch_genes([gene.gene_id])
+
+        after = genome.get_gene(gene.gene_id)
+        assert len(after.epigenetics.recent_accesses) == 1
+        # Timestamp must be from this turn (within a few seconds of t0)
+        assert abs(after.epigenetics.recent_accesses[0] - t0) < 5.0
+
+    def test_touch_increments_count_and_buffer_together(self, genome):
+        """Backward-compat: touch still increments access_count, AND it
+        also populates the new buffer. Both signals advance in lockstep."""
+        gene = make_gene(content="touch test 2", domains=["test"])
+        genome.upsert_gene(gene, apply_gate=False)
+
+        for _ in range(5):
+            genome.touch_genes([gene.gene_id])
+
+        after = genome.get_gene(gene.gene_id)
+        assert after.epigenetics.access_count == 5
+        assert len(after.epigenetics.recent_accesses) == 5
+
+    def test_touch_trims_buffer_to_100(self, genome):
+        """Touching a gene >100 times keeps only the most recent 100
+        timestamps. Per-gene marker blob stays bounded at ~800 bytes."""
+        gene = make_gene(content="touch test 3", domains=["test"])
+        genome.upsert_gene(gene, apply_gate=False)
+
+        for _ in range(150):
+            genome.touch_genes([gene.gene_id])
+
+        after = genome.get_gene(gene.gene_id)
+        assert after.epigenetics.access_count == 150  # monotonic still grows
+        assert len(after.epigenetics.recent_accesses) == 100  # buffer is bounded
+
+    def test_touch_batch_populates_all_genes(self, genome):
+        """A single touch_genes call with N gene_ids populates the
+        buffer for every gene in the batch (not just one)."""
+        gene_a = make_gene(content="touch batch a", domains=["test"])
+        gene_b = make_gene(content="touch batch b", domains=["test"])
+        gene_c = make_gene(content="touch batch c", domains=["test"])
+        for g in (gene_a, gene_b, gene_c):
+            genome.upsert_gene(g, apply_gate=False)
+
+        genome.touch_genes([gene_a.gene_id, gene_b.gene_id, gene_c.gene_id])
+
+        for g in (gene_a, gene_b, gene_c):
+            after = genome.get_gene(g.gene_id)
+            assert len(after.epigenetics.recent_accesses) == 1
+
+    def test_touch_then_gate_uses_rate_override_after_enough_hits(self, genome):
+        """End-to-end: touch a gene 3 times, then run apply_density_gate.
+        The gate should return access_rate_override even if the gene's
+        static content is low-density. Proves the slice 1 schema +
+        slice 2 wiring + slice 2 gate path compose correctly."""
+        gene = make_gene(content="boilerplate " * 100, domains=[])
+        gene.key_values = []
+        gene.source_id = "legit/path/file.txt"
+        genome.upsert_gene(gene, apply_gate=False)
+
+        # 3 touches in rapid succession — meets _DENSITY_RATE_MIN_HITS in window
+        for _ in range(_DENSITY_RATE_MIN_HITS):
+            genome.touch_genes([gene.gene_id])
+
+        after = genome.get_gene(gene.gene_id)
+        state, reason = genome.apply_density_gate(after)
+        assert state == ChromatinState.OPEN
+        assert reason == "access_rate_override"
 
 
 # ── upsert_gene integration — gate fires at storage boundary ──────────

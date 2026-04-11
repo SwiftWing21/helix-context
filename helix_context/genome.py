@@ -128,6 +128,21 @@ _DENSITY_EUCHROMATIN_THRESHOLD = 1.00
 _DENSITY_CONTENT_LENGTH_FLOOR = 100  # chars — prevents tiny-content score explosion
 _DENSITY_ACCESS_OVERRIDE = 5         # access_count >= this keeps gene OPEN regardless
 
+# Working-set inference (Phase 1 slice 2 of the 8D dimensional roadmap).
+# A gene with at least _DENSITY_RATE_MIN_HITS accesses in the last
+# _DENSITY_RATE_WINDOW seconds is considered "actively used right now"
+# and gets the OPEN override regardless of static density score. The
+# rate signal is sharper than the monotonic _DENSITY_ACCESS_OVERRIDE
+# because it distinguishes "hot last hour" from "hot once a year ago" —
+# the monotonic counter conflates them. Genes with empty recent_accesses
+# buffers (legacy genes that pre-date Phase 1, or freshly ingested
+# genes that haven't been touched yet) fall through to the monotonic
+# fallback path, preserving backward compatibility.
+#
+# Reference: ~/.helix/shared/handoffs/2026-04-11_8d_dimensional_roadmap.md
+_DENSITY_RATE_WINDOW = 3600.0   # 1-hour window
+_DENSITY_RATE_MIN_HITS = 3      # ≥3 accesses in the window → override
+
 
 class Genome:
     """SQLite-backed gene storage with promoter-tag retrieval."""
@@ -1451,6 +1466,13 @@ class Genome:
             epi.last_accessed = now
             epi.access_count += 1
             epi.decay_score = min(1.0, epi.decay_score + 0.1)
+            # Phase 1 slice 2 — populate the windowed access-rate buffer.
+            # Bounded ring buffer of last 100 timestamps (~800 bytes).
+            # The slice 1 schema added the field; this is where it gets
+            # written. apply_density_gate consumes it via the rate signal.
+            epi.recent_accesses.append(now)
+            if len(epi.recent_accesses) > 100:
+                epi.recent_accesses = epi.recent_accesses[-100:]
             cur.execute(
                 "UPDATE genes SET epigenetics = ?, chromatin = ? WHERE gene_id = ?",
                 (epi.model_dump_json(), int(ChromatinState.OPEN), row["gene_id"]),
@@ -1922,28 +1944,49 @@ class Genome:
         Decide the chromatin state for a gene at ingest time.
 
         Returns (chromatin_state, reason) — reason is one of:
-            "deny_list"        : source path matches structural deny list
-            "low_score_hetero" : score below heterochromatin threshold
-            "low_score_euchro" : score below euchromatin threshold
-            "access_override"  : accessed >=5 times, gate bypassed
-            "open"             : high score or unknown source, keep OPEN
+            "deny_list"           : source path matches structural deny list
+            "low_score_hetero"    : score below heterochromatin threshold
+            "low_score_euchro"    : score below euchromatin threshold
+            "access_rate_override": active in the windowed-rate sense
+                                    (Phase 1 slice 2 — preferred when the
+                                    gene's recent_accesses buffer has data)
+            "access_override"     : accessed >= _DENSITY_ACCESS_OVERRIDE
+                                    times monotonically (legacy fallback for
+                                    genes whose rate buffer is empty)
+            "open"                : high score or unknown source, keep OPEN
 
         Never raises. Never touches the database. Pure decision function.
 
         The gate has three stages:
           1. Path deny list (fast-reject for structural noise)
-          2. Access-count override (never demote frequently-used genes)
+          2. Access override (never demote frequently-used genes)
+             2a. Windowed access-rate (preferred — sharper signal)
+             2b. Monotonic access-count (legacy fallback for empty buffers)
           3. Score-based demotion (tag + KV density with recalibrated thresholds)
 
-        The access override runs BEFORE the score check so that a gene
+        Stages 2a and 2b run BEFORE the score check so that a gene
         that's been touched multiple times can't be killed by a batch
         compact_genome sweep just because its static content is sparse.
+
+        Stage 2a is a strict improvement on Stage 2b: it distinguishes
+        "actively used right now" from "popular at some point in the
+        past." Stage 2b remains as the fallback because all genes that
+        pre-date the slice 1 schema change have empty recent_accesses
+        buffers and need the monotonic counter to remain a valid signal
+        until they're touched again under the slice 2 wiring.
         """
         # Stage 1: structural deny list
         if is_denied_source(gene.source_id):
             return ChromatinState.HETEROCHROMATIN, "deny_list"
 
-        # Stage 2: access-count override (meaningful usage history wins)
+        # Stage 2a: windowed access-rate override (preferred)
+        # Empty buffer → access_rate returns 0.0 → falls through to 2b cleanly.
+        if gene.epigenetics:
+            rate_threshold = _DENSITY_RATE_MIN_HITS / _DENSITY_RATE_WINDOW
+            if gene.epigenetics.access_rate(_DENSITY_RATE_WINDOW) >= rate_threshold:
+                return ChromatinState.OPEN, "access_rate_override"
+
+        # Stage 2b: monotonic access-count override (legacy fallback)
         access = gene.epigenetics.access_count if gene.epigenetics else 0
         if access >= _DENSITY_ACCESS_OVERRIDE:
             return ChromatinState.OPEN, "access_override"
