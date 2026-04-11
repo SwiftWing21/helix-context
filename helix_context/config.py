@@ -76,12 +76,28 @@ class IngestionConfig:
 
 
 @dataclass
+class ContextConfig:
+    """Retrieval-time behavior for context_manager.
+
+    Cold-tier knobs were added 2026-04-10 (C.2 of B->C). Cold-tier is the
+    opt-in retrieval path that consults heterochromatin genes via SEMA
+    cosine similarity, returning their preserved content (only possible
+    after C.1 made compress_to_heterochromatin non-destructive).
+    """
+    cold_tier_enabled: bool = False         # Master opt-in for cold-tier fallthrough
+    cold_tier_min_hot_genes: int = 0        # Fall through when hot returns <= this many genes (0 = only on empty)
+    cold_tier_k: int = 3                    # Max cold-tier genes to retrieve per query
+    cold_tier_min_cosine: float = 0.25      # SEMA cosine floor (sparse 20-dim — see Genome.query_cold_tier)
+
+
+@dataclass
 class HelixConfig:
     ribosome: RibosomeConfig = field(default_factory=RibosomeConfig)
     budget: BudgetConfig = field(default_factory=BudgetConfig)
     genome: GenomeConfig = field(default_factory=GenomeConfig)
     server: ServerConfig = field(default_factory=ServerConfig)
     ingestion: IngestionConfig = field(default_factory=IngestionConfig)
+    context: ContextConfig = field(default_factory=ContextConfig)
     synonym_map: Dict[str, List[str]] = field(default_factory=dict)
 
 
@@ -164,6 +180,16 @@ def load_config(path: Optional[str] = None) -> HelixConfig:
             rerank_enabled=i.get("rerank_enabled", cfg.ingestion.rerank_enabled),
             colbert_enabled=i.get("colbert_enabled", cfg.ingestion.colbert_enabled),
             entity_graph=i.get("entity_graph", cfg.ingestion.entity_graph),
+        )
+
+    # Context (cold-tier retrieval knobs — C.2 of B->C, 2026-04-10)
+    if "context" in raw:
+        c = raw["context"]
+        cfg.context = ContextConfig(
+            cold_tier_enabled=bool(c.get("cold_tier_enabled", cfg.context.cold_tier_enabled)),
+            cold_tier_min_hot_genes=int(c.get("cold_tier_min_hot_genes", cfg.context.cold_tier_min_hot_genes)),
+            cold_tier_k=int(c.get("cold_tier_k", cfg.context.cold_tier_k)),
+            cold_tier_min_cosine=float(c.get("cold_tier_min_cosine", cfg.context.cold_tier_min_cosine)),
         )
 
     # Fix 1: synonym map

@@ -253,6 +253,13 @@ class HelixContextManager:
         self._pending: List[Gene] = []
         self._pending_lock = threading.Lock()
 
+        # Cold-tier retrieval markers (C.2 of B->C, 2026-04-10).
+        # Set by _express() when cold-tier fallthrough actually fires
+        # so the response builder can report cold_tier_used in the
+        # agent metadata. Reset on every build_context call.
+        self._last_cold_tier_used: bool = False
+        self._last_cold_tier_count: int = 0
+
         # Session buffer -- accumulates query+response pairs for consolidation
         self._session_buffer: List[Tuple[str, str]] = []
         self._session_buffer_lock = threading.Lock()
@@ -355,7 +362,12 @@ class HelixContextManager:
                 return True
         return False
 
-    def build_context(self, query: str, downstream_model: Optional[str] = None) -> ContextWindow:
+    def build_context(
+        self,
+        query: str,
+        downstream_model: Optional[str] = None,
+        include_cold: Optional[bool] = None,
+    ) -> ContextWindow:
         """
         Build the active context window for a query.
         Runs the 5-step expression pipeline (Steps 1-5).
@@ -363,16 +375,28 @@ class HelixContextManager:
         Args:
             downstream_model: optional model name from the proxy request,
                 used for per-request MoE/small-model detection.
+            include_cold: per-request override for cold-tier retrieval.
+                ``None`` (default) honors the ``[context] cold_tier_enabled``
+                config flag in helix.toml. ``True`` forces cold-tier on,
+                ``False`` forces it off. Plumbed from the /context endpoint's
+                ``include_cold`` body parameter.
         """
         self._maybe_compact()
+
+        # Reset per-call cold-tier markers (set by _express when cold fires)
+        self._last_cold_tier_used = False
+        self._last_cold_tier_count = 0
 
         max_genes = self.config.budget.max_genes_per_turn
 
         # Step 1: Extract promoter signals (heuristic, no model)
         domains, entities = self._extract_query_signals(query)
 
-        # Step 2: Express (genome query + pending buffer)
-        candidates = self._express(domains, entities, max_genes)
+        # Step 2: Express (genome query + pending buffer + optional cold tier)
+        candidates = self._express(
+            domains, entities, max_genes,
+            query_text=query, include_cold=include_cold,
+        )
 
         if not candidates:
             empty_health = ContextHealth(
@@ -543,11 +567,16 @@ class HelixContextManager:
 
         return window
 
-    async def build_context_async(self, query: str, downstream_model: Optional[str] = None) -> ContextWindow:
+    async def build_context_async(
+        self,
+        query: str,
+        downstream_model: Optional[str] = None,
+        include_cold: Optional[bool] = None,
+    ) -> ContextWindow:
         """Async wrapper -- runs the sync pipeline in thread pool."""
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(
-            _executor, self.build_context, query, downstream_model,
+            _executor, self.build_context, query, downstream_model, include_cold,
         )
 
     # -- Learn: replicate exchange back to genome (Step 6) -------------
@@ -768,11 +797,36 @@ class HelixContextManager:
 
     # -- Internal: Step 2 (express) ------------------------------------
 
-    def _express(self, domains: List[str], entities: List[str], max_genes: int) -> List[Gene]:
-        """Query genome + pending buffer for matching genes."""
+    def _express(
+        self,
+        domains: List[str],
+        entities: List[str],
+        max_genes: int,
+        query_text: Optional[str] = None,
+        include_cold: Optional[bool] = None,
+    ) -> List[Gene]:
+        """Query genome + pending buffer for matching genes.
+
+        Parameters
+        ----------
+        domains, entities, max_genes:
+            Standard hot-tier retrieval inputs.
+        query_text : str, optional
+            Original natural-language query. Required if cold-tier
+            fallthrough fires (used by ``Genome.query_cold_tier`` to
+            encode the SEMA query vector). Defaults to None — when None,
+            cold-tier is skipped even if config-enabled.
+        include_cold : bool, optional
+            Per-call override of the ``[context] cold_tier_enabled``
+            flag in helix.toml. ``None`` (default) uses the config flag,
+            ``True`` forces cold-tier on, ``False`` forces it off.
+            Plumbed from the /context endpoint's ``include_cold`` body
+            parameter so callers can opt in/out per request without
+            touching the config file.
+        """
         candidates: List[Gene] = []
 
-        # Query committed genes from SQLite
+        # ── Hot-tier retrieval (chromatin < HETEROCHROMATIN) ────────────
         try:
             candidates = self.genome.query_genes(domains, entities, max_genes=max_genes)
         except PromoterMismatch:
@@ -795,6 +849,40 @@ class HelixContextManager:
             if g.gene_id not in seen:
                 seen.add(g.gene_id)
                 deduped.append(g)
+
+        # ── Cold-tier fallthrough (C.2 of B→C, opt-in) ──────────────────
+        # When the hot-tier returns too few results AND cold-tier is enabled
+        # (either via config or per-call override), consult heterochromatin
+        # genes via SEMA cosine similarity. Cold genes still hold their
+        # content thanks to C.1's non-destructive demotion.
+        ctx_cfg = getattr(self.config, "context", None)
+        cold_enabled = (
+            include_cold
+            if include_cold is not None
+            else (bool(ctx_cfg.cold_tier_enabled) if ctx_cfg is not None else False)
+        )
+        if cold_enabled and query_text:
+            min_hot = ctx_cfg.cold_tier_min_hot_genes if ctx_cfg is not None else 0
+            if len(deduped) <= min_hot:
+                k = ctx_cfg.cold_tier_k if ctx_cfg is not None else 3
+                min_cos = ctx_cfg.cold_tier_min_cosine if ctx_cfg is not None else 0.25
+                try:
+                    cold_genes = self.genome.query_cold_tier(
+                        query_text=query_text,
+                        k=k,
+                        min_cosine=min_cos,
+                    )
+                    for cg in cold_genes:
+                        if cg.gene_id not in seen:
+                            seen.add(cg.gene_id)
+                            deduped.append(cg)
+                    if cold_genes:
+                        # Mark on the manager so the response builder can
+                        # report cold_tier_used in the agent metadata
+                        self._last_cold_tier_used = True
+                        self._last_cold_tier_count = len(cold_genes)
+                except Exception:
+                    log.warning("cold-tier retrieval failed", exc_info=True)
 
         return deduped[:max_genes * 2]
 

@@ -314,3 +314,177 @@ class TestMessageMunging:
     def test_empty_messages_returns_empty(self):
         result = _munge_messages([], "ctx", "dec", 100, 10)
         assert result == []
+
+
+# -- C.2-wire — cold-tier fallthrough integration ---------------------
+#
+# These tests exercise the wiring layer added in C.2-wire (2026-04-10):
+# context_manager._express() now consults Genome.query_cold_tier() when
+# the [context] cold_tier_enabled config flag is set OR a per-call
+# include_cold=True override is passed. The cold-tier *library* itself
+# is tested in tests/test_density_gate.py::TestColdTierRetrieval — the
+# tests below are about the wiring, not the retrieval algorithm.
+
+# Skip the whole class if sentence-transformers isn't installed (the
+# Genome.query_cold_tier path requires a SemaCodec, which loads ~400MB).
+_st_available = pytest.importorskip("sentence_transformers", reason="needs sentence-transformers")
+
+
+class TestColdTierWiring:
+    """Verifies _express() correctly plumbs cold-tier retrieval."""
+
+    @pytest.fixture(scope="class")
+    def codec(self):
+        from helix_context.sema import SemaCodec
+        return SemaCodec()
+
+    @pytest.fixture
+    def cold_helix(self, pipeline_config, codec):
+        """HelixContextManager with a SemaCodec attached + a single cold gene."""
+        from helix_context.context_manager import HelixContextManager
+        # Enable cold-tier in the config so wiring fires by default
+        pipeline_config.context.cold_tier_enabled = True
+        pipeline_config.context.cold_tier_min_hot_genes = 0
+        pipeline_config.context.cold_tier_k = 3
+        pipeline_config.context.cold_tier_min_cosine = 0.05  # very permissive
+
+        mgr = HelixContextManager(pipeline_config)
+        mgr.ribosome.backend = PipelineMockBackend()
+        # Attach the codec so query_cold_tier can encode queries
+        mgr.genome._sema_codec = codec
+        yield mgr
+        mgr.close()
+
+    def _make_cold_gene(self, mgr, codec, content, gene_id):
+        """Helper — upsert a gene with embedding then demote to hetero."""
+        g = make_gene(content, domains=["python", "auth"], gene_id=gene_id)
+        g.source_id = "project/auth.py"
+        g.embedding = codec.encode(content)
+        mgr.genome.upsert_gene(g, apply_gate=False)
+        mgr.genome.compress_to_heterochromatin(g.gene_id)
+        return g
+
+    def test_cold_disabled_by_default(self, helix, codec):
+        """With config off and no override, cold-tier never fires."""
+        # The default `helix` fixture has cold_tier_enabled=False (default)
+        helix.genome._sema_codec = codec
+        cold_g = self._make_cold_gene(
+            helix, codec,
+            "def authenticate_user(): return jwt_decode(token)",
+            "cold_authzz_001",
+        )
+
+        window = helix.build_context("how does authentication work")
+
+        assert helix._last_cold_tier_used is False, (
+            "cold tier must not fire when config is off and no override"
+        )
+        # The demoted gene should NOT appear in the context
+        assert cold_g.gene_id not in (window.expressed_gene_ids or [])
+
+    def test_cold_enabled_via_config_fires_on_empty_hot(self, cold_helix, codec):
+        """When config enables cold AND hot returns empty, cold fires."""
+        cold_g = self._make_cold_gene(
+            cold_helix, codec,
+            "def authenticate_user(): return jwt_decode(token)",
+            "cold_authzz_002",
+        )
+
+        window = cold_helix.build_context("authentication user password")
+
+        assert cold_helix._last_cold_tier_used is True
+        assert cold_helix._last_cold_tier_count >= 1
+        assert cold_g.gene_id in (window.expressed_gene_ids or [])
+
+    def test_include_cold_true_overrides_disabled_config(self, helix, codec):
+        """Per-call include_cold=True forces cold even if config is off."""
+        helix.genome._sema_codec = codec
+        # Loosen the threshold by editing the (default) config in-place so
+        # the override is the only difference vs the previous test.
+        helix.config.context.cold_tier_min_cosine = 0.05
+        helix.config.context.cold_tier_min_hot_genes = 0
+        cold_g = self._make_cold_gene(
+            helix, codec,
+            "def authenticate_user(): return jwt_decode(token)",
+            "cold_authzz_003",
+        )
+
+        # Config flag is still False — only the per-call override flips it
+        assert helix.config.context.cold_tier_enabled is False
+        window = helix.build_context(
+            "authentication user password", include_cold=True,
+        )
+
+        assert helix._last_cold_tier_used is True
+        assert cold_g.gene_id in (window.expressed_gene_ids or [])
+
+    def test_include_cold_false_overrides_enabled_config(self, cold_helix, codec):
+        """Per-call include_cold=False forces cold OFF even if config is on."""
+        cold_g = self._make_cold_gene(
+            cold_helix, codec,
+            "def authenticate_user(): return jwt_decode(token)",
+            "cold_authzz_004",
+        )
+
+        assert cold_helix.config.context.cold_tier_enabled is True
+        window = cold_helix.build_context(
+            "authentication user password", include_cold=False,
+        )
+
+        assert cold_helix._last_cold_tier_used is False
+        assert cold_g.gene_id not in (window.expressed_gene_ids or [])
+
+    def test_cold_does_not_fire_when_hot_above_min_hot_genes(self, cold_helix, codec):
+        """If hot returns enough results, cold-tier fallthrough is skipped."""
+        # Seed an OPEN gene that will hit on the query
+        hot_g = make_gene(
+            "Authentication middleware with JWT validation flow",
+            domains=["auth", "security"],
+            entities=["jwt"],
+            gene_id="hot_authzz_005",
+        )
+        cold_helix.genome.upsert_gene(hot_g, apply_gate=False)
+        # Also add a cold gene that WOULD match if cold fired
+        cold_g = self._make_cold_gene(
+            cold_helix, codec,
+            "def authenticate_user(): return jwt_decode(token)",
+            "cold_authzz_005",
+        )
+        # Set min_hot to 0 — cold only fires when hot returns ZERO
+        cold_helix.config.context.cold_tier_min_hot_genes = 0
+
+        window = cold_helix.build_context("authentication jwt")
+
+        # Hot should have matched, so cold should NOT have fired
+        assert cold_helix._last_cold_tier_used is False
+        # Hot gene appears
+        assert hot_g.gene_id in (window.expressed_gene_ids or [])
+        # Cold gene does NOT appear
+        assert cold_g.gene_id not in (window.expressed_gene_ids or [])
+
+    def test_markers_reset_between_calls(self, cold_helix, codec):
+        """The _last_cold_tier_used flag must reset on each build_context call.
+
+        Tests reset semantics directly: a previous True must not bleed into
+        the next call when cold-tier is explicitly disabled per-call. Avoids
+        depending on min_cosine sensitivity (the very-permissive 0.05
+        threshold the cold_helix fixture uses can match nearly anything).
+        """
+        # First call with cold enabled — marker becomes True
+        self._make_cold_gene(
+            cold_helix, codec,
+            "def authenticate_user(): return jwt_decode(token)",
+            "cold_authzz_006a",
+        )
+        cold_helix.build_context("authentication user password")
+        assert cold_helix._last_cold_tier_used is True
+
+        # Second call with cold explicitly OFF — marker must reset to False
+        cold_helix.build_context(
+            "anything at all",
+            include_cold=False,
+        )
+        assert cold_helix._last_cold_tier_used is False, (
+            "cold-tier marker must reset on each build_context call"
+        )
+        assert cold_helix._last_cold_tier_count == 0

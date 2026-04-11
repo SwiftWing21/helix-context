@@ -36,6 +36,18 @@ rerank_enabled = false                  # Phase 3: enable pretrained cross-encod
 colbert_enabled = false                 # Phase 4: ColBERT late interaction (optional)
 entity_graph = true                     # Phase 5: entity-based co-activation links
 
+[context]
+# Cold-tier retrieval (C.2 of B->C, 2026-04-10)
+# Heterochromatin-tier genes are demoted by the density gate but their
+# content is preserved (C.1). When the hot-tier retrieval returns too
+# few results, this fallthrough consults cold-tier genes via SEMA cosine
+# similarity in 20-dim space. Off by default — opt in here OR per-request
+# via `include_cold: true` in the /context POST body.
+cold_tier_enabled = false               # master opt-in
+cold_tier_min_hot_genes = 0             # fall through when hot returns <= this many genes (0 = only on empty)
+cold_tier_k = 3                         # max cold-tier genes per query
+cold_tier_min_cosine = 0.25             # SEMA cosine floor (sparse 20-dim — typical close pairs score 0.15-0.30)
+
 [synonyms]
 # Fix 1: lightweight synonym expansion for promoter queries
 slow = ["performance", "latency", "bottleneck", "timeout", "lag"]

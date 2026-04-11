@@ -249,6 +249,71 @@ The static-budget retrieval numbers (55-58%) may be slightly inflated by a small
 score-gating threshold that hadn't been tightened yet — treat as an upper bound, not
 a clean baseline.
 
+### Hot-tier vs hot+cold-tier retrieval (C.2 of B→C, 2026-04-10)
+
+The density gate (`d1d7602`, raude) demotes structurally-noisy genes to
+**heterochromatin** (chromatin tier 2). With C.1 (`b99e47a`) the demotion is
+**non-destructive** — content, complement, codons, SPLADE terms, and FTS5
+indices are all preserved. With C.2 (`86c20f6` library + this commit's wiring)
+a new opt-in retrieval path consults heterochromatin genes via **ΣĒMA cosine
+similarity** in 20-dim space, restoring full content for top-k matches.
+
+This means a single benchmark run can now report **two retrieval ceilings**:
+
+| Metric | Definition |
+|---|---|
+| **Hot-only retrieval** | Result of `query_genes()` — `chromatin < HETEROCHROMATIN`, the standard /context behavior |
+| **Hot + cold retrieval** | Hot-tier result PLUS up to `cold_tier_k` heterochromatin genes via ΣĒMA cosine fallthrough, when hot returns ≤ `cold_tier_min_hot_genes` |
+
+The hot+cold metric measures the **upper bound on what the genome can serve**
+for a given query — including knowledge that has been demoted from the active
+retrieval pool but is still semantically reachable through ΣĒMA similarity.
+For NIAH specifically (where every needle's gene is known to exist in the
+corpus), the hot+cold ceiling is what determines whether 100% retrieval is
+even possible.
+
+**Configuration** (`helix.toml`, `[context]` section):
+
+```toml
+[context]
+cold_tier_enabled = false           # opt-in master switch
+cold_tier_min_hot_genes = 0         # fall through when hot returns ≤ this many
+cold_tier_k = 3                     # max cold genes per query
+cold_tier_min_cosine = 0.25         # ΣĒMA cosine floor (sparse 20-dim)
+```
+
+**Per-request override** on `/context` POST:
+
+```jsonc
+{
+  "query": "...",
+  "include_cold": true   // overrides config; null/omitted honors config
+}
+```
+
+The response's `agent` block includes `cold_tier_used: bool` and
+`cold_tier_count: int` so callers can distinguish hot vs hot+cold retrievals
+in their own analytics.
+
+**Note on the ΣĒMA cosine threshold:** ΣĒMA's 20-dim projection is sparse by
+design. Typical close-paraphrase pairs score 0.15–0.30 in cosine, NOT 0.6–0.9
+like full 384-dim sentence embeddings. The default floor of 0.25 is slightly
+more permissive than the existing hot-tier Mode A/B thresholds (0.3/0.4)
+because cold-tier is only reached when hot results are already thin — better
+to surface a weak match than nothing. Empirical anchor:
+
+```python
+codec.encode("def authenticate_user(username, password): ...") vs
+codec.encode("user authentication login password check")
+→ cosine = 0.18
+```
+
+**A separate hot+cold N=50 measurement is queued for the next run cycle**,
+after the live genome is restored from `genome.db.pre-compact.1775865733.bak`
+and re-swept with B's corrected deny list (steam/game content preserved) and
+C.1's non-destructive compression. That run will produce the first published
+hot vs hot+cold delta on real data.
+
 ### Claude API tiers on the synthetic floor (N=50)
 
 Dispatched via Claude Code sub-agents with direct access to the Helix `/context`
