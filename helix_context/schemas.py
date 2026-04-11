@@ -57,6 +57,50 @@ class EpigeneticMarkers(BaseModel):
     typed_co_activated: List[TypedCoActivation] = Field(default_factory=list)
     decay_score: float = 1.0
 
+    # Working-set inference (Phase 1 of 8D dimensional roadmap, slice 1).
+    # Ring buffer of recent access timestamps used to compute a windowed
+    # access rate. The monotonic `access_count` above conflates "hot last
+    # hour" with "hot once a year ago"; this field lets callers ask "how
+    # often has this gene been touched in the last N seconds" via the
+    # `access_rate()` helper below.
+    #
+    # Capped to the most recent 100 timestamps so a single gene's marker
+    # blob stays bounded (~800 bytes worst case). Older entries are
+    # dropped on append by the touch path; readers can also tolerate any
+    # length without breaking.
+    #
+    # Inert until Slice 2 wires the touch path to populate it. New code
+    # should NOT use this field as a primary retrieval signal — see the
+    # warning in ~/.helix/shared/handoffs/2026-04-11_8d_dimensional_roadmap.md
+    # (Phase 1 section): cost-of-fetch is not a relevance signal.
+    recent_accesses: List[float] = Field(default_factory=list)
+
+    def access_rate(self, window_seconds: float = 3600.0) -> float:
+        """Accesses per second over the last `window_seconds`.
+
+        Counts entries in `recent_accesses` whose timestamp is newer than
+        `now - window_seconds`, divided by the window duration. Returns
+        0.0 if the field is empty (e.g. for a gene that hasn't been
+        touched since Slice 2 wired the population path, or a freshly
+        ingested gene that hasn't been retrieved yet).
+
+        This is the working-set inference primitive from the "n over x
+        bell curve" insight: software cannot directly query whether a
+        gene is cache-resident, but the access pattern over a sliding
+        window is a sufficient Bayesian proxy for tier residency.
+
+        Use as a tiebreaker / prefetch hint, not as a primary relevance
+        signal — that direction creates a positive feedback loop where
+        the hot tier serves itself regardless of correctness.
+        """
+        if not self.recent_accesses:
+            return 0.0
+        if window_seconds <= 0:
+            return 0.0
+        cutoff = time.time() - window_seconds
+        n = sum(1 for t in self.recent_accesses if t > cutoff)
+        return n / window_seconds
+
 
 class Gene(BaseModel):
     """The fundamental storage unit in the genome."""
