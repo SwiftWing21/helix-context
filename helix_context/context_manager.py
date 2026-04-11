@@ -145,6 +145,27 @@ class HelixContextManager:
     def __init__(self, config: HelixConfig):
         self.config = config
 
+        # Activity tracking for GET /admin/components.
+        # Bumped on every /context and /ingest call by server.py. Used to
+        # derive running/idle status for the launcher's tools panel.
+        import time as _time
+        self._last_activity_ts: float = _time.time()
+
+        # Token counter (session + lifetime). Persisted next to genome.db so
+        # the lifetime counter survives restarts. See helix_context/metrics.py
+        # and the /metrics/tokens endpoint.
+        from pathlib import Path as _Path
+        from .metrics import TokenCounter
+        _genome_path = _Path(config.genome.path)
+        if str(_genome_path) == ":memory:":
+            # In-memory tests: keep metrics in-memory too (write to a tmp path
+            # that we won't actually flush; persistence is opt-in via flush()).
+            import tempfile as _tempfile
+            _metrics_path = _Path(_tempfile.gettempdir()) / "helix_metrics_test.json"
+        else:
+            _metrics_path = _genome_path.parent / "metrics.json"
+        self.token_counter: TokenCounter = TokenCounter(persist_path=_metrics_path)
+
         # ΣĒMA codec (optional — loaded if sentence-transformers available)
         self._sema_codec = None
         try:

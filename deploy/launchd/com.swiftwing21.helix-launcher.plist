@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  launchd plist for helix-launcher (macOS).
+
+  Installs the helix supervisor + dashboard as a per-user LaunchAgent so
+  it starts at login and is kept alive by launchd.
+
+  Installation:
+
+    1. Edit the ProgramArguments path below to point at the helix-launcher
+       script in your environment. Common locations:
+         - /usr/local/bin/helix-launcher          (Homebrew Python)
+         - ~/.venvs/helix/bin/helix-launcher      (manual venv)
+         - ~/Library/Python/3.12/bin/helix-launcher  (--user install)
+
+    2. Copy this file to ~/Library/LaunchAgents/:
+         cp deploy/launchd/com.swiftwing21.helix-launcher.plist \
+            ~/Library/LaunchAgents/
+
+    3. Load it:
+         launchctl load ~/Library/LaunchAgents/com.swiftwing21.helix-launcher.plist
+
+    4. Verify:
+         launchctl list | grep helix-launcher
+         tail -f ~/Library/Logs/helix-launcher.log
+
+    5. Open http://127.0.0.1:11438/ in your browser.
+
+  Uninstall:
+
+    launchctl unload ~/Library/LaunchAgents/com.swiftwing21.helix-launcher.plist
+    rm ~/Library/LaunchAgents/com.swiftwing21.helix-launcher.plist
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.swiftwing21.helix-launcher</string>
+
+  <!-- Replace with the absolute path to your helix-launcher executable. -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/local/bin/helix-launcher</string>
+    <string>--no-browser</string>
+  </array>
+
+  <!-- Start at login and keep alive on crash. -->
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+    <key>Crashed</key>
+    <true/>
+  </dict>
+
+  <!-- Throttle restarts after rapid crashes (10 seconds between attempts). -->
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+
+  <!-- Inherit the user's PATH so Ollama and other CLI tools are reachable. -->
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+
+  <!-- Logs land in ~/Library/Logs/. -->
+  <key>StandardOutPath</key>
+  <string>/Users/USERNAME/Library/Logs/helix-launcher.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/USERNAME/Library/Logs/helix-launcher.err.log</string>
+
+  <!-- Resource hygiene -->
+  <key>SoftResourceLimits</key>
+  <dict>
+    <key>NumberOfFiles</key>
+    <integer>1024</integer>
+  </dict>
+</dict>
+</plist>

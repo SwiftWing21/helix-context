@@ -38,6 +38,8 @@ Issues = "https://github.com/SwiftWing21/helix-context/issues"
 accel = ["orjson>=3.9"]
 embeddings = ["numpy", "sentence-transformers"]
 cpu = ["spacy>=3.7"]
+launcher = ["jinja2>=3.1", "psutil>=5.9"]
+launcher-native = ["jinja2>=3.1", "psutil>=5.9", "pywebview>=5.0"]
 ast = [
     "tree-sitter>=0.23",
     "tree-sitter-python>=0.23",
@@ -65,6 +67,7 @@ all = [
 
 [project.scripts]
 helix = "helix_context.server:main"
+helix-launcher = "helix_context.launcher.app:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

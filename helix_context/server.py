@@ -34,6 +34,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from .config import HelixConfig, load_config
 from .context_manager import HelixContextManager
+from .registry import DEFAULT_HEARTBEAT_INTERVAL_S, DEFAULT_TTL_S, Registry
 
 log = logging.getLogger("helix.server")
 
@@ -63,6 +64,10 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
     # Bridge instantiated up here so the lifespan closure can capture it.
     # The /bridge/* endpoints below close over this same instance.
     bridge = AgentBridge()
+
+    # Session registry — presence + attribution. See docs/SESSION_REGISTRY.md.
+    # Reuses helix.genome.conn; the DAL operates on the same SQLite file.
+    registry = Registry(helix.genome)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -97,6 +102,12 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             pass
         helix.genome.checkpoint("TRUNCATE")
 
+        # Flush token counter so lifetime totals persist across restart.
+        try:
+            helix.token_counter.flush()
+        except Exception:
+            log.warning("Token counter flush failed during shutdown", exc_info=True)
+
         # Belt-and-suspenders: stamp "stopped" on clean shutdown.
         try:
             bridge.write_signal("server_state", {
@@ -115,6 +126,7 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
     app = FastAPI(title="Helix Context Proxy", version="0.1.0", lifespan=lifespan)
     app.state.helix = helix  # Expose for testing
     app.state.bridge = bridge  # Expose for testing
+    app.state.registry = registry  # Expose for testing
 
     # -- Proxy endpoint (primary integration) --------------------------
 
@@ -134,7 +146,7 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
 
         if not user_query:
             # No user message -- pass through unmodified
-            return await _forward_raw(body, config)
+            return await _forward_raw(body, config, helix)
 
         # Step 1-5: Expression pipeline
         downstream_model = body.get("model")
@@ -191,17 +203,21 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
 
     @app.post("/ingest")
     async def ingest_endpoint(request: Request):
+        import time as _time
+        helix._last_activity_ts = _time.time()
+
         data = await request.json()
         content = data.get("content", "")
         content_type = data.get("content_type", "text")
         metadata = data.get("metadata")
+        participant_id = data.get("participant_id")
+        party_id = data.get("party_id")
 
         if not content:
             return JSONResponse({"error": "No content provided"}, status_code=400)
 
         try:
             gene_ids = await helix.ingest_async(content, content_type, metadata)
-            return {"gene_ids": gene_ids, "count": len(gene_ids)}
         except Exception as exc:
             log.warning("Ingest failed: %s", exc, exc_info=True)
             return JSONResponse(
@@ -209,17 +225,50 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
                 status_code=422,
             )
 
+        # Attribution — additive, never fails the ingest.
+        # See docs/SESSION_REGISTRY.md. If participant_id/party_id is provided
+        # and resolvable, each resulting gene gets an attribution row.
+        attributed = 0
+        if participant_id or party_id:
+            for gid in gene_ids:
+                try:
+                    result = registry.attribute_gene(
+                        gene_id=gid,
+                        participant_id=participant_id,
+                        party_id=party_id,
+                    )
+                    if result is not None:
+                        attributed += 1
+                except Exception:
+                    log.warning(
+                        "Attribution write failed for gene %s",
+                        gid, exc_info=True,
+                    )
+
+        response = {"gene_ids": gene_ids, "count": len(gene_ids)}
+        if participant_id or party_id:
+            response["attributed"] = attributed
+        return response
+
     # -- Context endpoint (Continue HTTP context provider format) -------
 
     @app.post("/context")
     async def context_endpoint(request: Request):
         import time as _time
         t0 = _time.time()
+        helix._last_activity_ts = t0
 
         data = await request.json()
         query = data.get("query", "")
         decoder_override = data.get("decoder_mode")
         verbose = data.get("verbose", False)  # Agent-mode: include gene citations
+        # Per-request cold-tier override (C.2 of B->C, 2026-04-10)
+        # None  = honor [context] cold_tier_enabled config flag
+        # True  = force cold-tier ON for this request
+        # False = force cold-tier OFF for this request
+        include_cold = data.get("include_cold")
+        if include_cold is not None:
+            include_cold = bool(include_cold)
 
         if not query:
             return JSONResponse({"error": "No query provided"}, status_code=400)
@@ -232,7 +281,7 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             helix._decoder_mode = decoder_override
             helix._decoder_prompt = DECODER_MODES[decoder_override]
 
-        window = await helix.build_context_async(query)
+        window = await helix.build_context_async(query, include_cold=include_cold)
 
         # Restore original mode after request
         if decoder_override and decoder_override in ("full", "condensed", "minimal", "none"):
@@ -315,6 +364,9 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
                 "moe_mode": window.metadata.get("moe_mode", False),
                 "budget_tier": window.metadata.get("budget_tier", "broad"),
                 "budget_tokens_est": window.metadata.get("budget_tokens_est", 15000),
+                # C.2 of B->C: cold-tier retrieval markers
+                "cold_tier_used": getattr(helix, "_last_cold_tier_used", False),
+                "cold_tier_count": getattr(helix, "_last_cold_tier_count", 0),
             }
         except Exception:
             log.debug("Agent metadata enrichment failed", exc_info=True)
@@ -332,6 +384,143 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
     @app.get("/health/history")
     async def health_history_endpoint(limit: int = 50):
         return helix.genome.health_history(limit=limit)
+
+    # -- Token metrics endpoint -----------------------------------------
+
+    @app.get("/metrics/tokens")
+    async def metrics_tokens_endpoint():
+        """Session + lifetime token counters.
+
+        Counts come from upstream `usage` fields when available, falling
+        back to char-count estimation. Both exact and estimated buckets
+        are reported separately. See helix_context/metrics.py.
+        """
+        try:
+            return helix.token_counter.snapshot()
+        except Exception as exc:
+            log.warning("Token metrics snapshot failed: %s", exc, exc_info=True)
+            return JSONResponse(
+                {"error": f"Token snapshot failed: {exc}"},
+                status_code=500,
+            )
+
+    # -- Session registry endpoints (see docs/SESSION_REGISTRY.md) -----
+
+    @app.post("/sessions/register")
+    async def session_register_endpoint(request: Request):
+        """Register a participant under a party. Trust-on-first-use for party_id.
+
+        Required body fields: party_id, handle.
+        Optional: workspace, pid, capabilities (list), metadata (dict), display_name.
+        """
+        try:
+            data = await request.json()
+        except Exception:
+            return JSONResponse({"error": "Invalid JSON body"}, status_code=400)
+
+        party_id = data.get("party_id")
+        handle = data.get("handle")
+        if not party_id or not handle:
+            return JSONResponse(
+                {"error": "party_id and handle are required"},
+                status_code=400,
+            )
+
+        try:
+            participant = registry.register_participant(
+                party_id=party_id,
+                handle=handle,
+                workspace=data.get("workspace"),
+                pid=data.get("pid"),
+                capabilities=data.get("capabilities"),
+                metadata=data.get("metadata"),
+                display_name=data.get("display_name"),
+            )
+        except Exception as exc:
+            log.warning("Session register failed: %s", exc, exc_info=True)
+            return JSONResponse(
+                {"error": f"Registration failed: {exc}"},
+                status_code=500,
+            )
+
+        return {
+            "participant_id": participant.participant_id,
+            "party_id": participant.party_id,
+            "registered_at": participant.started_at,
+            "heartbeat_interval_s": DEFAULT_HEARTBEAT_INTERVAL_S,
+            "ttl_s": DEFAULT_TTL_S,
+        }
+
+    @app.post("/sessions/{participant_id}/heartbeat")
+    async def session_heartbeat_endpoint(participant_id: str):
+        """Refresh last_heartbeat for a participant. Returns 404 if unknown."""
+        result = registry.heartbeat(participant_id)
+        if result is None:
+            return JSONResponse(
+                {"error": "Unknown participant_id — please re-register"},
+                status_code=404,
+            )
+        ttl_remaining_s, status = result
+        return {
+            "ok": True,
+            "ttl_remaining_s": ttl_remaining_s,
+            "status": status,
+        }
+
+    @app.get("/sessions")
+    async def session_list_endpoint(
+        party_id: Optional[str] = None,
+        status: str = "active",
+        workspace: Optional[str] = None,
+    ):
+        """List participants. Filters: party_id, status, workspace prefix."""
+        try:
+            infos = registry.list_participants(
+                party_id=party_id,
+                status_filter=status,
+                workspace_prefix=workspace,
+            )
+        except Exception as exc:
+            log.warning("Session list failed: %s", exc, exc_info=True)
+            return JSONResponse(
+                {"error": f"List failed: {exc}"},
+                status_code=500,
+            )
+        return {
+            "participants": [info.model_dump() for info in infos],
+            "count": len(infos),
+        }
+
+    @app.get("/sessions/{handle}/recent")
+    async def session_recent_endpoint(
+        handle: str,
+        limit: int = 10,
+        party_id: Optional[str] = None,
+        since: Optional[float] = None,
+    ):
+        """Return recent genes authored by a handle, chronologically (no BM25).
+
+        This is the reliable broadcast channel — short notes surface here
+        regardless of how much code/spec material lives in the genome.
+        """
+        try:
+            genes = registry.get_recent_by_handle(
+                handle=handle,
+                limit=limit,
+                party_id=party_id,
+                since=since,
+            )
+        except Exception as exc:
+            log.warning("Session recent failed: %s", exc, exc_info=True)
+            return JSONResponse(
+                {"error": f"Recent lookup failed: {exc}"},
+                status_code=500,
+            )
+        return {
+            "handle": handle,
+            "genes": genes,
+            "count": len(genes),
+        }
 
     # -- Consolidate endpoint (session memory) ----------------------------
 
@@ -616,6 +805,85 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             "hint": "Sleep ~750ms before killing the server to let observers see the signal.",
         }
 
+    @app.get("/admin/components")
+    async def admin_components():
+        """Return the list of active subsystems with running/idle status.
+
+        Feeds the launcher's tools panel (docs/LAUNCHER.md). A component
+        is 'running' if helix has processed a /ingest or /context call
+        in the last 60 seconds, else 'idle'. Components that are not
+        configured / not loaded are omitted from the list entirely,
+        matching the 'only active/online' display rule.
+        """
+        import time as _time
+        idle_threshold_s = 60.0
+        age = _time.time() - getattr(helix, "_last_activity_ts", 0.0)
+        active_status = "running" if age < idle_threshold_s else "idle"
+
+        components = []
+
+        # Ribosome — always loaded (required). Decoder: pack/splice/replicate.
+        ribosome_backend = "unknown"
+        if hasattr(helix.ribosome, "backend") and hasattr(helix.ribosome.backend, "model"):
+            ribosome_backend = helix.ribosome.backend.model
+        components.append({
+            "name": "ribosome",
+            "kind": "decoder",
+            "status": active_status,
+            "backend": ribosome_backend,
+        })
+
+        # ΣĒMA codec — encoder, optional (loaded if sentence-transformers available).
+        if getattr(helix, "_sema_codec", None) is not None:
+            components.append({
+                "name": "sema",
+                "kind": "encoder",
+                "status": active_status,
+            })
+
+        # CPU tagger — encoder, optional (spaCy-based, config-gated).
+        if getattr(helix, "_cpu_tagger", None) is not None:
+            components.append({
+                "name": "cpu_tagger",
+                "kind": "encoder",
+                "status": active_status,
+            })
+
+        # SPLADE inverted index — encoder, optional (config flag).
+        if getattr(helix.genome, "_splade_enabled", False):
+            components.append({
+                "name": "splade",
+                "kind": "encoder",
+                "status": active_status,
+            })
+
+        # Entity graph — encoder, optional (config flag).
+        if getattr(helix.genome, "_entity_graph_enabled", False):
+            components.append({
+                "name": "entity_graph",
+                "kind": "encoder",
+                "status": active_status,
+            })
+
+        # Headroom bridge — decoder, optional (loaded if [codec] extra installed).
+        try:
+            from .headroom_bridge import is_headroom_available
+            if is_headroom_available():
+                components.append({
+                    "name": "headroom",
+                    "kind": "decoder",
+                    "status": active_status,
+                })
+        except Exception:
+            pass
+
+        return {
+            "components": components,
+            "count": len(components),
+            "last_activity_s_ago": round(age, 1),
+            "idle_threshold_s": idle_threshold_s,
+        }
+
     @app.post("/admin/sema/rebuild")
     async def admin_sema_rebuild():
         """Force-rebuild the ΣĒMA vector cache from the current genome state.
@@ -806,6 +1074,7 @@ async def _stream_and_tee(
     full response for background replication.
     """
     accumulated: list[str] = []
+    captured_usage: Optional[dict] = None
 
     async with httpx.AsyncClient(timeout=config.server.upstream_timeout) as client:
         async with client.stream(
@@ -834,6 +1103,11 @@ async def _stream_and_tee(
                             content = delta.get("content", "")
                             if content:
                                 accumulated.append(content)
+                        # Capture usage from any chunk that includes it
+                        # (modern Ollama / OpenAI with stream_options.include_usage=true).
+                        chunk_usage = chunk.get("usage")
+                        if isinstance(chunk_usage, dict):
+                            captured_usage = chunk_usage
                     except (ValueError, TypeError):
                         pass
 
@@ -841,6 +1115,19 @@ async def _stream_and_tee(
     full_response = "".join(accumulated)
     if full_response:
         background_tasks.add_task(helix.learn, user_query, full_response)
+
+    # Token accounting — prefer authoritative usage if upstream provided it,
+    # else estimate from the user query + accumulated response.
+    try:
+        if not helix.token_counter.add_from_usage(captured_usage):
+            from .metrics import estimate_tokens
+            helix.token_counter.add(
+                prompt_tokens=estimate_tokens(user_query),
+                completion_tokens=estimate_tokens(full_response),
+                estimated=True,
+            )
+    except Exception:
+        log.debug("Token counter update failed (stream)", exc_info=True)
 
 
 # -- Non-streaming forward --------------------------------------------
@@ -861,24 +1148,46 @@ async def _forward_and_replicate(
         data = resp.json()
 
     choices = data.get("choices", [])
+    content = ""
     if choices:
         content = choices[0].get("message", {}).get("content", "")
         if content:
             background_tasks.add_task(helix.learn, user_query, content)
+
+    # Token accounting — exact if usage was provided, else estimated.
+    try:
+        if not helix.token_counter.add_from_usage(data.get("usage")):
+            from .metrics import estimate_tokens
+            helix.token_counter.add(
+                prompt_tokens=estimate_tokens(user_query),
+                completion_tokens=estimate_tokens(content),
+                estimated=True,
+            )
+    except Exception:
+        log.debug("Token counter update failed (non-stream)", exc_info=True)
 
     return JSONResponse(data)
 
 
 # -- Raw passthrough (no user message found) ---------------------------
 
-async def _forward_raw(body: dict, config: HelixConfig):
+async def _forward_raw(body: dict, config: HelixConfig, helix: Optional[HelixContextManager] = None):
     """Pass request through to upstream without context injection."""
     async with httpx.AsyncClient(timeout=config.server.upstream_timeout) as client:
         resp = await client.post(
             f"{config.server.upstream}/v1/chat/completions",
             json=body,
         )
-        return JSONResponse(resp.json())
+        data = resp.json()
+
+    # Token accounting if helix is wired in.
+    if helix is not None:
+        try:
+            helix.token_counter.add_from_usage(data.get("usage"))
+        except Exception:
+            log.debug("Token counter update failed (raw)", exc_info=True)
+
+    return JSONResponse(data)
 
 
 # -- Entry point -------------------------------------------------------

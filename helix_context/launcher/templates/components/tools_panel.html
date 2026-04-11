@@ -1,0 +1,20 @@
+<section class="panel panel--tools">
+  <h2 class="panel-title">
+    Tools <span class="panel-count">{{ state.tools.count }}</span>
+    {% if state.tools.last_activity_s_ago is not none %}
+      <span class="panel-count-muted">· last activity {{ state.tools.last_activity_s_ago }}s ago</span>
+    {% endif %}
+  </h2>
+  <ul class="panel-list">
+    {% for t in state.tools.entries %}
+      <li class="panel-list__item">
+        <span class="chip chip--tool chip--{{ t.kind }}">{{ t.name }}</span>
+        <span class="muted">· {{ t.kind }}</span>
+        <span class="tool-status tool-status--{{ t.status }}">{{ t.status }}</span>
+        {% if t.backend %}
+          <span class="muted">· {{ t.backend }}</span>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+</section>

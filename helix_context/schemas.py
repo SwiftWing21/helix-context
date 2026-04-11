@@ -102,3 +102,57 @@ class ContextWindow(BaseModel):
     compression_ratio: float = 0.0
     context_health: ContextHealth = Field(default_factory=ContextHealth)
     metadata: dict = Field(default_factory=dict)
+
+
+# ── Session registry (see docs/SESSION_REGISTRY.md) ────────────────────────
+
+class Party(BaseModel):
+    """A trust identity — a human principal, tenant, or org service identity.
+
+    Parties hold genes. A party may contain many participants. Parties are
+    atomic: they do NOT self-reference. Grouping of parties is handled by
+    the future `collectives` layer.
+    """
+    party_id: str                       # "max@local", "tenant:acme", "peer:swiftwing21"
+    display_name: str
+    trust_domain: str = "local"         # "local" | "remote" | "tenant:*"
+    created_at: float = Field(default_factory=lambda: time.time())
+    metadata: Optional[dict] = None
+
+
+class Participant(BaseModel):
+    """A live runtime actor (Claude session, sub-agent, swarm member).
+
+    Participants belong to exactly one party. They are ephemeral — they
+    come and go as sessions start and stop. Attribution of genes survives
+    participant turnover via the party.
+    """
+    participant_id: str                 # ULID / uuid4
+    party_id: str
+    handle: str                         # "taude", "laude", "raude", "subagent-7f3a"
+    workspace: Optional[str] = None
+    pid: Optional[int] = None
+    started_at: float = Field(default_factory=lambda: time.time())
+    last_heartbeat: float = Field(default_factory=lambda: time.time())
+    status: str = "active"              # "active" | "idle" | "stale" | "gone"
+    capabilities: List[str] = Field(default_factory=list)
+    metadata: Optional[dict] = None
+
+
+class ParticipantInfo(BaseModel):
+    """Projection used by GET /sessions — what observers see about a sibling."""
+    participant_id: str
+    party_id: str
+    handle: str
+    workspace: Optional[str] = None
+    status: str
+    last_seen_s_ago: float
+    started_at: float
+
+
+class GeneAttribution(BaseModel):
+    """Attribution row linking a gene to the party/participant that authored it."""
+    gene_id: str
+    party_id: str
+    participant_id: Optional[str] = None
+    authored_at: float

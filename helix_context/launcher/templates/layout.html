@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Helix Launcher{% endblock %}</title>
+  <link rel="stylesheet" href="/static/launcher.css">
+</head>
+<body>
+  <div class="shell">
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-mark">🧬</span>
+        <h1>Helix Launcher</h1>
+      </div>
+      {% block header_extra %}{% endblock %}
+    </header>
+
+    <main class="app-main">
+      {% block main %}{% endblock %}
+    </main>
+
+    <footer class="app-footer">
+      <span>helix-context · launcher</span>
+    </footer>
+  </div>
+
+  <script src="/static/launcher.js" defer></script>
+</body>
+</html>

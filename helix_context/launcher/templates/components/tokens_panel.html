@@ -1,0 +1,19 @@
+<section class="panel panel--tokens">
+  <h2 class="panel-title">Tokens</h2>
+  <dl class="panel-kv">
+    <dt>Session</dt>
+    <dd>
+      {{ "{:,}".format(state.tokens.session.total) }}
+      {% if state.tokens.session.estimated > 0 %}
+        <span class="muted">({{ "{:,}".format(state.tokens.session.exact) }} exact + {{ "{:,}".format(state.tokens.session.estimated) }} estimated)</span>
+      {% endif %}
+    </dd>
+    <dt>Lifetime</dt>
+    <dd>
+      {{ "{:,}".format(state.tokens.lifetime.total) }}
+      {% if state.tokens.lifetime.estimated > 0 %}
+        <span class="muted">({{ "{:,}".format(state.tokens.lifetime.exact) }} exact + {{ "{:,}".format(state.tokens.lifetime.estimated) }} estimated)</span>
+      {% endif %}
+    </dd>
+  </dl>
+</section>

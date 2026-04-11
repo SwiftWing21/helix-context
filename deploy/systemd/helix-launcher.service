@@ -1,0 +1,70 @@
+# systemd unit file for helix-launcher (Linux).
+#
+# Installs the helix supervisor + dashboard as a user service so it
+# starts on login and restarts on failure.
+#
+# Installation:
+#
+#   1. Edit the User and ExecStart lines below if needed (the defaults
+#      assume a venv at ~/.local/share/helix/.venv).
+#
+#   2. Copy this file to ~/.config/systemd/user/helix-launcher.service
+#      (user-level service) OR /etc/systemd/system/helix-launcher.service
+#      (system-level — requires root and the User= line set explicitly).
+#
+#   3. Reload + enable + start:
+#
+#        systemctl --user daemon-reload
+#        systemctl --user enable helix-launcher.service
+#        systemctl --user start helix-launcher.service
+#
+#   4. Check status:
+#
+#        systemctl --user status helix-launcher.service
+#        journalctl --user -u helix-launcher.service -f
+#
+#   5. Open the dashboard at http://127.0.0.1:11438 in your browser.
+#
+# Uninstall:
+#
+#        systemctl --user disable --now helix-launcher.service
+#        rm ~/.config/systemd/user/helix-launcher.service
+
+[Unit]
+Description=Helix Context launcher (supervisor + dashboard)
+Documentation=https://github.com/SwiftWing21/helix-context/blob/main/docs/LAUNCHER.md
+# Wait for the network so Ollama can be reached on startup.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+
+# IMPORTANT: replace this with the absolute path to a Python that has
+# helix-context[launcher] installed. Examples:
+#   ExecStart=%h/.local/share/helix/.venv/bin/helix-launcher --no-browser
+#   ExecStart=/usr/local/bin/helix-launcher --no-browser
+ExecStart=%h/.local/share/helix/.venv/bin/helix-launcher --no-browser
+
+# The launcher needs a writable home directory for state + logs at
+# ~/.helix/launcher/. Set this to the actual user's home if running
+# system-wide.
+Environment=HOME=%h
+
+# Restart on crash but back off on rapid failures.
+Restart=on-failure
+RestartSec=5
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+# Standard logging into the journal.
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=helix-launcher
+
+# Resource hygiene (lightweight — the launcher itself uses ~50 MB).
+MemoryMax=512M
+TasksMax=128
+
+[Install]
+WantedBy=default.target

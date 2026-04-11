@@ -1,0 +1,13 @@
+<section class="panel panel--genes">
+  <h2 class="panel-title">
+    Genes <span class="panel-count">{{ "{:,}".format(state.genes.total) }}</span>
+  </h2>
+  <dl class="panel-kv">
+    <dt>Raw</dt>
+    <dd>{{ "%.1f"|format(state.genes.raw_chars / (1024 * 1024)) }} MB</dd>
+    <dt>Compressed</dt>
+    <dd>{{ "%.1f"|format(state.genes.compressed_chars / (1024 * 1024)) }} MB</dd>
+    <dt>Ratio</dt>
+    <dd>{{ state.genes.compression_ratio }}×</dd>
+  </dl>
+</section>

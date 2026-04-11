@@ -85,6 +85,61 @@ class TestStatsEndpoint:
         assert "pending_replications" in data
 
 
+class TestMetricsTokensEndpoint:
+    def test_tokens_starts_at_zero(self, client):
+        resp = client.get("/metrics/tokens")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "session" in data
+        assert "lifetime" in data
+        assert data["session"]["total"] == 0
+        assert data["session"]["estimated_total"] == 0
+
+    def test_tokens_session_started_at_present(self, client):
+        resp = client.get("/metrics/tokens")
+        data = resp.json()
+        assert "started_at" in data["session"]
+        assert isinstance(data["session"]["started_at"], (int, float))
+
+
+class TestAdminComponentsEndpoint:
+    def test_components_lists_ribosome(self, client):
+        resp = client.get("/admin/components")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "components" in data
+        assert "count" in data
+        assert "last_activity_s_ago" in data
+        assert "idle_threshold_s" in data
+
+        names = [c["name"] for c in data["components"]]
+        # Ribosome is always loaded.
+        assert "ribosome" in names
+        # Every component must have name/kind/status fields.
+        for c in data["components"]:
+            assert "name" in c
+            assert "kind" in c
+            assert c["kind"] in ("encoder", "decoder")
+            assert "status" in c
+            assert c["status"] in ("running", "idle")
+
+    def test_components_status_running_after_recent_activity(self, client):
+        # /stats does NOT bump activity, but /context does.
+        # Trigger activity via /context with a trivial query.
+        client.post("/context", json={"query": "test"})
+        resp = client.get("/admin/components")
+        data = resp.json()
+        assert data["last_activity_s_ago"] < 5.0
+        # At least ribosome should be 'running' right after activity.
+        ribosome = next(c for c in data["components"] if c["name"] == "ribosome")
+        assert ribosome["status"] == "running"
+
+    def test_components_count_matches_entries(self, client):
+        resp = client.get("/admin/components")
+        data = resp.json()
+        assert data["count"] == len(data["components"])
+
+
 class TestIngestEndpoint:
     def test_ingest_text(self, client):
         resp = client.post("/ingest", json={

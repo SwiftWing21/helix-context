@@ -1,0 +1,12 @@
+<section class="panel panel--parties">
+  <h2 class="panel-title">
+    Parties connected <span class="panel-count">{{ state.parties.count }}</span>
+  </h2>
+  <ul class="panel-list">
+    {% for party in state.parties.party_ids %}
+      <li class="panel-list__item">
+        <span class="chip chip--party">{{ party }}</span>
+      </li>
+    {% endfor %}
+  </ul>
+</section>

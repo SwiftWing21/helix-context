@@ -1,0 +1,14 @@
+<section class="panel panel--models">
+  <h2 class="panel-title">Models loaded</h2>
+  <ul class="panel-list">
+    {% for m in state.models.loaded %}
+      <li class="panel-list__item">
+        <span class="chip chip--model">{{ m.name }}</span>
+        {% if m.size_mb %}
+          <span class="muted">· {{ "%.1f"|format(m.size_mb / 1024) }} GB</span>
+        {% endif %}
+        <span class="muted">· {{ m.source }}</span>
+      </li>
+    {% endfor %}
+  </ul>
+</section>

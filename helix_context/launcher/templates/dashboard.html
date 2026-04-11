@@ -1,0 +1,14 @@
+{% extends "layout.html" %}
+
+{% block main %}
+  {% include "components/controls.html" %}
+
+  <section
+    id="panels"
+    class="panels"
+    data-poll-url="/api/state/panels"
+    data-poll-interval-ms="2000"
+  >
+    {% include "components/panels.html" %}
+  </section>
+{% endblock %}

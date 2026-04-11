@@ -1,0 +1,376 @@
+/*
+ * Helix Launcher — dashboard styles.
+ *
+ * All visual tokens (colors, spacing, radii, typography) live in the
+ * :root {} block below. No pixel values or colors appear anywhere else
+ * in the codebase. Change the theme here.
+ */
+
+:root {
+  /* Theme: dark, terminal-ish */
+  --color-bg:             #0b0e13;
+  --color-bg-panel:       #12161f;
+  --color-bg-elevated:    #1a2030;
+  --color-border:         #222938;
+  --color-text:           #e6edf3;
+  --color-text-muted:     #8b95a7;
+  --color-text-dim:       #565f72;
+  --color-accent:         #7cc4ff;
+  --color-accent-soft:    rgba(124, 196, 255, 0.12);
+  --color-success:        #6ee7a5;
+  --color-success-soft:   rgba(110, 231, 165, 0.12);
+  --color-warn:           #f5b971;
+  --color-danger:         #ff7a8a;
+  --color-danger-soft:    rgba(255, 122, 138, 0.12);
+  --color-helix-gene:     #b794ff;
+  --color-helix-party:    #7cc4ff;
+  --color-helix-model:    #f5b971;
+
+  /* Spacing scale */
+  --space-0:   0;
+  --space-1:   0.25rem;
+  --space-2:   0.5rem;
+  --space-3:   0.75rem;
+  --space-4:   1rem;
+  --space-5:   1.5rem;
+  --space-6:   2rem;
+  --space-7:   3rem;
+
+  /* Radii */
+  --radius-sm:   4px;
+  --radius-md:   8px;
+  --radius-lg:   12px;
+
+  /* Typography */
+  --font-body:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  --font-mono:
+    "JetBrains Mono", "Fira Code", ui-monospace, Menlo, Monaco, Consolas,
+    "Courier New", monospace;
+  --font-size-sm:   0.85rem;
+  --font-size-base: 0.95rem;
+  --font-size-lg:   1.1rem;
+  --font-size-xl:   1.4rem;
+
+  /* Layout */
+  --layout-max-width: 920px;
+  --layout-gap:       var(--space-5);
+
+  /* Motion */
+  --motion-fast: 120ms ease-out;
+}
+
+/* ── Reset + base ────────────────────────────────────────────── */
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: var(--font-size-base);
+  line-height: 1.5;
+}
+
+h1, h2, h3, h4 {
+  margin: 0;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+button {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+/* ── Shell ────────────────────────────────────────────────────── */
+
+.shell {
+  max-width: var(--layout-max-width);
+  margin: 0 auto;
+  padding: var(--space-5);
+  display: grid;
+  gap: var(--layout-gap);
+  min-height: 100vh;
+  grid-template-rows: auto 1fr auto;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.brand-mark {
+  font-size: var(--font-size-xl);
+}
+
+.brand h1 {
+  font-size: var(--font-size-xl);
+  letter-spacing: -0.01em;
+}
+
+.app-main {
+  display: grid;
+  gap: var(--layout-gap);
+}
+
+.app-footer {
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-dim);
+  font-size: var(--font-size-sm);
+  text-align: center;
+}
+
+/* ── Controls ─────────────────────────────────────────────────── */
+
+.controls {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-4);
+  align-items: center;
+  background: var(--color-bg-panel);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4) var(--space-5);
+}
+
+.controls-status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-text-dim);
+  box-shadow: 0 0 0 3px transparent;
+  transition: background var(--motion-fast), box-shadow var(--motion-fast);
+}
+
+.status-dot--running {
+  background: var(--color-success);
+  box-shadow: 0 0 0 3px var(--color-success-soft);
+}
+
+.status-dot--stopped {
+  background: var(--color-danger);
+  box-shadow: 0 0 0 3px var(--color-danger-soft);
+}
+
+.controls-buttons {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.btn {
+  appearance: none;
+  background: var(--color-bg-elevated);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-4);
+  cursor: pointer;
+  font-weight: 500;
+  transition:
+    background var(--motion-fast),
+    border-color var(--motion-fast),
+    transform var(--motion-fast);
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn--start:hover:not(:disabled) {
+  background: var(--color-success-soft);
+  border-color: var(--color-success);
+  color: var(--color-success);
+}
+
+.btn--stop:hover:not(:disabled) {
+  background: var(--color-danger-soft);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+/* ── Panels ───────────────────────────────────────────────────── */
+
+.panels {
+  display: grid;
+  gap: var(--layout-gap);
+}
+
+.panel {
+  background: var(--color-bg-panel);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+  display: grid;
+  gap: var(--space-3);
+}
+
+.panel--empty {
+  color: var(--color-text-muted);
+  text-align: center;
+  font-style: italic;
+}
+
+.panel-title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  font-size: var(--font-size-lg);
+  color: var(--color-text);
+}
+
+.panel-count {
+  font-family: var(--font-mono);
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+  padding: 0.1em 0.5em;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+}
+
+.panel-count-muted {
+  font-family: var(--font-mono);
+  color: var(--color-text-dim);
+  font-size: var(--font-size-sm);
+}
+
+.panel-list {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.panel-list__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+}
+
+.chip {
+  display: inline-block;
+  padding: 0.1em 0.6em;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+}
+
+.chip--party {
+  color: var(--color-helix-party);
+  border-color: var(--color-helix-party);
+  background: rgba(124, 196, 255, 0.08);
+}
+
+.chip--participant {
+  color: var(--color-text);
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.chip--model {
+  color: var(--color-helix-model);
+  border-color: var(--color-helix-model);
+  background: rgba(245, 185, 113, 0.08);
+}
+
+.chip--tool.chip--encoder {
+  color: var(--color-helix-gene);
+  border-color: var(--color-helix-gene);
+  background: rgba(183, 148, 255, 0.08);
+}
+
+.chip--tool.chip--decoder {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.tool-status {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  padding: 0.05em 0.5em;
+  border-radius: var(--radius-sm);
+  margin-left: var(--space-1);
+}
+
+.tool-status--running {
+  color: var(--color-success);
+  background: var(--color-success-soft);
+}
+
+.tool-status--idle {
+  color: var(--color-warn);
+  background: rgba(245, 185, 113, 0.12);
+}
+
+.muted {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.panel-kv {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+}
+
+.panel-kv dt {
+  color: var(--color-text-muted);
+}
+
+.panel-kv dd {
+  margin: 0;
+  color: var(--color-text);
+}
+
+/* ── Poll-stale hint ──────────────────────────────────────────── */
+
+.panels[data-stale="true"] {
+  opacity: 0.65;
+  transition: opacity var(--motion-fast);
+}

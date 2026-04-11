@@ -1,0 +1,33 @@
+{# Panel assembly — conditionally renders each panel only if its data is present. #}
+
+{% if not state.helix.running %}
+  <div class="panel panel--empty">
+    <p>Helix is stopped. Click <strong>Start</strong> to launch the server.</p>
+  </div>
+{% else %}
+
+  {% if state.parties %}
+    {% include "components/parties_panel.html" %}
+  {% endif %}
+
+  {% if state.participants %}
+    {% include "components/participants_panel.html" %}
+  {% endif %}
+
+  {% if state.models %}
+    {% include "components/models_panel.html" %}
+  {% endif %}
+
+  {% if state.tools %}
+    {% include "components/tools_panel.html" %}
+  {% endif %}
+
+  {% if state.genes %}
+    {% include "components/genes_panel.html" %}
+  {% endif %}
+
+  {% if state.tokens %}
+    {% include "components/tokens_panel.html" %}
+  {% endif %}
+
+{% endif %}

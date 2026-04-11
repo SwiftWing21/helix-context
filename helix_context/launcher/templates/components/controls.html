@@ -1,0 +1,27 @@
+<section class="controls">
+  <div class="controls-status">
+    <span class="status-dot status-dot--{{ 'running' if state.helix.running else 'stopped' }}"></span>
+    <span class="status-label">
+      {% if state.helix.running %}
+        Running · pid {{ state.helix.pid }} · port {{ state.helix.port }}
+      {% else %}
+        Stopped
+      {% endif %}
+    </span>
+  </div>
+
+  <div class="controls-buttons">
+    <button type="button" class="btn btn--start" data-action="start"
+      {% if state.helix.running %}disabled{% endif %}>
+      ▶ Start
+    </button>
+    <button type="button" class="btn btn--restart" data-action="restart"
+      {% if not state.helix.running %}disabled{% endif %}>
+      ↻ Restart
+    </button>
+    <button type="button" class="btn btn--stop" data-action="stop"
+      {% if not state.helix.running %}disabled{% endif %}>
+      ■ Stop
+    </button>
+  </div>
+</section>
