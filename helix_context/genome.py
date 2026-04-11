@@ -46,31 +46,31 @@ log = logging.getLogger(__name__)
 # relying on the scorer for content types we already know are noise.
 #
 # Categories covered:
-#   - Steam / game content (localization, assets, maps, subtitles, levels)
 #   - Build artifacts (.next, node_modules, __pycache__, dist, build, target)
 #   - Lockfiles and minified bundles
 #   - Web manifest files (app-paths-manifest.json, reference-manifest.js)
-#   - Non-English locale directories (game translations are high-volume noise)
+#   - Non-English locale directories (software i18n is high-volume low-signal)
 #
 # NOT in this list (deliberate):
 #   - *.csv — business CSVs (customer data, financial records, invoice exports)
-#     are legitimate ingest targets. Game-localization CSVs are caught by
-#     the Hades/Factorio path patterns. Generic low-density CSVs will be
-#     caught by the score gate instead.
+#     are legitimate ingest targets. Generic low-density CSVs will be caught
+#     by the score gate instead.
 #   - *.json — JSON is everywhere, most of it is config/data with signal
 #   - *.md — markdown is primary signal content
 #   - Cargo.toml / pyproject.toml — project metadata is signal
+#   - Steam / game content (SteamLibrary, steamapps, BeamNG, Hades,
+#     Factorio, Dyson Sphere, etc.) — reframed as high-SNR signal on
+#     2026-04-10. Game files are content-dense with unambiguous literal
+#     values (configs, enums, item IDs, code) and empirically produced
+#     86% of correct answers on the N=50 v2 NIAH benchmark before the
+#     original gate. Individual low-density game genes still get caught
+#     by the score gate; the structural path is no longer a categorical
+#     reject. See docs/BENCHMARKS.md and ~/.helix/shared/handoffs/ for
+#     the full empirical basis.
 #
 # Patterns are anchored to directory boundaries to avoid false positives
 # on legitimate files that happen to contain the substring.
 _DENY_PATTERNS = [
-    # Steam / game content
-    r"[\\/]SteamLibrary[\\/]",
-    r"[\\/]steamapps[\\/]common[\\/]",
-    r"[\\/]BeamNG\.drive[\\/]",
-    r"[\\/]Hades[\\/]Content[\\/]",
-    r"[\\/]Factorio[\\/]data[\\/]base[\\/]",
-    r"[\\/]Dyson Sphere",
     # Build artifacts
     r"[\\/]\.next[\\/]",
     r"[\\/]node_modules[\\/]",
@@ -99,10 +99,11 @@ _DENY_PATTERNS = [
     r"server-reference-manifest\.(js|json)$",
     # Binary / compiled artifacts
     r"\.(pyc|pyo|so|dll|dylib|exe|wasm|bin|pack|idx)$",
-    # Non-English game locales (English is kept; other locales are
-    # high-volume low-signal for the current English-speaking user base)
+    # Non-English software locale directories (English is kept as the
+    # primary user base; other locales are high-volume low-signal for
+    # typical retrieval workloads). Game subtitles are NOT in this list —
+    # they're reframed as signal along with the rest of the game content.
     r"[\\/]locale[\\/](?!en[\\/])[a-z]{2,3}[\\/]",
-    r"[\\/]Subtitles[\\/](?!en[\\/])[a-z]{2,3}[\\/]",
 ]
 
 _DENY_RE = re.compile("|".join(_DENY_PATTERNS), re.IGNORECASE)
