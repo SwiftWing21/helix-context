@@ -576,6 +576,151 @@ class TestHeterochromatinNonDestructive:
         assert genome.compress_to_heterochromatin("nonexistent_gene_id") is False
 
 
+# ── C.2 — cold-tier retrieval via ΣĒMA cosine ─────────────────────────
+
+
+class TestColdTierRetrieval:
+    """Verifies query_cold_tier() returns heterochromatin genes with full
+    content when the query matches their ΣĒMA signature.
+
+    Requires sentence-transformers to load the SemaCodec (~400MB model).
+    Module-scoped fixture caches the codec across tests.
+    """
+
+    # Skip the whole class if sentence-transformers isn't installed
+    pytestmark = pytest.mark.skipif(
+        pytest.importorskip("sentence_transformers", reason="needs sentence-transformers") is None,
+        reason="needs sentence-transformers",
+    )
+
+    @pytest.fixture(scope="class")
+    def codec(self):
+        from helix_context.sema import SemaCodec
+        return SemaCodec()
+
+    @pytest.fixture
+    def cold_genome(self, codec):
+        """In-memory genome with a SemaCodec attached for cold-tier tests."""
+        g = Genome(path=":memory:", sema_codec=codec)
+        yield g
+        g.close()
+
+    def test_returns_empty_without_codec(self, genome):
+        """Without a SemaCodec, cold-tier retrieval degrades to empty list."""
+        # The default `genome` fixture has sema_codec=None
+        result = genome.query_cold_tier("any query text")
+        assert result == []
+
+    def test_returns_empty_when_no_heterochromatin_genes(self, cold_genome, codec):
+        """Fresh genome with no demoted genes → empty result."""
+        g = make_gene("unrelated content", domains=["test"])
+        g.embedding = codec.encode("unrelated content")
+        cold_genome.upsert_gene(g, apply_gate=False)
+        # Gene is chromatin=OPEN, so cold cache is empty
+
+        result = cold_genome.query_cold_tier("anything")
+        assert result == []
+
+    def test_retrieves_demoted_gene_on_semantic_match(self, cold_genome, codec):
+        """The headline test: a gene demoted to heterochromatin is still
+        findable via cold-tier ΣĒMA cosine when the query is semantically
+        close to its content. This is the whole point of C.1 + C.2."""
+        content = (
+            "def authenticate_user(username, password): "
+            "return check_password_hash(user.pw_hash, password)"
+        )
+        g = make_gene(content, domains=["python", "auth"])
+        g.source_id = "project/auth.py"
+        g.embedding = codec.encode(content)
+        cold_genome.upsert_gene(g, apply_gate=False)
+
+        # Demote to heterochromatin (non-destructive as of C.1)
+        cold_genome.compress_to_heterochromatin(g.gene_id)
+
+        # Query with a semantically-related phrase.
+        # Note on min_cosine: ΣĒMA's 20-dim projection is sparse by design.
+        # Typical close-paraphrase pairs score 0.15–0.30 in cosine, NOT
+        # 0.6–0.9 like full 384-dim sentence embeddings. Using 0.1 here
+        # to verify the mechanism works — the production default is 0.25
+        # which is slightly more permissive than the existing hot-tier
+        # Mode A/B thresholds (0.3/0.4).
+        result = cold_genome.query_cold_tier(
+            "user authentication login password check",
+            k=5,
+            min_cosine=0.1,
+        )
+
+        assert len(result) >= 1, "semantically-close query should retrieve the demoted gene"
+        assert result[0].gene_id == g.gene_id
+        # Content must be intact — this is what C.1 enabled
+        assert result[0].content == content
+        # Tier flag stays hetero — caller decides whether to promote
+        assert result[0].chromatin == ChromatinState.HETEROCHROMATIN
+
+    def test_respects_k_limit(self, cold_genome, codec):
+        """Even if many hetero genes match, only k are returned."""
+        contents = [
+            "python function for user authentication with password",
+            "python function for session token validation and refresh",
+            "python function for access control via role-based permissions",
+            "python function for OAuth2 flow with authorization code grant",
+        ]
+        for i, c in enumerate(contents):
+            g = make_gene(c, domains=["python", "auth"], entities=[f"fn_{i}"])
+            g.source_id = f"project/auth_{i}.py"
+            g.embedding = codec.encode(c)
+            cold_genome.upsert_gene(g, apply_gate=False)
+            cold_genome.compress_to_heterochromatin(g.gene_id)
+
+        result = cold_genome.query_cold_tier(
+            "authentication authorization security",
+            k=2,
+            min_cosine=0.05,  # very permissive so multiple match
+        )
+        assert len(result) <= 2
+
+    def test_respects_min_cosine_threshold(self, cold_genome, codec):
+        """A query far from the gene's semantic neighborhood returns nothing."""
+        g = make_gene(
+            "def red_velvet_cake_recipe(): return ['flour', 'cocoa', 'buttermilk']",
+            domains=["recipe"],
+        )
+        g.source_id = "recipes/cakes.py"
+        g.embedding = codec.encode(g.content)
+        cold_genome.upsert_gene(g, apply_gate=False)
+        cold_genome.compress_to_heterochromatin(g.gene_id)
+
+        # Query something completely unrelated, with a high threshold
+        result = cold_genome.query_cold_tier(
+            "kernel-level interrupt handler ISR assembly x86_64",
+            k=5,
+            min_cosine=0.9,  # very strict
+        )
+        assert result == [], "unrelated query with strict threshold should return nothing"
+
+    def test_cache_invalidated_on_upsert(self, cold_genome, codec):
+        """Upserting a new gene should invalidate the cold-tier cache so
+        the next query rebuilds it and sees the new state."""
+        g1 = make_gene("original hetero gene content", domains=["test"])
+        g1.embedding = codec.encode("original hetero gene content")
+        cold_genome.upsert_gene(g1, apply_gate=False)
+        cold_genome.compress_to_heterochromatin(g1.gene_id)
+
+        # First query — builds the cache
+        _ = cold_genome.query_cold_tier("original hetero", k=5, min_cosine=0.1)
+        assert cold_genome._cold_sema_cache is not None
+
+        # Now upsert a new gene (fresh hot-tier gene)
+        g2 = make_gene("newly added content", domains=["test"])
+        g2.embedding = codec.encode("newly added content")
+        cold_genome.upsert_gene(g2, apply_gate=False)
+
+        # Cache must have been invalidated
+        assert cold_genome._cold_sema_cache is None, (
+            "upsert_gene must invalidate the cold-tier cache"
+        )
+
+
 # ── Threshold constants are sane ───────────────────────────────────────
 
 

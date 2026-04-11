@@ -162,7 +162,8 @@ class Genome:
         self.conn.execute("PRAGMA busy_timeout=30000")  # 30s retry on lock
         self._upsert_count = 0  # WAL checkpoint cadence counter
         self.last_query_scores: Dict[str, float] = {}  # Retrieval scores from last query
-        self._sema_cache: Optional[Dict] = None  # Pre-materialized ΣĒMA vectors
+        self._sema_cache: Optional[Dict] = None  # Pre-materialized ΣĒMA vectors (hot tier)
+        self._cold_sema_cache: Optional[Dict] = None  # Pre-materialized ΣĒMA vectors (cold tier, C.2)
         self._init_db()
 
         # Dedicated read-only connection — WAL allows concurrent readers
@@ -530,8 +531,181 @@ class Genome:
             self._sema_cache = None
 
     def invalidate_sema_cache(self) -> None:
-        """Mark cache stale — rebuilt on next Mode B query."""
+        """Mark hot-tier cache stale — rebuilt on next Mode B query."""
         self._sema_cache = None
+
+    # ── Cold-tier ΣĒMA retrieval (C.2, 2026-04-10) ─────────────────────
+    #
+    # The hot-tier retrieval paths all filter `WHERE chromatin <
+    # HETEROCHROMATIN`, so heterochromatin genes are invisible to normal
+    # /context queries. C.1 made compress_to_heterochromatin non-destructive
+    # so the underlying content/complement/codons are preserved. This
+    # block adds the opt-in retrieval path that consults cold-tier genes
+    # via ΣĒMA cosine similarity and returns them with content restored.
+    #
+    # Design notes:
+    #   - Separate cache from the hot-tier _sema_cache so hot queries have
+    #     zero overhead from cold-tier capability.
+    #   - Lazy build on first use. Invalidated on any upsert.
+    #   - Requires numpy for batched cosine similarity (falls back to
+    #     empty result if unavailable, matching hot-tier Mode B behavior).
+    #   - Requires a SemaCodec attached to the Genome instance (for
+    #     encoding the query text). If no codec, returns empty.
+    #   - Callers must explicitly request cold-tier retrieval — it is
+    #     never invoked implicitly from query_genes(). The wiring into
+    #     context_manager is a follow-up (C.2-wire) and is gated behind
+    #     a helix.toml config flag.
+
+    def _build_cold_sema_cache(self) -> None:
+        """Build the heterochromatin ΣĒMA vector cache for fast cosine scans.
+
+        Scans all genes at ``chromatin = HETEROCHROMATIN`` that still have
+        an embedding (ΣĒMA vector). Normalizes and stacks them into a
+        dense numpy matrix for batched cosine similarity at query time.
+        """
+        try:
+            import numpy as np
+        except ImportError:
+            log.debug("numpy not available, cold ΣĒMA cache disabled")
+            return
+
+        cur = self.read_conn.cursor()
+        rows = cur.execute(
+            "SELECT gene_id, embedding FROM genes "
+            "WHERE embedding IS NOT NULL AND chromatin = ?",
+            (int(ChromatinState.HETEROCHROMATIN),),
+        ).fetchall()
+
+        gene_ids = []
+        vectors = []
+        for r in rows:
+            try:
+                vec = json_loads(r["embedding"])
+                if isinstance(vec, list) and len(vec) == 20:
+                    gene_ids.append(r["gene_id"])
+                    vectors.append(vec)
+            except Exception:
+                continue
+
+        if vectors:
+            matrix = np.array(vectors, dtype=np.float32)
+            norms = np.linalg.norm(matrix, axis=1, keepdims=True)
+            norms[norms < 1e-8] = 1.0
+            matrix = matrix / norms
+            self._cold_sema_cache = {"gene_ids": gene_ids, "matrix": matrix}
+            log.info("Cold ΣĒMA cache built: %d vectors (%d KB)",
+                     len(gene_ids), matrix.nbytes // 1024)
+        else:
+            self._cold_sema_cache = None
+
+    def invalidate_cold_sema_cache(self) -> None:
+        """Mark cold-tier cache stale — rebuilt on next query_cold_tier call."""
+        self._cold_sema_cache = None
+
+    def query_cold_tier(
+        self,
+        query_text: str,
+        k: int = 3,
+        min_cosine: float = 0.25,
+    ) -> List[Gene]:
+        """Search heterochromatin-tier genes by ΣĒMA cosine similarity.
+
+        Cold-tier retrieval is opt-in — normal ``query_genes()`` does not
+        consult this path. Use when a query is known to target archived
+        knowledge, or as a fallthrough when hot-tier results are empty or
+        too sparse to answer confidently.
+
+        Parameters
+        ----------
+        query_text : str
+            Natural-language query to encode via the attached SemaCodec.
+        k : int
+            Maximum number of cold-tier genes to return. Defaults to 3 —
+            cold retrieval should be a precision tool, not a dump.
+        min_cosine : float
+            Similarity floor in 20-dim ΣĒMA space. Matches below this
+            are discarded. Defaults to 0.25 — ΣĒMA's 20-dim projection
+            is sparse by design, so typical close-paraphrase pairs score
+            around 0.15–0.30 in cosine. The existing hot-tier Mode A/B
+            paths use 0.3/0.4 as meaningful thresholds (see
+            ``query_genes`` Tier 4). 0.25 here is slightly more
+            permissive because the cold path is only reached when hot
+            results are already thin — better to surface a weak match
+            than nothing.
+
+        Returns
+        -------
+        list[Gene]
+            Up to ``k`` heterochromatin genes with full content restored,
+            sorted by cosine similarity descending. Each gene's
+            ``chromatin`` field will still show HETEROCHROMATIN — the
+            caller is responsible for deciding whether to promote the
+            gene back to OPEN based on the retrieval event (e.g., by
+            updating access_count and letting a future sweep reconsider it).
+
+        Returns empty list when any precondition fails:
+            - No SemaCodec attached (self._sema_codec is None)
+            - numpy unavailable
+            - No heterochromatin genes with embeddings in the genome
+            - No matches clear the min_cosine threshold
+        """
+        if self._sema_codec is None:
+            return []
+
+        try:
+            import numpy as np
+        except ImportError:
+            return []
+
+        if self._cold_sema_cache is None:
+            self._build_cold_sema_cache()
+        if self._cold_sema_cache is None:
+            return []  # Nothing in the cold tier
+
+        try:
+            query_vec = self._sema_codec.encode(query_text)
+            q = np.array(query_vec, dtype=np.float32)
+            q_norm = np.linalg.norm(q)
+            if q_norm < 1e-8:
+                return []
+            q = q / q_norm
+
+            cache = self._cold_sema_cache
+            sims = cache["matrix"] @ q  # (N,20) @ (20,) → (N,)
+
+            # Sort descending, filter by threshold, take top-k
+            top_idx = np.argsort(sims)[::-1]
+            selected_ids: List[str] = []
+            selected_sims: Dict[str, float] = {}
+            for idx in top_idx:
+                sim = float(sims[idx])
+                if sim < min_cosine:
+                    break  # Sorted descending — once below threshold, stop
+                gid = cache["gene_ids"][idx]
+                selected_ids.append(gid)
+                selected_sims[gid] = sim
+                if len(selected_ids) >= k:
+                    break
+
+            if not selected_ids:
+                return []
+
+            # Fetch full Gene objects (content is preserved thanks to C.1)
+            genes: List[Gene] = []
+            for gid in selected_ids:
+                gene = self.get_gene(gid)
+                if gene is not None:
+                    genes.append(gene)
+
+            # Expose similarity scores via last_query_scores for the
+            # caller (context_manager uses this for tier-budget decisions)
+            for gid, sim in selected_sims.items():
+                self.last_query_scores[gid] = sim
+
+            return genes
+        except Exception:
+            log.debug("cold-tier ΣĒMA retrieval failed", exc_info=True)
+            return []
 
     # ── Replication ──────────────────────────────────────────────────
 
@@ -706,9 +880,12 @@ class Genome:
         elif self._upsert_count % 50 == 0:
             self.checkpoint("PASSIVE")
 
-        # Invalidate ΣĒMA cache (new gene may have embedding)
+        # Invalidate ΣĒMA caches (new gene may have embedding, and
+        # chromatin state changes can reshuffle hot/cold tier membership)
         if self._sema_cache is not None:
             self._sema_cache = None
+        if self._cold_sema_cache is not None:
+            self._cold_sema_cache = None
 
         # Notify replication manager (if attached)
         if self._replication_mgr is not None:
@@ -1846,6 +2023,11 @@ class Genome:
             (gene_id,),
         )
         self.conn.commit()
+        # Gene moved hot → cold — both tier caches are now stale
+        if self._sema_cache is not None:
+            self._sema_cache = None
+        if self._cold_sema_cache is not None:
+            self._cold_sema_cache = None
         log.debug("Moved gene %s to HETEROCHROMATIN (non-destructive)", gene_id)
         return True
 
