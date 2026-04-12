@@ -145,6 +145,21 @@ _KV_SKIP_KEYS = frozenset({
     "architecture", "description", "label", "title", "role",
 })
 
+# Python type-annotation names. These leak through the regex matcher on
+# annotated assignments like `port: int = 8080` — the naive pair matcher
+# sees `port: int` first (key=port, val=int) AND `int = 8080` as an inner
+# overlap (key=int, val=8080). Both are wrong. We skip both when either
+# side is a bare type name, so only the real literal value survives
+# (via the named patterns or a clean `port = 8080` assignment).
+_KV_TYPE_ANNOTATION_NAMES = frozenset({
+    "int", "str", "float", "bool", "bytes", "bytearray",
+    "list", "dict", "tuple", "set", "frozenset", "deque",
+    "optional", "any", "none", "type", "object",
+    "callable", "iterator", "iterable", "generator", "awaitable",
+    "coroutine", "mapping", "sequence", "union", "literal",
+    "path", "uuid", "datetime", "timedelta",
+})
+
 
 # ── CpuTagger ─────────────────────────────────────────────────────
 
@@ -325,6 +340,9 @@ class CpuTagger:
                 groups = match.groups()
                 if len(groups) == 1:
                     val = groups[0].rstrip(".,;:)'\"")
+                    # Skip bare Python type annotations (e.g. `model: str` → "str")
+                    if val.lower() in _KV_TYPE_ANNOTATION_NAMES:
+                        continue
                     if key_hint:
                         kv = f"{key_hint}={val}"
                     else:
@@ -333,6 +351,11 @@ class CpuTagger:
                     key = groups[0].lower().strip()
                     val = groups[1].rstrip(".,;:)'\"")
                     if key in _KV_SKIP_KEYS or len(key) < 2:
+                        continue
+                    # Skip `int = 8080` where the key is itself a type name
+                    if key in _KV_TYPE_ANNOTATION_NAMES:
+                        continue
+                    if val.lower() in _KV_TYPE_ANNOTATION_NAMES:
                         continue
                     kv = f"{key}={val}"
                 else:
@@ -347,6 +370,15 @@ class CpuTagger:
             key = match.group(1).lower()
             val = match.group(2).rstrip(".,;:)'\"")
             if key in _KV_SKIP_KEYS or len(key) < 3 or len(val) < 1:
+                continue
+            # Skip Python type annotations on both sides:
+            #   `port: int`   → key=port, val=int       (drop: val is a type)
+            #   `int = 8080`  → key=int,  val=8080      (drop: key is a type)
+            # This removes the type-annotation leak without affecting real
+            # `key = value` assignments or YAML/TOML scalar pairs.
+            if key in _KV_TYPE_ANNOTATION_NAMES:
+                continue
+            if val.lower() in _KV_TYPE_ANNOTATION_NAMES:
                 continue
             kv = f"{key}={val}"
             if kv not in seen and len(kv) < 200:
