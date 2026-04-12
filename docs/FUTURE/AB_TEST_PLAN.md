@@ -178,6 +178,33 @@ Total experiment cost: ~$0.30 + ~1 hour of benching + implementation
 time for lightning-strike (~1 day of work per LANGUAGE_AT_THE_EDGES.md
 §"Implementation path").
 
+## Follow-up work triggered by A's results
+
+**Headroom `compress_batch` PR** ([issue
+#151](https://github.com/chopratejas/headroom/issues/151)) is staged
+behind this bench. Once A's SIKE + KV-harvest numbers are in hand:
+
+1. If compression remains the dominant latency contributor (expected
+   per issue #151 — ~3,500ms for 12-gene expression), ping Tejas on
+   the issue with fresh benchmark data confirming the bottleneck.
+2. Once he signals PR welcome, implement `KompressCompressor.compress_batch()`
+   (~80 LOC, additive, zero-impact on non-helix users).
+3. Update `helix_context/headroom_bridge.py` with
+   `compress_text_batch()` helper + feature-detect for older headroom
+   versions.
+4. Modify `context_manager.py` Step 4 (gene expression) to use batched
+   path when available.
+
+Expected impact on helix after the PR lands upstream:
+- 12-gene expression: 3,500ms → ~200ms (17x faster)
+- 3-gene expression: 800ms → ~100ms (8x faster)
+- Proxy p95 latency drops 2-4s per query
+
+This work depends on A's numbers giving us empirical leverage ("we
+confirmed on N=50 fresh-genome bench that compression was the
+bottleneck"). Without that data, the PR is speculative; with it, the
+PR is grounded.
+
 ## Companion docs
 
 - [`MISSION.md`](../MISSION.md) — the why
