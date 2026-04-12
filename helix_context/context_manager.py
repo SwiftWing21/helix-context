@@ -305,6 +305,15 @@ class HelixContextManager:
         else:
             self._cymatics_peak_width = 3.0
 
+        # TCM session context (Howard & Kahana 2002 temporal drift)
+        self._tcm_session = None
+        try:
+            from .tcm import SessionContext
+            self._tcm_session = SessionContext(n_dims=20, beta=0.5)
+            log.info("TCM session context initialized (20D, beta=0.5)")
+        except Exception:
+            log.debug("TCM not available", exc_info=True)
+
         # Cold-tier retrieval markers (C.2 of B->C, 2026-04-10).
         # Set by _express() when cold-tier fallthrough actually fires
         # so the response builder can report cold_tier_used in the
@@ -497,6 +506,23 @@ class HelixContextManager:
             else:
                 candidates = candidates[:max_genes]
 
+        # Step 3.25: TCM session-context bonus (tiebreaker)
+        # Genes similar to the current session drift vector get a small
+        # boost. This creates forward-recall asymmetry — recent context
+        # preferentially surfaces related genes.
+        if self._tcm_session is not None and self._tcm_session.depth > 0:
+            try:
+                from .tcm import tcm_bonus
+                bonuses = tcm_bonus(self._tcm_session, candidates, weight=0.3)
+                # Re-sort candidates by retrieval score + TCM bonus
+                scores = self.genome.last_query_scores or {}
+                candidates.sort(
+                    key=lambda g: scores.get(g.gene_id, 0) + bonuses.get(g.gene_id, 0),
+                    reverse=True,
+                )
+            except Exception:
+                pass  # TCM is a tiebreaker, never blocks
+
         # Dynamic budget tiers — size the expression window based on
         # retrieval confidence instead of always sending max_genes.
         #
@@ -618,6 +644,14 @@ class HelixContextManager:
                     self.genome.store_harmonic_weights(weights)
             except Exception:
                 pass  # Harmonic links are diagnostic, not critical
+
+        # Update TCM session context with expressed genes
+        if self._tcm_session is not None:
+            try:
+                for gene in candidates:
+                    self._tcm_session.update_from_gene(gene)
+            except Exception:
+                pass  # TCM is diagnostic, not critical
 
         # Store typed relations in genome (if available)
         if relation_graph:
