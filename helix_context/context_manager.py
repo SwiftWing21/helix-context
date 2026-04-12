@@ -336,6 +336,12 @@ class HelixContextManager:
         except Exception:
             log.debug("TCM not available", exc_info=True)
 
+        # Shadow pool (soft elimination — genes cut from top-k keep
+        # residual weight, eligible for Lagrange pull-back if the
+        # winners' cluster looks like a gravity well rather than merit).
+        self._last_shadow_pool: List[Gene] = []
+        self._last_shadow_scores: Dict[str, float] = {}
+
         # Cold-tier retrieval markers (C.2 of B->C, 2026-04-10).
         # Set by _express() when cold-tier fallthrough actually fires
         # so the response builder can report cold_tier_used in the
@@ -472,8 +478,14 @@ class HelixContextManager:
 
         max_genes = self.config.budget.max_genes_per_turn
 
+        # Step 0: Query intent expansion (LLM-based, cached)
+        # Restates the query with expanded keywords BEFORE promoter lookup.
+        # This sharpens the initial frequency so retrieval falls into the
+        # right gravity well instead of optimizing the wrong one.
+        expanded_query = self._expand_query_intent(query)
+
         # Step 1: Extract promoter signals (heuristic, no model)
-        domains, entities = self._extract_query_signals(query)
+        domains, entities = self._extract_query_signals(expanded_query)
 
         # Step 2: Express (genome query + pending buffer + optional cold tier)
         candidates = self._express(
@@ -545,6 +557,28 @@ class HelixContextManager:
             else:
                 candidates = candidates[:max_genes]
 
+        # Step 3.20: Harmonic bin boost (Monte Carlo as overtone series)
+        # Reads ray-trace results as a FREQUENCY distribution — genes
+        # appearing in >70% of rays' paths are fundamentals, not ranks.
+        # This is the cymatics "read the standing wave" approach.
+        if len(candidates) >= 3:
+            try:
+                from .ray_trace import harmonic_bin_boost
+                seed_ids = [g.gene_id for g in candidates[:3]]
+                overtones = harmonic_bin_boost(
+                    seed_ids, self.genome,
+                    k_rays=100, max_bounces=2,  # lightweight for per-query use
+                )
+                if overtones:
+                    scores = self.genome.last_query_scores or {}
+                    for gene in candidates:
+                        if gene.gene_id in overtones:
+                            scores[gene.gene_id] = scores.get(gene.gene_id, 0) + overtones[gene.gene_id]
+                    self.genome.last_query_scores = scores
+                    candidates.sort(key=lambda g: scores.get(g.gene_id, 0), reverse=True)
+            except Exception:
+                log.debug("Harmonic bin boost failed", exc_info=True)
+
         # Step 3.25: TCM session-context bonus (tiebreaker)
         # Genes similar to the current session drift vector get a small
         # boost. This creates forward-recall asymmetry — recent context
@@ -591,28 +625,82 @@ class HelixContextManager:
                 ratio = top_score / max(mean_score, 0.01)
 
                 # Hard floor: drop anything below 15% of top
+                # Shadow scores: preserve cut genes' scores with 0.5x weight
+                # so Lagrange check and harmonic binning can pull them back
+                # if the landscape changes downstream.
                 floor = top_score * 0.15
                 gated = [g for g in candidates if scores.get(g.gene_id, 0) >= floor]
+                shadow_pool: List[Gene] = [g for g in candidates if scores.get(g.gene_id, 0) < floor]
                 if len(gated) >= 3:
                     candidates = gated
 
-                # Confidence tiering
+                # Confidence tiering (with shadow pool tracking)
                 if ratio >= 3.0 and len(candidates) >= 3:
                     # High confidence — top gene dominates, send 3
+                    # Move cut genes (4-12) to shadow pool
+                    shadow_pool = shadow_pool + candidates[3:]
                     candidates = candidates[:3]
                     budget_tier = "tight"
                     budget_tokens_est = 6000
                 elif ratio >= 1.8 and len(candidates) >= 6:
                     # Moderate confidence — narrow to 6
+                    shadow_pool = shadow_pool + candidates[6:]
                     candidates = candidates[:6]
                     budget_tier = "focused"
                     budget_tokens_est = 9000
                 # else: broad — keep current up-to-max_genes set
 
+                # Stash shadow pool for Lagrange check (#3)
+                self._last_shadow_pool = shadow_pool
+                self._last_shadow_scores = {
+                    g.gene_id: scores.get(g.gene_id, 0) * 0.5
+                    for g in shadow_pool
+                }
+
                 log.debug(
-                    "Dynamic budget: tier=%s ratio=%.2f top=%.1f mean=%.1f genes=%d",
-                    budget_tier, ratio, top_score, mean_score, len(candidates),
+                    "Dynamic budget: tier=%s ratio=%.2f top=%.1f mean=%.1f genes=%d shadow=%d",
+                    budget_tier, ratio, top_score, mean_score, len(candidates), len(shadow_pool),
                 )
+
+                # Lagrange point check: a gene in the shadow pool with HIGH
+                # standalone score but LOW co-activation with the winners is
+                # being deflected by cluster gravity, not rejected on merit.
+                # Pull it back if its standalone > 70% of winners' floor AND
+                # its co-activation overlap with winners is < 20%.
+                if shadow_pool and len(candidates) >= 3 and budget_tier != "broad":
+                    try:
+                        winner_ids = {g.gene_id for g in candidates}
+                        winner_coact: set[str] = set()
+                        for g in candidates:
+                            winner_coact.update(g.epigenetics.co_activated_with or [])
+                        winner_floor = min(scores.get(g.gene_id, 0) for g in candidates)
+                        lagrange_threshold = winner_floor * 0.7
+
+                        # Rank shadow pool by standalone score
+                        shadow_ranked = sorted(
+                            shadow_pool,
+                            key=lambda g: self._last_shadow_scores.get(g.gene_id, 0),
+                            reverse=True,
+                        )
+                        for g in shadow_ranked[:3]:  # check top 3 shadow candidates
+                            shadow_score = scores.get(g.gene_id, 0)
+                            if shadow_score < lagrange_threshold:
+                                break  # standalone too weak
+                            # Co-activation overlap with winners
+                            g_coact = set(g.epigenetics.co_activated_with or [])
+                            overlap = len(g_coact & (winner_ids | winner_coact))
+                            overlap_ratio = overlap / max(len(g_coact), 1) if g_coact else 1.0
+                            if overlap_ratio < 0.2:
+                                # Low co-activation with winners → being deflected
+                                log.debug(
+                                    "Lagrange pull-back: gene %s (score=%.2f, overlap=%.1f%%)",
+                                    g.gene_id[:12], shadow_score, overlap_ratio * 100,
+                                )
+                                # Replace the weakest winner with this gene
+                                candidates[-1] = g
+                                break
+                    except Exception:
+                        pass  # Lagrange check is a bonus, never blocks
 
         # Step 3.5: NLI classification (optional, DeBERTa backend only)
         relation_graph = {}
@@ -948,6 +1036,60 @@ class HelixContextManager:
         No model call -- uses pre-built frozenset from accel module.
         """
         return extract_query_signals(query)
+
+    def _expand_query_intent(self, query: str) -> str:
+        """
+        Step 0: Sharpen the initial query frequency via LLM expansion.
+
+        A small ribosome call (~100 tokens out) restates the query with
+        expanded keywords BEFORE promoter lookup. This changes which 12
+        genes get pulled in the first place — upstream of every bracket
+        cut in the pipeline.
+
+        The Thinker metaphor: don't optimize the judge; fix the signal.
+        Falls back to the raw query on any failure (LRU-cached per query).
+        """
+        # LRU-cached expansion (query text → expanded text)
+        if not hasattr(self, "_intent_cache"):
+            self._intent_cache: Dict[str, str] = {}
+        if query in self._intent_cache:
+            return self._intent_cache[query]
+
+        # Only expand when we have a real LLM backend (skip for paused/Ollama-warmup)
+        if not hasattr(self.ribosome, "backend"):
+            self._intent_cache[query] = query
+            return query
+
+        system = (
+            "You are a query intent expander. Given a user's question, "
+            "output a single line of SPACE-SEPARATED KEYWORDS that capture "
+            "the question's intent plus likely synonyms and domain terms. "
+            "Include the original key words. No prose, no punctuation, just "
+            "lowercase keywords separated by spaces. Maximum 15 words."
+        )
+        prompt = f"Query: {query}\n\nKeywords:"
+
+        try:
+            raw = self.ribosome.backend.complete(prompt, system=system, temperature=0.0)
+            # Clean: lowercase, strip punctuation, keep only word-like tokens
+            import re as _re
+            expanded = " ".join(
+                _re.findall(r"[a-z0-9_]+", raw.lower())
+            )[:500]  # hard cap
+            if not expanded:
+                expanded = query
+            else:
+                # Always append original query so the intent isn't drift-away
+                expanded = f"{query} {expanded}"
+        except Exception:
+            log.debug("Query intent expansion failed, using raw query", exc_info=True)
+            expanded = query
+
+        # Cache + bound (prevent unbounded growth)
+        if len(self._intent_cache) > 256:
+            self._intent_cache.clear()
+        self._intent_cache[query] = expanded
+        return expanded
 
     # -- Internal: Step 2 (express) ------------------------------------
 

@@ -28,6 +28,8 @@ __all__ = [
     "cast_evidence_rays",
     "ray_trace_boost",
     "ray_trace_info",
+    "read_overtone_series",
+    "harmonic_bin_boost",
 ]
 
 log = logging.getLogger(__name__)
@@ -235,6 +237,89 @@ def ray_trace_boost(
         gid: min(BOOST_CAP, (energy / max_energy) * BOOST_CAP)
         for gid, energy in raw.items()
     }
+
+
+# ── Harmonic bin reading (overtone series interpretation) ───────────────
+
+def read_overtone_series(
+    seed_gene_ids: List[str],
+    genome: "Genome",
+    k_rays: int = DEFAULT_K_RAYS,
+    max_bounces: int = DEFAULT_MAX_BOUNCES,
+    seed: Optional[int] = 0,
+) -> Dict[str, float]:
+    """
+    Read Monte Carlo rays as a FREQUENCY distribution, not an energy rank.
+
+    Cymatics insight: the Chladni plate doesn't run a tournament — it
+    applies one frequency and the sand finds nodes simultaneously at
+    every scale. A gene appearing in k rays' paths IS the antinode.
+
+    Returns {gene_id: overtone_weight} where:
+      - Fundamental (gene appears in >= 70% of rays' paths): weight 1.0
+      - First harmonic (appears in 40-70%): weight 0.5
+      - Second harmonic (appears in 20-40%): weight 0.25
+      - Noise (< 20%): weight 0.0 (excluded)
+
+    The fundamental IS the expression candidate. Harmonics are candidate
+    support. This reframes ranked cutoffs as resonance reading.
+    """
+    if not seed_gene_ids:
+        return {}
+
+    rng = random.Random(seed)
+    adjacency = _build_adjacency(genome, seed_gene_ids)
+
+    # Track: for each ray, which genes it visited
+    visit_count: Dict[str, int] = {}
+
+    for ray_idx in range(k_rays):
+        start = seed_gene_ids[ray_idx % len(seed_gene_ids)]
+        current = start
+        visited: set = {current}
+
+        for _bounce in range(max_bounces):
+            neighbors = adjacency.get(current, [])
+            if not neighbors:
+                break
+            current = rng.choice(neighbors)
+            visited.add(current)
+
+        # Count unique gene visits for this ray
+        for gid in visited:
+            visit_count[gid] = visit_count.get(gid, 0) + 1
+
+    # Convert to overtone weights via harmonic bins
+    overtones: Dict[str, float] = {}
+    for gid, count in visit_count.items():
+        frequency = count / k_rays
+        if frequency >= 0.70:
+            overtones[gid] = 1.0       # Fundamental
+        elif frequency >= 0.40:
+            overtones[gid] = 0.5       # First harmonic
+        elif frequency >= 0.20:
+            overtones[gid] = 0.25      # Second harmonic
+        # else: noise, excluded
+
+    return overtones
+
+
+def harmonic_bin_boost(
+    seed_gene_ids: List[str],
+    genome: "Genome",
+    k_rays: int = DEFAULT_K_RAYS,
+    max_bounces: int = DEFAULT_MAX_BOUNCES,
+) -> Dict[str, float]:
+    """
+    Return harmonic bin boost for retrieval scoring.
+
+    Reads the overtone series and returns normalized [0, 1.5] weights
+    for use as a retrieval score addition. Fundamentals get the full
+    boost; harmonics get proportional amounts.
+    """
+    overtones = read_overtone_series(seed_gene_ids, genome, k_rays, max_bounces)
+    # Scale weights to [0, 1.5] (fundamental=1.5, 1st harmonic=0.75, etc.)
+    return {gid: w * 1.5 for gid, w in overtones.items()}
 
 
 # ── Diagnostics ─────────────────────────────────────────────────────────

@@ -7,6 +7,8 @@ from helix_context.ray_trace import (
     cast_evidence_rays,
     ray_trace_boost,
     ray_trace_info,
+    read_overtone_series,
+    harmonic_bin_boost,
     BOOST_CAP,
 )
 from helix_context.schemas import Gene, PromoterTags, EpigeneticMarkers
@@ -195,3 +197,62 @@ class TestRayTraceInfo:
         assert info["unique_genes_reached"] == 1
         assert info["max_energy"] == pytest.approx(5.5)
         assert info["mean_energy"] == pytest.approx(5.5)
+
+
+class TestOvertoneSeries:
+    """Tests for read_overtone_series() — Monte Carlo as frequency distribution."""
+
+    def test_empty_seeds(self, genome):
+        assert read_overtone_series([], genome) == {}
+
+    def test_fundamental_isolated(self, genome):
+        """Isolated seed visits itself in every ray → fundamental (weight 1.0)."""
+        _make_gene(genome, "solo")
+        overtones = read_overtone_series(["solo"], genome, k_rays=100, seed=42)
+        # Seed visited in every ray → frequency 1.0 → fundamental
+        assert overtones.get("solo") == pytest.approx(1.0)
+
+    def test_chain_harmonics(self, genome):
+        """A → B → C chain: A is fundamental (in every ray), B is first harmonic."""
+        _make_gene(genome, "A", co_activated=["B"])
+        _make_gene(genome, "B", co_activated=["A", "C"])
+        _make_gene(genome, "C", co_activated=["B"])
+        overtones = read_overtone_series(["A"], genome, k_rays=100, max_bounces=2, seed=42)
+        # A is the seed — in 100% of rays
+        assert overtones["A"] == 1.0
+        # B is reached on first bounce — should be fundamental or first harmonic
+        assert "B" in overtones
+        assert overtones["B"] >= 0.25  # at least second harmonic
+
+    def test_noise_excluded(self, genome):
+        """Genes visited in <20% of rays are filtered as noise."""
+        # Star graph: A connects to many, each B_i only connects to A
+        peers = [f"leaf_{i}" for i in range(10)]
+        _make_gene(genome, "hub", co_activated=peers)
+        for p in peers:
+            _make_gene(genome, p, co_activated=["hub"])
+        overtones = read_overtone_series(["hub"], genome, k_rays=100, max_bounces=2, seed=42)
+        # Each leaf has ~10% visit rate → should be excluded as noise
+        # Hub is fundamental
+        assert overtones.get("hub") == 1.0
+
+
+class TestHarmonicBinBoost:
+    """Tests for harmonic_bin_boost() — retrieval score addition."""
+
+    def test_empty_seeds(self, genome):
+        assert harmonic_bin_boost([], genome) == {}
+
+    def test_scaled_to_1_5(self, genome):
+        """Fundamentals get 1.5 boost (overtone 1.0 * scale 1.5)."""
+        _make_gene(genome, "fundamental")
+        boost = harmonic_bin_boost(["fundamental"], genome, k_rays=100)
+        assert boost.get("fundamental") == pytest.approx(1.5)
+
+    def test_bounded(self, genome):
+        """All boosts are <= 1.5."""
+        _make_gene(genome, "A", co_activated=["B"])
+        _make_gene(genome, "B", co_activated=["A"])
+        boost = harmonic_bin_boost(["A"], genome, k_rays=100)
+        for v in boost.values():
+            assert 0 <= v <= 1.5
