@@ -199,6 +199,153 @@ class OllamaBackend:
             return "gemma3:4b"
 
 
+# ── Claude API backend ─────────────────────────────────────────────
+
+class ClaudeBackend:
+    """Anthropic Claude API backend for the ribosome.
+
+    Drop-in replacement for OllamaBackend. Routes through a proxy (e.g.
+    Headroom at :8787) when claude_base_url is set in helix.toml; hits
+    Anthropic directly otherwise.
+
+    Cost controls:
+    - Prompt caching (cache_control: ephemeral) on all system prompts —
+      bulk ingest repeats the same system prompt per operation, so every
+      call after the first is a cache hit.
+    - 300ms minimum between requests per CLAUDE.md rate-limit policy.
+    - Explicit 30s timeout so ingest can't hang indefinitely.
+
+    Switch back to Ollama: set backend = "ollama" in helix.toml.
+    """
+
+    def __init__(
+        self,
+        model: str = "claude-haiku-4-5-20251001",
+        base_url: str = "",
+        max_tokens: int = 3000,
+        timeout: float = 30.0,
+        min_request_interval: float = 0.3,
+    ):
+        import time as _time
+        try:
+            import anthropic as _anthropic
+        except ImportError as exc:
+            raise ImportError(
+                "anthropic package required for ClaudeBackend — pip install anthropic"
+            ) from exc
+
+        self._time = _time
+        init_kwargs: dict = {"timeout": timeout}
+        if base_url:
+            init_kwargs["base_url"] = base_url
+        self.client = _anthropic.Anthropic(**init_kwargs)
+        self.model = model
+        self.max_tokens = max_tokens
+        self._min_interval = min_request_interval
+        self._last_request_ts: float = 0.0
+
+    def complete(self, prompt: str, system: str = "", temperature: float = 0.0) -> str:
+        elapsed = self._time.monotonic() - self._last_request_ts
+        if elapsed < self._min_interval:
+            self._time.sleep(self._min_interval - elapsed)
+
+        # Cache stable system prompts — same system string repeats across
+        # all pack/replicate/kv-extract calls during bulk ingest.
+        system_param: list | str
+        if system:
+            system_param = [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}]
+        else:
+            system_param = ""
+
+        try:
+            resp = self.client.messages.create(
+                model=self.model,
+                max_tokens=self.max_tokens,
+                temperature=temperature,
+                system=system_param,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            return resp.content[0].text
+        except Exception:
+            raise
+        finally:
+            self._last_request_ts = self._time.monotonic()
+
+
+# ── LiteLLM backend (universal — Claude, Gemini, OpenAI, Ollama) ──
+
+class LiteLLMBackend:
+    """Universal model backend via litellm.
+
+    One backend for any provider. Model strings use litellm prefix format:
+      - "gemini/gemini-2.5-flash"    → Google Gemini
+      - "claude-haiku-4-5-20251001"  → Anthropic Claude
+      - "gpt-4o"                     → OpenAI
+      - "ollama/qwen3:8b"            → Local Ollama
+
+    Routes through Headroom proxy when base_url is set (compression +
+    caching on all providers). Direct API otherwise.
+
+    Requires: pip install litellm (already installed via headroom-ai)
+    """
+
+    def __init__(
+        self,
+        model: str = "gemini/gemini-2.5-flash",
+        base_url: str = "",
+        max_tokens: int = 3000,
+        timeout: float = 30.0,
+        min_request_interval: float = 0.3,
+    ):
+        import time as _time
+        try:
+            import litellm as _litellm
+        except ImportError as exc:
+            raise ImportError(
+                "litellm package required for LiteLLMBackend — pip install litellm"
+            ) from exc
+
+        self._time = _time
+        self._litellm = _litellm
+        self.model = model
+        self.max_tokens = max_tokens
+        self.timeout = timeout
+        self.base_url = base_url or None
+        self._min_interval = min_request_interval
+        self._last_request_ts: float = 0.0
+
+        # Suppress litellm's verbose logging
+        _litellm.suppress_debug_info = True
+
+    def complete(self, prompt: str, system: str = "", temperature: float = 0.0) -> str:
+        elapsed = self._time.monotonic() - self._last_request_ts
+        if elapsed < self._min_interval:
+            self._time.sleep(self._min_interval - elapsed)
+
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+
+        kwargs = {
+            "model": self.model,
+            "messages": messages,
+            "max_tokens": self.max_tokens,
+            "temperature": temperature,
+            "timeout": self.timeout,
+        }
+        if self.base_url:
+            kwargs["base_url"] = self.base_url
+
+        try:
+            resp = self._litellm.completion(**kwargs)
+            return resp.choices[0].message.content
+        except Exception:
+            raise
+        finally:
+            self._last_request_ts = self._time.monotonic()
+
+
 # ── System prompts ──────────────────────────────────────────────────
 
 _PACK_SYSTEM = """You are a context compression engine. You receive raw text and produce structured JSON.

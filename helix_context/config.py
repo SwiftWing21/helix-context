@@ -28,9 +28,10 @@ class RibosomeConfig:
     timeout: float = 10.0
     keep_alive: str = "30m"     # How long Ollama keeps the ribosome model loaded
     warmup: bool = True         # Pre-load model on server start
-    backend: str = "ollama"     # "ollama" | "deberta" | "claude"
+    backend: str = "ollama"     # "ollama" | "deberta" | "claude" | "litellm"
     claude_model: str = "claude-haiku-4-5-20251001"   # Claude model when backend="claude"
-    claude_base_url: str = ""   # Proxy URL (e.g. Headroom at http://127.0.0.1:8787); "" = direct Anthropic
+    claude_base_url: str = ""   # Proxy URL (e.g. Headroom at http://127.0.0.1:8787); "" = direct
+    litellm_model: str = "gemini/gemini-2.5-flash"    # LiteLLM model string when backend="litellm"
     rerank_model_path: str = "training/models/rerank"
     splice_model_path: str = "training/models/splice"
     splice_threshold: float = 0.5
@@ -145,6 +146,7 @@ def load_config(path: Optional[str] = None) -> HelixConfig:
             backend=r.get("backend", cfg.ribosome.backend),
             claude_model=r.get("claude_model", cfg.ribosome.claude_model),
             claude_base_url=r.get("claude_base_url", cfg.ribosome.claude_base_url),
+            litellm_model=r.get("litellm_model", cfg.ribosome.litellm_model),
             rerank_model_path=r.get("rerank_model_path", cfg.ribosome.rerank_model_path),
             splice_model_path=r.get("splice_model_path", cfg.ribosome.splice_model_path),
             splice_threshold=float(r.get("splice_threshold", cfg.ribosome.splice_threshold)),

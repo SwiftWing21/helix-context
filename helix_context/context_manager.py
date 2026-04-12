@@ -30,7 +30,7 @@ from .config import HelixConfig
 from .exceptions import PromoterMismatch
 from .genome import Genome
 from .headroom_bridge import compress_text
-from .ribosome import ClaudeBackend, Ribosome, OllamaBackend
+from .ribosome import ClaudeBackend, LiteLLMBackend, Ribosome, OllamaBackend
 from .schemas import ChromatinState, ContextHealth, ContextWindow, Gene
 
 log = logging.getLogger("helix.context_manager")
@@ -235,6 +235,25 @@ class HelixContextManager:
                 )
             except Exception:
                 log.warning("ClaudeBackend failed to load, falling back to Ollama", exc_info=True)
+                self.ribosome = ollama_ribosome
+        elif config.ribosome.backend == "litellm":
+            try:
+                litellm_backend = LiteLLMBackend(
+                    model=config.ribosome.litellm_model,
+                    base_url=config.ribosome.claude_base_url,  # reuse proxy URL
+                    max_tokens=config.budget.ribosome_tokens,
+                    timeout=config.ribosome.timeout,
+                )
+                self.ribosome = Ribosome(
+                    backend=litellm_backend,
+                    encoder=self.encoder,
+                    splice_aggressiveness=config.budget.splice_aggressiveness,
+                )
+                log.info("Using LiteLLM ribosome (model=%s, proxy=%s)",
+                         config.ribosome.litellm_model,
+                         config.ribosome.claude_base_url or "direct")
+            except Exception:
+                log.warning("LiteLLMBackend failed to load, falling back to Ollama", exc_info=True)
                 self.ribosome = ollama_ribosome
         elif config.ribosome.backend == "deberta":
             try:
@@ -479,22 +498,39 @@ class HelixContextManager:
             )
 
         # Step 3: Score-gated trimming
-        # Instead of blindly taking max_genes, only express genes with
-        # meaningful retrieval scores. Cymatics resonance_rank (CPU, ~5ms)
-        # is preferred over LLM re_rank (~2s) when enabled.
+        # Cymatics resonance is blended as a BONUS on retrieval scores,
+        # not used to re-sort. This preserves retrieval-tier ordering
+        # (which finds the right genes) while giving spectrally-similar
+        # genes a small boost for tiebreaking.
+        if self._use_cymatics and len(candidates) > 1:
+            try:
+                from .cymatics import (
+                    query_spectrum, cached_gene_spectrum,
+                    flux_score, build_weight_vector,
+                )
+                q_spec = query_spectrum(
+                    query, synonym_map=self.config.synonym_map,
+                    peak_width=self._cymatics_peak_width,
+                )
+                weights = build_weight_vector(
+                    query, synonym_map=self.config.synonym_map,
+                    peak_width=self._cymatics_peak_width,
+                )
+                scores = self.genome.last_query_scores or {}
+                for gene in candidates:
+                    g_spec = cached_gene_spectrum(gene, peak_width=self._cymatics_peak_width)
+                    bonus = flux_score(q_spec, g_spec, weights) * 0.5  # max 0.5 bonus
+                    scores[gene.gene_id] = scores.get(gene.gene_id, 0) + bonus
+                self.genome.last_query_scores = scores
+                # Re-sort by blended score
+                candidates.sort(
+                    key=lambda g: scores.get(g.gene_id, 0), reverse=True,
+                )
+            except Exception:
+                log.debug("Cymatics blend failed", exc_info=True)
+
         if len(candidates) > max_genes:
-            if self._use_cymatics:
-                try:
-                    from .cymatics import resonance_rank
-                    candidates = resonance_rank(
-                        query, candidates, k=max_genes,
-                        synonym_map=self.config.synonym_map,
-                        peak_width=self._cymatics_peak_width,
-                    )
-                except Exception:
-                    log.warning("Cymatics re_rank failed, falling back", exc_info=True)
-                    candidates = candidates[:max_genes]
-            elif (
+            if (
                 self.config.ingestion.rerank_enabled
                 and hasattr(self.ribosome, 're_rank')
             ):
