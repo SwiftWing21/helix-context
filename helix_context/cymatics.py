@@ -286,18 +286,114 @@ def resonance_score(spec_a: List[float], spec_b: List[float]) -> float:
     return dot / (mag_a * mag_b)
 
 
+def build_weight_vector(
+    query: str,
+    synonym_map: Optional[Dict[str, List[str]]] = None,
+    peak_width: float = 3.0,
+    amplify: float = 1.5,
+    synonym_amplify: float = 1.2,
+    baseline: float = 0.8,
+) -> List[float]:
+    """
+    Build a query-adaptive 256-bin weight vector (the dA⃗ surface).
+
+    Bins near query term frequencies are amplified (1.5x default).
+    Bins near synonym frequencies get moderate boost (1.2x).
+    All other bins get dampened baseline (0.8x).
+
+    The result is a smooth Gaussian envelope — not binary gates.
+    This is the discrete approximation of ∫ B⃗ · dA⃗ where the
+    surface area varies by frequency region.
+    """
+    weights = [baseline] * N_BINS
+    domains, entities = extract_query_signals(query)
+    all_terms = domains + entities
+
+    if not all_terms:
+        return weights
+
+    # Amplify bins near query term frequencies
+    for term in all_terms:
+        freq = term_to_frequency(term)
+        radius = int(peak_width * 3) + 1
+        for i in range(max(0, freq - radius), min(N_BINS, freq + radius + 1)):
+            dist = (i - freq) / max(peak_width, 0.1)
+            boost = (amplify - baseline) * math.exp(-0.5 * dist * dist)
+            weights[i] = max(weights[i], baseline + boost)
+
+    # Synonym expansion — moderate boost
+    if synonym_map:
+        for term in all_terms:
+            key = term.lower()
+            if key in synonym_map:
+                for syn in synonym_map[key]:
+                    freq = term_to_frequency(syn)
+                    radius = int(peak_width * 2) + 1
+                    for i in range(max(0, freq - radius), min(N_BINS, freq + radius + 1)):
+                        dist = (i - freq) / max(peak_width, 0.1)
+                        boost = (synonym_amplify - baseline) * math.exp(-0.5 * dist * dist)
+                        weights[i] = max(weights[i], baseline + boost)
+
+    return weights
+
+
+def flux_score(
+    spec_a: List[float],
+    spec_b: List[float],
+    weights: List[float],
+) -> float:
+    """
+    Weighted cosine similarity — the discrete flux integral.
+
+    Φ = ∫ B⃗ · dA⃗  ≈  dot(a*w, b*w) / (|a*w| * |b*w|)
+
+    When weights are uniform, this equals resonance_score().
+    When weights amplify query-relevant bins, domain-matched
+    genes score higher than spectrally-distant ones.
+
+    Returns 0.0-1.0.
+    """
+    if _HAS_NUMPY:
+        a = np.array(spec_a)
+        b = np.array(spec_b)
+        w = np.array(weights)
+        aw = a * w
+        bw = b * w
+        mag_aw = np.linalg.norm(aw)
+        mag_bw = np.linalg.norm(bw)
+        if mag_aw == 0 or mag_bw == 0:
+            return 0.0
+        return float(np.dot(aw, bw) / (mag_aw * mag_bw))
+
+    # Pure-Python fallback
+    aw = [a * w for a, w in zip(spec_a, weights)]
+    bw = [b * w for b, w in zip(spec_b, weights)]
+    dot = sum(a * b for a, b in zip(aw, bw))
+    mag_aw = math.sqrt(sum(a * a for a in aw))
+    mag_bw = math.sqrt(sum(b * b for b in bw))
+    if mag_aw == 0 or mag_bw == 0:
+        return 0.0
+    return dot / (mag_aw * mag_bw)
+
+
 def resonance_rank(
     query: str,
     candidates: List[Gene],
     k: int = 5,
     synonym_map: Optional[Dict[str, List[str]]] = None,
     peak_width: float = 3.0,
+    use_flux: bool = True,
 ) -> List[Gene]:
     """
     Rank candidate genes by resonance with the query spectrum.
 
     Drop-in replacement for Ribosome.re_rank(). Builds query spectrum
     once, scores all candidates via cosine similarity, returns top-k.
+
+    When use_flux=True (default), uses adaptive bin weighting via
+    flux_score() — the discrete ∫ B⃗ · dA⃗ that amplifies query-
+    relevant frequency regions. Falls back to flat resonance_score()
+    when use_flux=False.
 
     Preserves the lost-in-the-middle guard: if fewer than 50% of
     candidates score above 0.2, pad with unscored candidates.
@@ -310,10 +406,18 @@ def resonance_rank(
 
     q_spec = query_spectrum(query, synonym_map=synonym_map, peak_width=peak_width)
 
+    # Build adaptive weight vector if using flux scoring
+    weights = None
+    if use_flux:
+        weights = build_weight_vector(query, synonym_map=synonym_map, peak_width=peak_width)
+
     scored: List[Tuple[float, Gene]] = []
     for gene in candidates:
         g_spec = cached_gene_spectrum(gene, peak_width=peak_width)
-        score = resonance_score(q_spec, g_spec)
+        if weights:
+            score = flux_score(q_spec, g_spec, weights)
+        else:
+            score = resonance_score(q_spec, g_spec)
         if score > 0.05:  # Noise floor
             scored.append((score, gene))
 

@@ -1042,14 +1042,22 @@ class Genome:
         domains: List[str],
         entities: List[str],
         max_genes: int = 8,
+        party_id: Optional[str] = None,
     ) -> List[Gene]:
         """
         Find genes matching the given promoter signals.
 
-        Three-tier retrieval:
+        Multi-tier retrieval:
             1. Exact promoter tag match (highest confidence)
             2. Prefix tag match — "server" matches "serverconfig" (medium)
             3. FTS5 content search — searches gene text directly (fallback)
+            3.5 SPLADE sparse retrieval
+            4. SEMA semantic retrieval + re-ranking
+            5. Harmonic co-activation boost (mutual reinforcement)
+            Tiebreaker: access-rate bonus for equal-scored genes
+
+        When party_id is provided, Tiers 1-3 are filtered to genes
+        attributed to that party, and attributed genes get a +0.5 bonus.
 
         Results are merged with weighted scoring, then expanded via
         co-activation pull-forward. Returns up to max_genes * 2 candidates.
@@ -1068,6 +1076,24 @@ class Genome:
         # Gene scores: gene_id → float (accumulated across tiers)
         gene_scores: Dict[str, float] = {}
 
+        # ── party_id filter clause (reused across Tiers 1-3) ──────
+        _party_filter = ""
+        _party_params: list = []
+        if party_id is not None:
+            try:
+                _has_attr_table = cur.execute(
+                    "SELECT COUNT(*) FROM sqlite_master "
+                    "WHERE type='table' AND name='gene_attribution'"
+                ).fetchone()[0]
+            except Exception:
+                _has_attr_table = False
+            if _has_attr_table:
+                _party_filter = (
+                    " AND g.gene_id IN "
+                    "(SELECT gene_id FROM gene_attribution WHERE party_id = ?)"
+                )
+                _party_params = [party_id]
+
         # ── Tier 1: exact promoter tag match (weight 3.0) ──────────
         placeholders = ",".join("?" * len(query_terms))
         rows = cur.execute(
@@ -1077,9 +1103,10 @@ class Genome:
             JOIN promoter_index pi ON g.gene_id = pi.gene_id
             WHERE pi.tag_value IN ({placeholders})
               AND g.chromatin < ?
+              {_party_filter}
             GROUP BY g.gene_id
             """,
-            (*query_terms, int(ChromatinState.HETEROCHROMATIN)),
+            (*query_terms, int(ChromatinState.HETEROCHROMATIN), *_party_params),
         ).fetchall()
 
         for r in rows:
@@ -1098,9 +1125,10 @@ class Genome:
             JOIN promoter_index pi ON g.gene_id = pi.gene_id
             WHERE ({prefix_conditions})
               AND g.chromatin < ?
+              {_party_filter}
             GROUP BY g.gene_id
             """,
-            (*prefix_params, int(ChromatinState.HETEROCHROMATIN)),
+            (*prefix_params, int(ChromatinState.HETEROCHROMATIN), *_party_params),
         ).fetchall()
 
         for r in rows:
@@ -1133,9 +1161,10 @@ class Genome:
                         fts_ranks = {r["gene_id"]: r["rank"] for r in fts_rows}
                         id_ph = ",".join("?" * len(fts_ids))
                         valid = cur.execute(
-                            f"SELECT gene_id FROM genes "
-                            f"WHERE gene_id IN ({id_ph}) AND chromatin < ?",
-                            (*fts_ids, int(ChromatinState.HETEROCHROMATIN)),
+                            f"SELECT gene_id FROM genes g "
+                            f"WHERE g.gene_id IN ({id_ph}) AND g.chromatin < ?"
+                            f" {_party_filter}",
+                            (*fts_ids, int(ChromatinState.HETEROCHROMATIN), *_party_params),
                         ).fetchall()
                         valid_ids = {r["gene_id"] for r in valid}
 
@@ -1268,16 +1297,89 @@ class Genome:
             boost = min(idf * 1.5, 3.0)
             if boost > 1.0:
                 anchor_genes = cur.execute(
-                    "SELECT pi.gene_id FROM promoter_index pi "
-                    "JOIN genes g ON pi.gene_id = g.gene_id "
-                    "WHERE pi.tag_value = ? AND g.chromatin < ?",
-                    (term, int(ChromatinState.HETEROCHROMATIN)),
+                    f"SELECT pi.gene_id FROM promoter_index pi "
+                    f"JOIN genes g ON pi.gene_id = g.gene_id "
+                    f"WHERE pi.tag_value = ? AND g.chromatin < ?"
+                    f" {_party_filter}",
+                    (term, int(ChromatinState.HETEROCHROMATIN), *_party_params),
                 ).fetchall()
                 for r in anchor_genes:
                     gene_scores[r["gene_id"]] = gene_scores.get(r["gene_id"], 0) + boost
 
         # ── Authority boosts: distinguish "about X" from "mentions X" ──
         self._apply_authority_boosts(cur, gene_scores, query_terms)
+
+        # ── Tier 5: harmonic co-activation boost ──────────────────
+        # For each candidate, add a score bonus from genes that are
+        # harmonically linked to OTHER candidates (mutual reinforcement).
+        # Weight: 1.0 per link, capped at 3.0 total bonus.
+        if gene_scores:
+            try:
+                _has_harmonic = cur.execute(
+                    "SELECT COUNT(*) FROM sqlite_master "
+                    "WHERE type='table' AND name='harmonic_links'"
+                ).fetchone()[0]
+            except Exception:
+                _has_harmonic = False
+            if _has_harmonic:
+                try:
+                    candidate_ids = list(gene_scores.keys())
+                    cid_ph = ",".join("?" * len(candidate_ids))
+                    harmonic_rows = cur.execute(
+                        f"SELECT gene_id_a, gene_id_b, weight "
+                        f"FROM harmonic_links "
+                        f"WHERE gene_id_a IN ({cid_ph}) "
+                        f"  AND gene_id_b IN ({cid_ph})",
+                        (*candidate_ids, *candidate_ids),
+                    ).fetchall()
+                    harmonic_bonus: Dict[str, float] = {}
+                    for hr in harmonic_rows:
+                        for gid in (hr["gene_id_a"], hr["gene_id_b"]):
+                            harmonic_bonus[gid] = min(
+                                harmonic_bonus.get(gid, 0) + 1.0, 3.0,
+                            )
+                    for gid, bonus in harmonic_bonus.items():
+                        gene_scores[gid] = gene_scores.get(gid, 0) + bonus
+                except Exception:
+                    log.debug("Harmonic boost failed", exc_info=True)
+
+        # ── Party attribution bonus (+0.5) ────────────────────────
+        if party_id is not None and _party_filter and gene_scores:
+            try:
+                attr_ids_ph = ",".join("?" * len(gene_scores))
+                attr_rows = cur.execute(
+                    f"SELECT gene_id FROM gene_attribution "
+                    f"WHERE party_id = ? AND gene_id IN ({attr_ids_ph})",
+                    (party_id, *list(gene_scores.keys())),
+                ).fetchall()
+                for ar in attr_rows:
+                    gene_scores[ar["gene_id"]] += 0.5
+            except Exception:
+                log.debug("Party attribution bonus failed", exc_info=True)
+
+        # ── Access-rate tiebreaker ────────────────────────────────
+        # Small bonus: score += 0.05 * min(rate * 3600, 5). Max 0.25.
+        # Only a tiebreaker — breaks ties for genes with equal scores.
+        if gene_scores:
+            try:
+                rate_ids = list(gene_scores.keys())
+                rate_ph = ",".join("?" * len(rate_ids))
+                epi_rows = cur.execute(
+                    f"SELECT gene_id, epigenetics FROM genes "
+                    f"WHERE gene_id IN ({rate_ph}) AND epigenetics IS NOT NULL",
+                    rate_ids,
+                ).fetchall()
+                for er in epi_rows:
+                    try:
+                        epi = parse_epigenetics(er["epigenetics"])
+                        rate = epi.access_rate(3600.0)
+                        if rate > 0:
+                            bonus = 0.05 * min(rate * 3600.0, 5.0)
+                            gene_scores[er["gene_id"]] += bonus
+                    except Exception:
+                        continue
+            except Exception:
+                log.debug("Access-rate tiebreaker failed", exc_info=True)
 
         # Expose scores for score-gated expression in context_manager
         self.last_query_scores = dict(gene_scores)
