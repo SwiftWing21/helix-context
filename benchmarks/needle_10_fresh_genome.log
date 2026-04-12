@@ -1,0 +1,21 @@
+Genome: 17685 genes, 2.2x
+
+=== Needle in a Haystack (10 needles) ===
+
+  ctx[+] ans[+]    6.3s  e=0.62  helix_port: "11437"
+  ctx[+] ans[+]    1.4s  e=0.45  scorerift_threshold: "0.15"
+  ctx[-] ans[-]    2.2s  e=0.50  biged_skills_count: "125"
+  ctx[+] ans[+]    1.5s  e=0.58  bookkeeper_monetary: "Decimal"
+  ctx[+] ans[-]    2.0s  e=0.54  helix_pipeline_steps: "6"
+  ctx[+] ans[-]    2.6s  e=0.63  biged_rust_binary_size: "11"
+  ctx[+] ans[-]    2.0s  e=0.60  genome_compression_target: "5x"
+  ctx[+] ans[+]    2.2s  e=0.50  scorerift_preset_dimensions: "8"
+  ctx[+] ans[+]    1.5s  e=0.51  helix_ribosome_budget: "3000"
+  ctx[-] ans[-]    2.9s  e=0.60  biged_default_model: "qwen3"
+
+=== Results ===
+Context retrieval:  8/10 (80%)
+Answer accuracy:    5/10 (50%)
+Avg context latency: 2.5s
+
+Results saved to F:\Projects\helix-context\benchmarks\needle_results.json

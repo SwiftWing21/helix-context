@@ -1,0 +1,70 @@
+Total quality KVs:     34,723
+Globally-unique KVs:   17,259
+
+Available by category:
+  steam                11,334
+  education_public      3,898
+  cosmic                  640
+  tally                   618
+  helix                   519
+  scorerift               173
+  other                    77
+=== N=50 Needle benchmark ===
+Genome:  F:/Projects/helix-context/genome-bench-A.db
+Server:  http://127.0.0.1:11437
+Model:   qwen3:8b
+Seed:    42
+
+Harvesting needles from genome...
+Selected 50 needles
+
+[monitor] === PRE-FLIGHT CHECK ===
+[monitor] Benchmark model:   qwen3:8b
+[monitor] Allowed models:    ['qwen3:8b']
+[monitor] Genome path:       F:\Projects\helix-context\genome-bench-A.db
+[monitor] Helix URL:         http://127.0.0.1:11437
+[monitor] Ollama URL:        http://localhost:11434
+[monitor] Total needles:     50
+[monitor] Restart threshold: 30.0% (~15 needles)
+[monitor] [OK] Helix alive: 17699 genes, ribosome=claude-haiku-4-5-20251001
+[monitor] [OK] Ollama alive
+[monitor] Loaded models: ['qwen3:8b']
+[monitor] [OK] Genome snapshot: 655.2 MB at F:\Projects\helix-context\genome-bench-A.db
+[monitor] [OK] VRAM baseline: 8985/12288 MB (73.1%), 73C
+[monitor] [OK] PRE-FLIGHT CLEAN - benchmark may proceed
+[monitor] 
+Server: ok, ribosome=claude-haiku-4-5-20251001, genes=17699
+
+[monitor] Monitor thread started (interval=90.0s)
+  [  10/50] retr= 10.0% ans=  0.0% elapsed=  2.4m eta=  9.8m
+  [  20/50] retr= 10.0% ans= 15.0% elapsed=  4.7m eta=  7.1m
+  [  30/50] retr=  6.7% ans= 10.0% elapsed=  6.8m eta=  4.5m
+  [  40/50] retr=  7.5% ans= 10.0% elapsed=  9.6m eta=  2.4m
+  [  50/50] retr=  8.0% ans=  8.0% elapsed= 12.2m eta=  0.0m
+
+==================================================================
+N = 50
+Retrieval rate:       8.0%  (4/50)
+Answer accuracy:      8.0%  (4/50)
+Errors:             0
+Total time:         12.2 min
+
+Failure modes:
+  retrieval_miss          46
+  extraction_miss          2
+  error                    0
+
+By category:
+  education_public     n=  15  retr= 13.3%  ans=  6.7%
+  steam                n=  14  retr=  7.1%  ans= 21.4%
+  helix                n=   7  retr=  0.0%  ans=  0.0%
+  cosmic               n=   6  retr=  0.0%  ans=  0.0%
+  tally                n=   4  retr= 25.0%  ans=  0.0%
+  scorerift            n=   2  retr=  0.0%  ans=  0.0%
+  other                n=   2  retr=  0.0%  ans=  0.0%
+
+Latency:
+  context p50: 1.807s  p95: 12.073s
+  proxy   p50: 8.615s  p95: 25.589s
+
+Results saved to F:/Projects/helix-context/benchmarks/needle_50_fresh_genome.json
