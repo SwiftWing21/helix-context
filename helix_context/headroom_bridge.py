@@ -160,14 +160,21 @@ _LANGUAGE_HINTS = {
 
 
 def _pick_specialist(domains: Iterable[str]) -> str:
-    """Return one of: 'code' | 'log' | 'diff' | 'kompress'."""
+    """Return one of: 'log' | 'diff' | 'kompress'.
+
+    NOTE (2026-04-12): CodeAwareCompressor disabled. Headroom 0.5.23
+    changelog confirmed AST-based code compression produces invalid
+    syntax on ~40% of real files. Code genes now fall through to
+    Kompress (ModernBERT), which handles code adequately without
+    corrupting syntax. See headroom-ai changelog for 0.5.23.
+    """
     domains_set = {d.lower() for d in domains if d}
     if domains_set & _DIFF_DOMAINS:
         return "diff"
     if domains_set & _LOG_DOMAINS:
         return "log"
-    if domains_set & _CODE_DOMAINS:
-        return "code"
+    # CodeAwareCompressor disabled — 40% invalid syntax rate on real files.
+    # Code domains now route to Kompress (same as prose).
     return "kompress"
 
 
