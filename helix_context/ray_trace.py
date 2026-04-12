@@ -7,6 +7,28 @@ edges (``co_activated_with`` + ``harmonic_links``), accumulating energy
 at terminal nodes.  High-energy terminals are "supported by evidence"
 from the seed set and receive a retrieval boost.
 
+Origin story (2026-04-11):
+  Max asked "why are my RT cores sitting at 0%?" while staring at the
+  GPU performance panel during a helix bench run.  The chain that
+  followed:
+
+    1. RT cores do hardware-accelerated ray-trace against BVH structures
+    2. Could we repurpose that for something other than triangles?
+    3. Monte Carlo ray-tracing is the CPU fallback for when you don't
+       have RTX hardware
+    4. Monte Carlo over a graph IS evidence propagation
+    5. Which is what ScoreRift's ``cast_ray`` already does on compliance
+       dimensions
+    6. Which maps onto the gene co-activation graph...
+    7. → this module exists
+
+  The current implementation is pure Python on CPU.  The RT cores are
+  still sitting at 0%.  The real version would encode the co-activation
+  graph as a BVH and cast OptiX rays through it — ~1000x throughput,
+  hardware-accelerated nearest-neighbour in high-dim SEMA space, and
+  actual physical justification for the ray-trace framing.  That's a
+  rabbit hole for another night.
+
 Design decisions:
   - Adjacency built from 2-hop neighbourhood of seeds (keeps graph local)
   - harmonic_links weight multiplied when available; else neutral (1.0)
