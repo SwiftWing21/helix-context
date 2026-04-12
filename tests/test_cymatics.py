@@ -319,24 +319,24 @@ class TestHarmonicWeight:
 class TestQFactorMapping:
     def test_zero_aggressiveness_broad(self):
         width = aggressiveness_to_peak_width(0.0)
-        assert width == 8.0
+        assert width == 2.0  # max width in useful zone
 
     def test_max_aggressiveness_narrow(self):
         width = aggressiveness_to_peak_width(1.0)
-        assert width == 1.0
+        assert width == 0.5  # sharp peaks, high selectivity
 
     def test_mid_aggressiveness(self):
         width = aggressiveness_to_peak_width(0.5)
-        assert 3.0 <= width <= 5.0
+        assert 1.0 <= width <= 1.5  # sweet spot for discrimination
 
     def test_monotonically_decreasing(self):
         widths = [aggressiveness_to_peak_width(a / 10) for a in range(11)]
         for i in range(len(widths) - 1):
             assert widths[i] >= widths[i + 1]
 
-    def test_never_below_one(self):
-        assert aggressiveness_to_peak_width(1.0) >= 1.0
-        assert aggressiveness_to_peak_width(1.5) >= 1.0  # beyond range still safe
+    def test_never_below_floor(self):
+        assert aggressiveness_to_peak_width(1.0) >= 0.5
+        assert aggressiveness_to_peak_width(1.5) >= 0.5  # beyond range still safe
 
 
 # ── Diagnostics ──────────────────────────────────────────────────

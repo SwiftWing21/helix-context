@@ -540,13 +540,14 @@ def aggressiveness_to_peak_width(splice_aggressiveness: float) -> float:
     """
     Map splice_aggressiveness (0.0-1.0) to Gaussian peak width (bins).
 
-    Low aggressiveness (0.0) → broad peaks (width=8, everything resonates)
-    High aggressiveness (1.0) → narrow peaks (width=1, exact matches only)
+    Low aggressiveness (0.0) → width=2.0 (moderate resonance, 0.44 dynamic range)
+    High aggressiveness (1.0) → width=0.5 (sharp peaks, high selectivity)
 
-    This is the Q-factor: Q = center_freq / bandwidth.
-    Higher Q = narrower bandwidth = more selective filtering.
+    Range 0.5-2.0 keeps ALL operating points in the useful zone where
+    dynamic range > 0.4 (R3 research: width >= 3.0 collapses to 0.22).
+    The 0.5 floor gives 2x headroom below the 1.0 sweet spot.
     """
-    return max(1.0, 8.0 - 7.0 * splice_aggressiveness)
+    return max(0.5, 2.0 - 1.5 * splice_aggressiveness)
 
 
 # ── Diagnostics ────────────────────────────────────────────────────

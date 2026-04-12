@@ -106,11 +106,14 @@ MOE_MODEL_FAMILIES = ("gemma4",)
 
 # Models at or below this param count get the same front-loaded treatment
 # as MoE models — their limited capacity can't "look back" across 15K tokens
-SMALL_MODEL_THRESHOLD_B = 3.2  # billion params (excludes 4B dense models like qwen3:4b)
+SMALL_MODEL_THRESHOLD_B = 10.0  # billion params — all local models get slate treatment
 SMALL_MODEL_PATTERNS = {
     # model prefix → approximate param count in billions
-    "qwen3:0.6b": 0.6, "qwen3:1.7b": 1.7,
-    "gemma4:e2b": 2.0, "llama3.2:3b": 3.0, "llama3.2:1b": 1.0,
+    # All local models benefit from front-loaded KV facts — Kompress
+    # compression loses specific values that the slate preserves.
+    "qwen3:0.6b": 0.6, "qwen3:1.7b": 1.7, "qwen3:4b": 4.0, "qwen3:8b": 8.2,
+    "gemma4:e2b": 2.0, "gemma4:e4b": 8.0,
+    "llama3.2:3b": 3.0, "llama3.2:1b": 1.0,
     "phi-3.5:mini": 3.2, "gemma2:2b": 2.0,
 }
 
@@ -576,7 +579,12 @@ class HelixContextManager:
         budget_tier = "broad"  # default
         budget_tokens_est = 15000
         if len(candidates) > 3:
-            scores = self.genome.last_query_scores
+            all_scores = self.genome.last_query_scores
+            # Compute ratio over CANDIDATES only, not all scored genes
+            # (all_scores includes genes that didn't make top-N cut,
+            # dragging down mean and inflating ratio → always "tight")
+            candidate_ids = {g.gene_id for g in candidates}
+            scores = {gid: s for gid, s in (all_scores or {}).items() if gid in candidate_ids}
             if scores and any(scores.values()):
                 top_score = max(scores.values())
                 mean_score = sum(scores.values()) / len(scores) if scores else 1.0

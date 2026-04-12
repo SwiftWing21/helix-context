@@ -1172,8 +1172,9 @@ class Genome:
                             if gid not in valid_ids:
                                 continue
                             # FTS5 rank is negative (lower = better match)
-                            # Normalize: -rank gives positive, cap at 15
-                            fts_score = min(-fts_ranks[gid], 15.0) * 3.0
+                            # Normalize: -rank gives positive, cap at 6.0
+                            # (was 15*3=45 — drowned out tag matches at 3-9)
+                            fts_score = min(-fts_ranks[gid], 6.0)
                             gene_scores[gid] = gene_scores.get(gid, 0) + fts_score
                 except Exception:
                     log.warning("FTS5 query failed", exc_info=True)
