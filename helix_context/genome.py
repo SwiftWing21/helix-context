@@ -1562,6 +1562,32 @@ class Genome:
         self.conn.commit()
         clear_parse_caches()
 
+    # ── Harmonic weights (cymatics) ──────────────────────────────────
+
+    def store_harmonic_weights(self, weights: List[Tuple[str, str, float]]) -> None:
+        """Store weighted co-activation edges from cymatics spectral overlap."""
+        if not weights:
+            return
+        cur = self.conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS harmonic_links (
+                gene_id_a TEXT NOT NULL,
+                gene_id_b TEXT NOT NULL,
+                weight     REAL NOT NULL,
+                updated_at REAL NOT NULL,
+                PRIMARY KEY (gene_id_a, gene_id_b)
+            )
+        """)
+        now = time.time()
+        for a, b, w in weights:
+            cur.execute(
+                """INSERT OR REPLACE INTO harmonic_links
+                   (gene_id_a, gene_id_b, weight, updated_at)
+                   VALUES (?, ?, ?, ?)""",
+                (a, b, w, now),
+            )
+        self.conn.commit()
+
     # ── Typed gene relations (NLI) ───────────────────────────────────
 
     def store_relation(

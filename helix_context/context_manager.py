@@ -30,7 +30,7 @@ from .config import HelixConfig
 from .exceptions import PromoterMismatch
 from .genome import Genome
 from .headroom_bridge import compress_text
-from .ribosome import Ribosome, OllamaBackend
+from .ribosome import ClaudeBackend, Ribosome, OllamaBackend
 from .schemas import ChromatinState, ContextHealth, ContextWindow, Gene
 
 log = logging.getLogger("helix.context_manager")
@@ -215,7 +215,28 @@ class HelixContextManager:
             splice_aggressiveness=config.budget.splice_aggressiveness,
         )
 
-        if config.ribosome.backend == "deberta":
+        if config.ribosome.backend == "claude":
+            try:
+                claude_backend = ClaudeBackend(
+                    model=config.ribosome.claude_model,
+                    base_url=config.ribosome.claude_base_url,
+                    max_tokens=config.budget.ribosome_tokens,
+                    timeout=config.ribosome.timeout,
+                )
+                self.ribosome = Ribosome(
+                    backend=claude_backend,
+                    encoder=self.encoder,
+                    splice_aggressiveness=config.budget.splice_aggressiveness,
+                )
+                log.info(
+                    "Using Claude API ribosome (model=%s, proxy=%s)",
+                    config.ribosome.claude_model,
+                    config.ribosome.claude_base_url or "direct",
+                )
+            except Exception:
+                log.warning("ClaudeBackend failed to load, falling back to Ollama", exc_info=True)
+                self.ribosome = ollama_ribosome
+        elif config.ribosome.backend == "deberta":
             try:
                 from .deberta_backend import DeBERTaRibosome
                 self.ribosome = DeBERTaRibosome(
@@ -273,6 +294,16 @@ class HelixContextManager:
         # so follow-up queries don't lose context from the previous turn.
         self._pending: List[Gene] = []
         self._pending_lock = threading.Lock()
+
+        # Cymatics (frequency-domain re_rank + splice, replaces LLM calls)
+        self._use_cymatics = config.cymatics.enabled
+        if self._use_cymatics:
+            from .cymatics import aggressiveness_to_peak_width
+            self._cymatics_peak_width = aggressiveness_to_peak_width(
+                config.budget.splice_aggressiveness
+            )
+        else:
+            self._cymatics_peak_width = 3.0
 
         # Cold-tier retrieval markers (C.2 of B->C, 2026-04-10).
         # Set by _express() when cold-tier fallthrough actually fires
@@ -440,20 +471,31 @@ class HelixContextManager:
 
         # Step 3: Score-gated trimming
         # Instead of blindly taking max_genes, only express genes with
-        # meaningful retrieval scores. A query with 3 strong matches
-        # should express 3 tight genes, not 12 padded with noise.
-        if (
-            self.config.ingestion.rerank_enabled
-            and hasattr(self.ribosome, 're_rank')
-            and len(candidates) > max_genes
-        ):
-            try:
-                candidates = self.ribosome.re_rank(query, candidates, k=max_genes)
-            except Exception:
-                log.warning("Re-rank failed, falling back to retrieval order", exc_info=True)
+        # meaningful retrieval scores. Cymatics resonance_rank (CPU, ~5ms)
+        # is preferred over LLM re_rank (~2s) when enabled.
+        if len(candidates) > max_genes:
+            if self._use_cymatics:
+                try:
+                    from .cymatics import resonance_rank
+                    candidates = resonance_rank(
+                        query, candidates, k=max_genes,
+                        synonym_map=self.config.synonym_map,
+                        peak_width=self._cymatics_peak_width,
+                    )
+                except Exception:
+                    log.warning("Cymatics re_rank failed, falling back", exc_info=True)
+                    candidates = candidates[:max_genes]
+            elif (
+                self.config.ingestion.rerank_enabled
+                and hasattr(self.ribosome, 're_rank')
+            ):
+                try:
+                    candidates = self.ribosome.re_rank(query, candidates, k=max_genes)
+                except Exception:
+                    log.warning("Re-rank failed, falling back to retrieval order", exc_info=True)
+                    candidates = candidates[:max_genes]
+            else:
                 candidates = candidates[:max_genes]
-        elif len(candidates) > max_genes:
-            candidates = candidates[:max_genes]
 
         # Dynamic budget tiers — size the expression window based on
         # retrieval confidence instead of always sending max_genes.
@@ -536,8 +578,9 @@ class HelixContextManager:
                     answer_slate_lines.append(kv)
             src_attr = f' src="{short}"' if short else ""
             # Semantic compression via Headroom (by Tejas Chopra, Apache-2.0).
-            # Dispatches by promoter domain: code→CodeAwareCompressor,
-            # log→LogCompressor, diff→DiffCompressor, else→Kompress (ModernBERT).
+            # Dispatches by promoter domain: log→LogCompressor,
+            # diff→DiffCompressor, else→Kompress (ModernBERT).
+            # CodeCompressor disabled (40% invalid syntax — see 2f518dc).
             # Falls back to content[:1000].strip() when headroom is unavailable.
             content = compress_text(
                 g.content,
@@ -563,6 +606,18 @@ class HelixContextManager:
         expressed_ids = [g.gene_id for g in candidates]
         self.genome.touch_genes(expressed_ids)
         self.genome.link_coactivated(expressed_ids)
+
+        # Compute harmonic weights between expressed genes (cymatics)
+        if self._use_cymatics and self.config.cymatics.harmonic_links:
+            try:
+                from .cymatics import compute_harmonic_weights
+                weights = compute_harmonic_weights(
+                    candidates, peak_width=self._cymatics_peak_width,
+                )
+                if weights:
+                    self.genome.store_harmonic_weights(weights)
+            except Exception:
+                pass  # Harmonic links are diagnostic, not critical
 
         # Store typed relations in genome (if available)
         if relation_graph:

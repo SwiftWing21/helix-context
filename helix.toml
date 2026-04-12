@@ -4,7 +4,9 @@ base_url = "http://localhost:11434"
 timeout = 30                            # seconds — Ollama timeout before fallback
 keep_alive = "30m"                      # keep Ollama model loaded
 warmup = false                          # pre-load Ollama model on server start (disabled for N=1000 bench — qwen3:4b holds VRAM)
-backend = "ollama"                      # "ollama" for all-Ollama (DeBERTa re-rank disabled in pipeline)
+backend = "claude"                      # "ollama" | "deberta" | "claude" — switch back to "ollama" when done
+claude_model = "claude-haiku-4-5-20251001"   # haiku=cost-effective bulk; swap to claude-sonnet-4-6 for higher resolution
+claude_base_url = "http://127.0.0.1:8787"   # Headroom proxy; "" = direct Anthropic
 
 [budget]
 ribosome_tokens = 3000                  # fixed decoder prompt
@@ -56,6 +58,13 @@ cold_tier_enabled = false               # master opt-in
 cold_tier_min_hot_genes = 0             # fall through when hot returns <= this many genes (0 = only on empty)
 cold_tier_k = 3                         # max cold-tier genes per query
 cold_tier_min_cosine = 0.15             # SEMA cosine floor (sparse 20-dim — see comment above)
+
+[cymatics]
+enabled = true                          # CPU frequency-domain re_rank + splice (replaces 2 LLM calls/query)
+n_bins = 256                            # Spectrum resolution (256 bins = <2KB per spectrum)
+peak_width = 3.0                        # Gaussian peak width — overridden by Q-factor from splice_aggressiveness
+use_embeddings = false                  # Use Gene.embedding when populated (requires sentence-transformers)
+harmonic_links = true                   # Compute weighted co-activation edges between expressed genes
 
 [synonyms]
 # Fix 1: lightweight synonym expansion for promoter queries

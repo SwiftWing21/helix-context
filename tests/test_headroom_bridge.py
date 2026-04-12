@@ -31,14 +31,15 @@ class TestPickSpecialist:
     def test_unknown_domain_defaults_to_kompress(self):
         assert _pick_specialist(["markdown", "docs"]) == "kompress"
 
-    def test_python_routes_to_code(self):
-        assert _pick_specialist(["python"]) == "code"
+    def test_python_routes_to_kompress(self):
+        # CodeCompressor disabled (40% invalid syntax — see 2f518dc).
+        assert _pick_specialist(["python"]) == "kompress"
 
-    def test_rust_routes_to_code(self):
-        assert _pick_specialist(["rust", "cargo"]) == "code"  # cargo also matches log, but diff>log>code order... check
+    def test_rust_routes_to_kompress(self):
+        assert _pick_specialist(["rust", "cargo"]) == "kompress"
 
-    def test_typescript_routes_to_code(self):
-        assert _pick_specialist(["typescript"]) == "code"
+    def test_typescript_routes_to_kompress(self):
+        assert _pick_specialist(["typescript"]) == "kompress"
 
     def test_log_routes_to_log(self):
         assert _pick_specialist(["log"]) == "log"
@@ -61,7 +62,7 @@ class TestPickSpecialist:
         assert _pick_specialist(["pytest", "python"]) == "log"
 
     def test_case_insensitive(self):
-        assert _pick_specialist(["PYTHON"]) == "code"
+        assert _pick_specialist(["PYTHON"]) == "kompress"
         assert _pick_specialist(["Log"]) == "log"
 
 

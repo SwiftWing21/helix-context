@@ -28,7 +28,9 @@ class RibosomeConfig:
     timeout: float = 10.0
     keep_alive: str = "30m"     # How long Ollama keeps the ribosome model loaded
     warmup: bool = True         # Pre-load model on server start
-    backend: str = "ollama"     # "ollama" or "deberta" (hybrid: DeBERTa for re_rank/splice)
+    backend: str = "ollama"     # "ollama" | "deberta" | "claude"
+    claude_model: str = "claude-haiku-4-5-20251001"   # Claude model when backend="claude"
+    claude_base_url: str = ""   # Proxy URL (e.g. Headroom at http://127.0.0.1:8787); "" = direct Anthropic
     rerank_model_path: str = "training/models/rerank"
     splice_model_path: str = "training/models/splice"
     splice_threshold: float = 0.5
@@ -91,6 +93,17 @@ class ContextConfig:
 
 
 @dataclass
+class CymaticsConfig:
+    """Frequency-domain re_rank + splice (CPU math replaces LLM calls)."""
+    enabled: bool = True                # Master switch
+    n_bins: int = 256                   # Spectrum resolution (<2KB per spectrum)
+    peak_width: float = 3.0             # Gaussian peak width (overridden by Q-factor)
+    splice_threshold_scale: float = 0.7 # Maps splice_aggressiveness to resonance threshold
+    use_embeddings: bool = False        # Use Gene.embedding when available
+    harmonic_links: bool = True         # Compute weighted co-activation edges
+
+
+@dataclass
 class HelixConfig:
     ribosome: RibosomeConfig = field(default_factory=RibosomeConfig)
     budget: BudgetConfig = field(default_factory=BudgetConfig)
@@ -98,6 +111,7 @@ class HelixConfig:
     server: ServerConfig = field(default_factory=ServerConfig)
     ingestion: IngestionConfig = field(default_factory=IngestionConfig)
     context: ContextConfig = field(default_factory=ContextConfig)
+    cymatics: CymaticsConfig = field(default_factory=CymaticsConfig)
     synonym_map: Dict[str, List[str]] = field(default_factory=dict)
 
 
@@ -129,6 +143,8 @@ def load_config(path: Optional[str] = None) -> HelixConfig:
             keep_alive=r.get("keep_alive", cfg.ribosome.keep_alive),
             warmup=r.get("warmup", cfg.ribosome.warmup),
             backend=r.get("backend", cfg.ribosome.backend),
+            claude_model=r.get("claude_model", cfg.ribosome.claude_model),
+            claude_base_url=r.get("claude_base_url", cfg.ribosome.claude_base_url),
             rerank_model_path=r.get("rerank_model_path", cfg.ribosome.rerank_model_path),
             splice_model_path=r.get("splice_model_path", cfg.ribosome.splice_model_path),
             splice_threshold=float(r.get("splice_threshold", cfg.ribosome.splice_threshold)),
@@ -190,6 +206,18 @@ def load_config(path: Optional[str] = None) -> HelixConfig:
             cold_tier_min_hot_genes=int(c.get("cold_tier_min_hot_genes", cfg.context.cold_tier_min_hot_genes)),
             cold_tier_k=int(c.get("cold_tier_k", cfg.context.cold_tier_k)),
             cold_tier_min_cosine=float(c.get("cold_tier_min_cosine", cfg.context.cold_tier_min_cosine)),
+        )
+
+    # Cymatics
+    if "cymatics" in raw:
+        cy = raw["cymatics"]
+        cfg.cymatics = CymaticsConfig(
+            enabled=cy.get("enabled", cfg.cymatics.enabled),
+            n_bins=int(cy.get("n_bins", cfg.cymatics.n_bins)),
+            peak_width=float(cy.get("peak_width", cfg.cymatics.peak_width)),
+            splice_threshold_scale=float(cy.get("splice_threshold_scale", cfg.cymatics.splice_threshold_scale)),
+            use_embeddings=cy.get("use_embeddings", cfg.cymatics.use_embeddings),
+            harmonic_links=cy.get("harmonic_links", cfg.cymatics.harmonic_links),
         )
 
     # Fix 1: synonym map
