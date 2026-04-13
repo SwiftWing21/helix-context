@@ -2,6 +2,17 @@
 
 > **Last updated:** 2026-04-11 (commit `059d902`)
 > **Genome:** 17,623 genes (12,401 OPEN / 1,895 EUCHRO / 3,327 HETERO)
+>
+> **Status: LLM-free pipeline as of 2026-04-09 (CPU pipeline commit) +
+> 2026-04-13 (Sprints 1-4).** Every dimension below — D1 through D9,
+> including D6 cymatics rerank — runs on deterministic CPU math. The
+> "LLM re_rank" mentioned in §D6 is the *legacy* fallback path; in the
+> live config `rerank_enabled = false` and the active rerank, when on,
+> is a pretrained cross-encoder MiniLM (classifier, not an LLM call).
+> See [`PIPELINE_LANES.md`](PIPELINE_LANES.md) §"LLM boundary" for the
+> full statement. Step 0 query-intent expansion is flag-gated
+> (`[ribosome] query_expansion_enabled`); flip to `false` for a
+> strictly LLM-free `/context`.
 
 ## Lane Graph
 

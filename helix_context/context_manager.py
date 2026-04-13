@@ -1173,6 +1173,14 @@ class HelixContextManager:
         if query in self._intent_cache:
             return self._intent_cache[query]
 
+        # Flag gate — strict LLM-free pipeline sets this false.
+        # Upstream path (ingest → 12-tone retrieval) has no LLM calls;
+        # this Step 0 call is the last residual one and is disabled by
+        # setting ribosome.query_expansion_enabled = false.
+        if not getattr(self.config.ribosome, "query_expansion_enabled", True):
+            self._intent_cache[query] = query
+            return query
+
         # Only expand when we have a real LLM backend (skip for paused/Ollama-warmup)
         if not hasattr(self.ribosome, "backend"):
             self._intent_cache[query] = query

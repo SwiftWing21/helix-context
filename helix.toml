@@ -4,6 +4,7 @@ base_url = "http://localhost:11434"
 timeout = 120                            # Increased for bulk ingestion
 keep_alive = "30m"                      # keep Ollama model loaded
 warmup = false                          # pre-load Ollama model on server start (disabled for N=1000 bench — qwen3:4b holds VRAM)
+query_expansion_enabled = true          # Step 0 LLM query-intent expansion — false = strictly LLM-free /context pipeline (the 12 retrieval tiers never need this)
 backend = "claude"                      # "ollama" | "deberta" | "claude" | "litellm" — claude avoids GPU contention with qwen3:8b bench
 claude_model = "claude-haiku-4-5-20251001"   # haiku=cost-effective bulk; swap to claude-sonnet-4-6 for higher resolution
 claude_base_url = ""                    # direct Anthropic API (bench mode); was http://localhost:11434 for ollama, http://127.0.0.1:8787 for Headroom

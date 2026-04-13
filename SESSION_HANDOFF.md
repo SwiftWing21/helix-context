@@ -1,5 +1,13 @@
 # Session Handoff — 2026-04-13
 
+> **Architecture note.** With Sprints 1-4 in, the entire data pipeline
+> (ingest → tag → encode → 12 tones + cymatics + TCM + SR + Hebbian →
+> splice) is LLM-free CPU math. The only LLM call is at
+> `/v1/chat/completions`. See [`docs/PIPELINE_LANES.md`](docs/PIPELINE_LANES.md)
+> §"LLM boundary" for the full statement. Step 0 query-intent expansion
+> is flag-gated via `[ribosome] query_expansion_enabled` (default `true`
+> for backward compat; flip to `false` for strict LLM-free `/context`).
+
 ## What Landed Today
 
 Three sprints from `docs/FUTURE/IMPLEMENTATION_ROADMAP.md` shipped in one

@@ -7,7 +7,63 @@ A swim-lane reference for the helix-context pipeline. Two flows
 tools fire, and what gets written / read.
 
 Updated: 2026-04-12, after the 4-layer federation + path_key_index +
-timezone forensics commits.
+timezone forensics commits. LLM-boundary callout added 2026-04-13 to
+reflect the live state after the 2026-04-09 CPU pipeline commit and
+Sprints 1-4.
+
+---
+
+## LLM boundary (read this first)
+
+```
+═════════════════ LLM-FREE ZONE ═════════════════ │ ═══ LLM ═══
+                                                  │
+ingest → tag → encode → store → query → retrieve  │  /v1/chat/
+12 tones + cymatics + TCM + SR + Hebbian          │  completions
+(all CPU, deterministic, no model calls)          │  (Claude Haiku
+                                                  │   via ribosome)
+                                                  │
+                  pipeline crosses the boundary ──┘
+                  exactly once, at answer generation
+```
+
+**Every stage of the data pipeline — `/ingest`, the 12-tone signal stack,
+cymatics flux/W1, TCM, SR, theta ray-trace, Hebbian seeded-edges,
+splice, the cross-encoder rerank when enabled — runs on pure CPU math
+with zero LLM calls.** The only LLM call in the system is at
+`/v1/chat/completions`, which consumes the already-built context and
+emits the reply. The `ribosome` line in `/stats` reports what *would*
+be called if an answer is requested; it is not invoked during ingest
+or scoring.
+
+> **Step 0 query-intent expansion — optional, flag-gated.**
+> `/context` can invoke `_expand_query_intent()` once per *novel* query
+> string (LRU-cached, ~100 tokens out, falls back to the raw query on
+> any failure). This is a query rewrite that runs *before* the 12-tone
+> stack, not as part of it.
+>
+> Controlled by `[ribosome] query_expansion_enabled` in `helix.toml`.
+> Set to `false` for a strictly LLM-free `/context` pipeline — the 12
+> retrieval tiers never need it; they operate on the raw query text +
+> synonym map directly. Default is `true` (backwards-compatible with
+> pre-2026-04-13 behavior).
+
+This was not always true. Pre-2026-04-09, ingest ran an LLM-based
+"pack" step (Ribosome.pack → complement, codons, intent). The 2026-04-09
+CPU pipeline commit replaced that with `CpuTagger` (spaCy NER +
+EntityRuler + regex KV extraction + extractive summary). Sprints 1-4
+(2026-04-13) added W1 cymatics, Howard 2005 TCM with velocity input,
+Stachenfeld 2017 SR Tier 5.5, Wang/Foster/Pfeiffer 2020 theta
+alternation, and Hebbian seeded-edges — all CPU, all flag-gated.
+
+The math citations behind the LLM-free pipeline:
+
+- Werman, Peleg, Rosenfeld (1986) — circular W1 histogram distance
+- Howard & Kahana (2002); Howard, Fotedar, Datey, Hasselmo (2005) — TCM
+- Dayan (1993); Stachenfeld, Botvinick, Gershman (2017) — SR
+- Wang, Foster, Pfeiffer (2020) — theta forward/backward alternation
+- Singh et al. (2020) — Context Mover's Distance (CMD)
+- Metodiev, Nachman, Thaler (2017) — CWoLa (Sprint 3, deferred)
 
 ---
 
@@ -25,8 +81,10 @@ Lanes:
 
 - **CLIENT** — IDE plugin / proxy / curl / your code
 - **SERVER** — `helix_context/server.py` FastAPI endpoints
-- **TAGGER** — `helix_context/tagger.py` CpuTagger (no LLM)
-- **RIBOSOME** — `helix_context/ribosome.py` LLM compression / pack
+- **TAGGER** — `helix_context/tagger.py` CpuTagger (no LLM, default)
+- **RIBOSOME** — `helix_context/ribosome.py` answer-generation only
+  (Claude Haiku via `[ribosome] backend = "claude"`); **not on the
+  ingest path** since 2026-04-09 CPU pipeline commit
 - **ENCODERS** — SPLADE / SEMA / cymatics (numerical, deterministic)
 - **GENOME** — SQLite tables: `genes`, `promoter_index`, `genes_fts`,
   `entity_graph`, `path_key_index`
@@ -51,8 +109,8 @@ flowchart LR
     T2[regex + heuristics<br/>→ domains]
     T3[_extract_key_values<br/>→ List 'key=value']
   end
-  subgraph Ribosome["Ribosome (LLM)"]
-    RB1[pack → complement<br/>intent / codons]
+  subgraph Ribosome["Ribosome (LLM) — LEGACY, off by default"]
+    RB1[pack → complement<br/>intent / codons<br/>replaced by CpuTagger 2026-04-09]
   end
   subgraph Encoders["Numerical encoders"]
     E1[SPLADE → sparse terms]
@@ -96,9 +154,10 @@ client POST /ingest
   │             ─► domains        (regex)
   │             ─► key_values     ("key=value" list)
   │
-  ├─► Ribosome.pack ─► complement   (LLM)
-  │                ─► codons
-  │                ─► intent
+  ├─► Ribosome.pack ─► complement   (LLM — LEGACY, replaced by
+  │                ─► codons          CpuTagger extractive summary
+  │                ─► intent          on 2026-04-09; not invoked
+  │                                   on the live ingest path)
   │
   ├─► Encoders  ─► SPLADE sparse    (ModernBERT, deterministic)
   │             ─► SEMA 20D

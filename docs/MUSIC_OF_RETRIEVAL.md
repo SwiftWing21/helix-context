@@ -35,6 +35,18 @@ After the path_key_index commit (`8e294fc`) and the federation work
 | 11 | — | **ray-trace** — Monte Carlo evidence propagation |
 | 12 | — | **access-rate** — windowed working-set heat |
 
+**All twelve tones are deterministic CPU math — zero LLM calls.** PKI
+and tag exact/prefix are SQLite index lookups. FTS5 is the SQLite
+full-text engine. SPLADE and SEMA are pretrained encoders running
+locally (sparse and 20-D dense, respectively — classifiers, not
+generative models). Harmonic boost, cymatics resonance, cymatics flux
+(Werman 1986 W1 or cosine), TCM session drift (Howard 2005), ray-trace,
+and access-rate are all linear algebra and counting on data that's
+already in the genome. The chromatic scale plays itself; nothing in
+the 12-tone stack pauses to ask a language model for help. The LLM
+sits at the answer-generation boundary downstream of this whole stack
+(see [`PIPELINE_LANES.md`](PIPELINE_LANES.md) §"LLM boundary").
+
 ### The 13th: the octave (gate, not signal)
 
 | Layer | Function |

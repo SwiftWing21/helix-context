@@ -39,6 +39,12 @@ class RibosomeConfig:
     nli_splice_bonus: float = 0.15       # Prob bonus for entailment-linked codons
     nli_splice_penalty: float = 0.15     # Prob penalty for alternation-linked codons
     device: str = "auto"        # "auto", "cpu", "cuda"
+    # Step 0 query-intent expansion fires ONE LLM call per novel query
+    # (LRU-cached) upstream of the 12-tone retrieval stack. Flip to false
+    # for a strictly LLM-free /context pipeline — the 12 tiers below still
+    # run on raw query text + synonym map. See context_manager
+    # _expand_query_intent.
+    query_expansion_enabled: bool = True
 
 
 @dataclass
@@ -177,6 +183,7 @@ def load_config(path: Optional[str] = None) -> HelixConfig:
             nli_splice_bonus=float(r.get("nli_splice_bonus", cfg.ribosome.nli_splice_bonus)),
             nli_splice_penalty=float(r.get("nli_splice_penalty", cfg.ribosome.nli_splice_penalty)),
             device=r.get("device", cfg.ribosome.device),
+            query_expansion_enabled=bool(r.get("query_expansion_enabled", cfg.ribosome.query_expansion_enabled)),
         )
 
     # Budget

@@ -10,6 +10,8 @@
 **Genome-based context compression for local LLMs.**
 **Scale-Invariant Knowledge Engine (SIKE) — 10/10 retrieval from 0.6B to 26B parameters.**
 
+> **The pipeline is LLM-free.** Ingest, tagging, retrieval, re-rank, and splice are all pure CPU math — Howard 2005 TCM, Stachenfeld 2017 SR, Werman 1986 W1, Hebbian co-activation, spaCy NER. The only LLM call is the final answer-generation step at `/v1/chat/completions`. Helix used to depend on an LLM to serve another LLM; now it just uses nature's math. *(One optional Step 0 query-intent expansion exists behind `[ribosome] query_expansion_enabled` — default `true` for backward compat, set to `false` for strictly LLM-free `/context`.)*
+
 > Treats context like a genome instead of a flat text buffer. A 7,200-gene SQLite
 > database (44MB raw knowledge) compresses to ~15K tokens of expressed context
 > per turn — a **769x inference compression ratio**. Retrieval is perfectly
