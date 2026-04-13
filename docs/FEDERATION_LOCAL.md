@@ -1,4 +1,4 @@
-# Federation, Local-First — 4-Layer OS-Level Attribution
+# Federation, Local-First — 4-Layer + Timezone Attribution
 
 > *"The simplest path to federation is to use what the OS already knows."*
 
@@ -10,10 +10,11 @@ truth. It's the on-ramp to the full enterprise federation model in
 
 ---
 
-## The 4-layer model
+## The 4-layer model + timezone forensics
 
 Real-world identity has at least four independent axes that we want to
-query separately:
+query separately, plus a temporal forensic axis (the IANA timezone in
+which each gene was authored):
 
 | Layer | What it represents | Example | Why we need it separately |
 |---|---|---|---|
@@ -21,10 +22,59 @@ query separately:
 | **device** (party) | physical machine | `gandalf` | Cross-machine vs cross-account separation |
 | **user** (participant) | human | `max` | "Who created this?" — the human in the loop |
 | **agent** | AI persona | `laude`, `conductor` | "Which AI did the work?" — distinguishes Laude vs Taude vs manual |
+| **+ tz** (forensic) | IANA timezone at write | `America/Los_Angeles` | Travel detection, DST drift, jurisdiction context |
 
-Each gene's `gene_attribution` row carries all four. Any may be NULL —
-NULL `agent_id` = "manual ingest, no AI involved." NULL `org_id` =
-defaults to the seeded `local` org.
+Each gene's `gene_attribution` row carries all four identity axes plus
+the timezone. Any axis may be NULL — NULL `agent_id` = "manual ingest,
+no AI involved." NULL `org_id` = defaults to the seeded `local` org.
+NULL `authored_tz` = pre-2026-04-12 ingest (legacy).
+
+### What timezone capture actually tells us (and doesn't)
+
+The IANA name (`America/Los_Angeles`, `Europe/Berlin`, `Asia/Tokyo`)
+labels a **DST rule set**, NOT a city. Vancouver, Seattle, and San
+Francisco all use `America/Los_Angeles`. The honest framing:
+
+| What it tells us | What it does NOT tell us |
+|---|---|
+| Which DST rule set the device is on | The user's actual city |
+| Roughly which longitude band of the planet | Whether they're in CA vs WA vs BC |
+| When the device's clock thinks it shifts (DST transitions) | Whether they're behind a VPN |
+| Drift detection (rule set silently changes for same party) | Precise location ("where") |
+
+Real geolocation needs IP / GPS / explicit input — separate features.
+Timezone capture gives us a coarse longitude band + DST policy, which
+is enough for travel detection ("Max wrote this from PT, then 6 hours
+later from Berlin"), DST anomaly detection (silent offset shifts), and
+rough jurisdiction context (timezone-based compliance hints).
+
+### Two-axis tz storage
+
+```sql
+parties.timezone           -- "device's home" (last-write-wins, updated each ingest)
+gene_attribution.authored_tz  -- per-write tz (forensic — captures travel)
+```
+
+Together these distinguish "where the device usually is" from "where
+this specific gene was actually written." Useful queries:
+
+```sql
+-- "Find genes authored in a different tz from the device's home"
+-- (i.e., user was traveling)
+SELECT ga.gene_id, ga.authored_tz, p.timezone AS device_home
+  FROM gene_attribution ga
+  JOIN parties p ON p.party_id = ga.party_id
+ WHERE ga.authored_tz IS NOT NULL
+   AND p.timezone IS NOT NULL
+   AND ga.authored_tz != p.timezone;
+
+-- "Detect when a device's home tz silently shifted"
+-- (DST transition or laptop crossed timezones for an extended period)
+SELECT party_id, authored_tz, MIN(authored_at), MAX(authored_at), COUNT(*)
+  FROM gene_attribution
+ GROUP BY party_id, authored_tz
+ ORDER BY party_id, MIN(authored_at);
+```
 
 This lets us answer questions that would otherwise require human
 forensics:
@@ -104,9 +154,9 @@ remains validly attributed when SSO comes online. The auth edge replaces
 the resolver; the rest of the pipeline (`query_genes(party_id=...)`, the
 `/context` endpoint, the chromatin tier rules) keeps working unchanged.
 
-## How it resolves IDs today (4-axis)
+## How it resolves IDs today (4-axis + tz)
 
-`helix_context/server.py::_local_attribution_defaults()` returns a
+`helix_context/server.py::_local_attribution_defaults()` returns the
 4-tuple `(user_handle, device, org, agent_handle)`:
 
 ```python
@@ -115,6 +165,21 @@ device        = os.environ.get("HELIX_DEVICE") or os.environ.get("HELIX_PARTY") 
 user_handle   = os.environ.get("HELIX_USER")   or getpass.getuser()
 agent_handle  = os.environ.get("HELIX_AGENT")  or None   # None = manual ingest
 ```
+
+And `_local_timezone()` resolves the IANA timezone name independently:
+
+```python
+1. HELIX_TZ env var                         # "America/Los_Angeles" — best
+2. tzlocal.get_localzone_name() if installed # IANA, cross-platform
+3. datetime.now().astimezone().tzname()     # display name on Win, abbrev on *nix
+4. time.tzname[time.daylight]               # last-ditch
+5. "UTC"                                    # always-resolves fallback
+```
+
+Why `HELIX_TZ` is prioritized: on Windows, `datetime.tzname()` returns
+display names like "Pacific Standard Time" rather than IANA names. The
+explicit env var is the only way to guarantee a clean IANA value
+without adding `tzlocal` as a hard dependency.
 
 Order of precedence, each axis:
 1. **Explicit env var** (e.g., `HELIX_AGENT=laude`)
@@ -288,7 +353,7 @@ It's the substrate that makes multi-agent introspection cheap.
 
 ---
 
-## Implementation footprint (2026-04-12, 4-layer)
+## Implementation footprint (2026-04-12, 4-layer + tz)
 
 - **Schema additions:**
   - `orgs` table (4 columns + 1 index, seeded with 'local' default)
@@ -313,6 +378,26 @@ It's the substrate that makes multi-agent introspection cheap.
 Total: ~160 LOC across 3 files + 2 new tables + 2 new columns. Zero
 new external dependencies. Zero auth infrastructure. Trust model: the
 OS account is who you are; HELIX_ORG / HELIX_AGENT env vars override.
+
+## A note on timezone backfill quality
+
+The `gene_attribution.authored_tz` backfill for legacy pre-2026-04-12
+rows uses `parties.timezone` as a best-effort fallback. This is only
+accurate if the device's home timezone hasn't changed since those genes
+were authored — which is fine for stationary dev machines but wrong for
+travelers (a gene authored in PT will be backfilled as Berlin if the
+laptop's current home tz is now Berlin).
+
+This is acceptable because:
+1. Forensic queries can filter by `authored_at < commit_deploy_ts` to
+   identify backfilled-vs-captured rows
+2. NULL would be a stricter representation of "we don't know" but adds
+   query complexity for a relatively small number of historical rows
+3. Going forward, every new ingest captures `authored_tz` at write
+   time, so the data quality is correct from this commit onward
+
+If you need stricter historical accuracy, manually NULL out the
+`authored_tz` for rows older than this commit's deploy timestamp.
 
 ## Migration: pre-4-layer rows
 

@@ -240,6 +240,7 @@ class Registry:
         party_id: str,
         workspace: Optional[str] = None,
         org_id: Optional[str] = None,
+        timezone: Optional[str] = None,
     ) -> str:
         """Find-or-create a participant identified by (party_id, handle).
 
@@ -275,6 +276,17 @@ class Registry:
             "WHERE party_id = ? AND (org_id IS NULL OR org_id = '')",
             (effective_org, party_id),
         )
+        # Update the device's home timezone on every call. This is
+        # last-write-wins by design — when a laptop crosses tz, the
+        # parties.timezone reflects "where this device usually is now"
+        # while gene_attribution.authored_tz captures per-write history.
+        # Together they distinguish "device's home" from "where each
+        # gene was actually authored."
+        if timezone:
+            cur.execute(
+                "UPDATE parties SET timezone = ? WHERE party_id = ?",
+                (timezone, party_id),
+            )
         self.genome.conn.commit()
 
         # Look up by (party_id, handle) — this is the natural local key.
@@ -299,10 +311,16 @@ class Registry:
         )
         # Re-stamp the org_id on the party row that register_participant
         # just created with NULL org (it doesn't know about the org layer).
+        # Also stamp the timezone on first-creation if provided.
         cur.execute(
             "UPDATE parties SET org_id = ? WHERE party_id = ? AND org_id IS NULL",
             (effective_org, party_id),
         )
+        if timezone:
+            cur.execute(
+                "UPDATE parties SET timezone = ? WHERE party_id = ? AND timezone IS NULL",
+                (timezone, party_id),
+            )
         self.genome.conn.commit()
         return p.participant_id
 
@@ -486,6 +504,7 @@ class Registry:
         authored_at: Optional[float] = None,
         org_id: Optional[str] = None,
         agent_id: Optional[str] = None,
+        authored_tz: Optional[str] = None,
     ) -> Optional[GeneAttribution]:
         """Write a 4-axis attribution row for a gene.
 
@@ -549,9 +568,9 @@ class Registry:
 
         cur.execute(
             "INSERT OR REPLACE INTO gene_attribution "
-            "(gene_id, party_id, participant_id, authored_at, org_id, agent_id) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
-            (gene_id, resolved_party, participant_id, now, resolved_org, agent_id),
+            "(gene_id, party_id, participant_id, authored_at, org_id, agent_id, authored_tz) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (gene_id, resolved_party, participant_id, now, resolved_org, agent_id, authored_tz),
         )
         # Implicit heartbeat — avoid round trips for clients that ingest often
         if participant_id:

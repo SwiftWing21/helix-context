@@ -45,6 +45,58 @@ _CHECKPOINT_INTERVAL = 60  # seconds between background WAL checkpoints
 _REGISTRY_SWEEP_INTERVAL = 60  # seconds between session registry status sweeps
 
 
+def _local_timezone() -> Optional[str]:
+    """Resolve the local IANA timezone name for attribution.
+
+    Order of precedence:
+      1. ``HELIX_TZ`` env var (e.g., 'America/Los_Angeles', 'Europe/Berlin')
+         — the only path that guarantees an IANA name on Windows, where
+         the OS exposes display names like 'Pacific Standard Time'.
+      2. ``tzlocal.get_localzone_name()`` if the package is installed.
+         Cross-platform, always returns IANA. Soft-import so we don't
+         add a hard dependency.
+      3. Stdlib ``datetime.now().astimezone().tzname()`` — returns
+         abbreviation on Linux/Mac (e.g., 'PDT') and display name on
+         Windows ('Pacific Daylight Time'). Not IANA, but better than
+         nothing for forensic value.
+      4. ``time.tzname[time.daylight]`` — last-ditch from the time module.
+      5. ``'UTC'`` — final fallback so attribution writes don't fail.
+
+    Returns the resolved name as a string. Caller can normalize at
+    query time if needed (Windows display names map cleanly to IANA via
+    a small lookup table).
+
+    The IANA name is a label for a DST rule set, NOT a location. It
+    tells us the longitude band + DST policy the device is on, not the
+    user's city or actual coordinates. See docs/FEDERATION_LOCAL.md
+    "What timezone capture actually tells us" for the honest framing.
+    """
+    if tz := os.environ.get("HELIX_TZ"):
+        return tz.strip()[:64] or None
+    try:
+        from tzlocal import get_localzone_name  # type: ignore
+        name = get_localzone_name()
+        if name:
+            return str(name)[:64]
+    except Exception:
+        pass
+    try:
+        import datetime as _dt
+        name = _dt.datetime.now().astimezone().tzname()
+        if name:
+            return name[:64]
+    except Exception:
+        pass
+    try:
+        import time as _time
+        name = _time.tzname[1 if _time.daylight else 0]
+        if name:
+            return name[:64]
+    except Exception:
+        pass
+    return "UTC"
+
+
 def _local_attribution_defaults() -> tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
     """Resolve OS-level 4-layer identity for trust-on-first-use attribution.
 
@@ -320,6 +372,10 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
         # without any auth infrastructure. See docs/FEDERATION_LOCAL.md.
         # Caller can disable by passing ``"local_federation": false``.
         local_federation = data.get("local_federation", True)
+        # Per-write tz capture (5th forensic axis). Caller can override
+        # by passing "authored_tz" in the body (e.g., a remote ingest
+        # client may know its own tz better than the server does).
+        authored_tz = data.get("authored_tz") or _local_timezone()
         if local_federation and not participant_id:
             user_handle, default_device, default_org, agent_handle = (
                 _local_attribution_defaults()
@@ -337,6 +393,7 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
                         handle=user_handle,
                         party_id=effective_party,
                         org_id=org_id,
+                        timezone=authored_tz,  # device home tz (last-write-wins)
                     )
                     if not party_id:
                         party_id = effective_party
@@ -384,6 +441,7 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
                         party_id=party_id,
                         org_id=org_id,
                         agent_id=agent_id,
+                        authored_tz=authored_tz,
                     )
                     if result is not None:
                         attributed += 1

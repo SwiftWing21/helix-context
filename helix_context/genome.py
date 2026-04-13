@@ -588,6 +588,17 @@ class Genome:
             )
         except sqlite3.OperationalError:
             pass  # column already exists — schema is idempotent
+
+        # parties.timezone — IANA name (e.g., "America/Los_Angeles"),
+        # NOT the offset. The IANA database handles DST transitions,
+        # historical rule changes, and post-DST policy shifts cleanly.
+        # Storing the offset directly would mean a device's identity
+        # silently bifurcates twice a year — see docs/FEDERATION_LOCAL.md.
+        # NULL = unknown (legacy row pre-2026-04-12); treat as UTC.
+        try:
+            cur.execute("ALTER TABLE parties ADD COLUMN timezone TEXT")
+        except sqlite3.OperationalError:
+            pass
         cur.execute(
             "CREATE INDEX IF NOT EXISTS idx_parties_trust_domain "
             "ON parties(trust_domain)"
@@ -686,6 +697,19 @@ class Genome:
             cur.execute(
                 "ALTER TABLE gene_attribution ADD COLUMN agent_id TEXT "
                 "REFERENCES agents(agent_id) ON DELETE SET NULL"
+            )
+        except sqlite3.OperationalError:
+            pass
+
+        # authored_tz — IANA timezone name at the moment of write.
+        # Together with authored_at (Unix epoch UTC) this gives full
+        # forensic context: when AND where (regionally) a gene was
+        # authored. Detects travel ("max wrote this from Berlin"),
+        # DST drift (silent offset shift in the same party's authored_tz
+        # over time), and supports cross-jurisdiction compliance queries.
+        try:
+            cur.execute(
+                "ALTER TABLE gene_attribution ADD COLUMN authored_tz TEXT"
             )
         except sqlite3.OperationalError:
             pass
