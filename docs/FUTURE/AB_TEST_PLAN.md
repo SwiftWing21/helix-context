@@ -69,14 +69,23 @@ Identical for both configs:
 
 ### Post-A measurement (2026-04-12, genome-bench-A.db, 17,685 genes)
 
-| Metric | Pre-A predicted | A measured | Pre-A miss |
-|---|---|---|---|
-| SIKE N=10 retrieval | 10/10 | **8/10** | -2 |
-| SIKE N=10 answer (qwen3:8b) | 9/10 | **5/10** | -4 |
-| KV-harvest N=50 retrieval | 40% | **8%** | **-32pp** |
-| KV-harvest N=50 answer | 35% | **8%** | **-27pp** |
-| Ingest wall-clock | 3-4 hours | ~3 hours | ~0 |
-| Ingest cost | ~$0.30 | ~$0.30 (gemma4 via LiteLLM) | ~0 |
+| Metric | Pre-A predicted | A measured (raw) | A measured (score-floor fix) | Pre-A miss |
+|---|---|---|---|---|
+| SIKE N=10 retrieval | 10/10 | 8/10 | **10/10** | 0 (after fix) |
+| SIKE N=10 answer (qwen3:8b) | 9/10 | 5/10 | **7/10** | -2 |
+| KV-harvest N=50 retrieval | 40% | 8% | **12%** | **-28pp** |
+| KV-harvest N=50 answer | 35% | 8% | **10%** | **-25pp** |
+| Ingest wall-clock | 3-4 hours | ~3 hours | — | ~0 |
+| Ingest cost | ~$0.30 | ~$0.30 (gemma4 via LiteLLM) | — | ~0 |
+
+**Score-floor fix (commit pending):** raw A had a bug where the budget
+tier used ratio-only (top_score/mean) which is scale-invariant. A query
+with top=1.2, mean=0.4 (ratio=3.0) got the same "tight mode, send top 3"
+treatment as top=8.5, mean=2.8 — even though the former means "retrieval
+is weak, widen the net" and the latter means "we found it." Adding an
+absolute score floor (TIGHT requires top_score ≥ 5.0, FOCUSED ≥ 2.5)
+keeps weak-signal queries in BROAD mode with 12 candidates. This
+recovered SIKE 10/10 and bumped KV-harvest 8→12%.
 
 **What Post-A tells us:**
 
@@ -92,17 +101,29 @@ crowded the retrieval pool. The template-query signal (key name, value
 pattern) is weaker than the curated-query signal (domain vocabulary,
 named entities), so it drowns in noise first.
 
-**Category breakdown (the smoking gun):**
-- `education_public`: 13.3% retrieval (high-volume, moderate signal)
-- `steam`: 7.1% retrieval (high-volume, low signal)
-- `helix`: **0.0% retrieval** (7 needles, all missed) ← this is the alarm
-- `cosmic`: 0.0% retrieval
-- `scorerift`: 0.0% retrieval
+**Category breakdown — raw A vs score-floor fix:**
 
-Helix's own content isn't being retrieved on KV-harvest queries. That's
-an identity-crisis-level failure — the system can't recall its own facts
-when asked template-style. Curated SIKE finds them (`helix_port` hit at
-80% retrieval level) because those queries use domain vocabulary.
+| Category | Raw A retr | Fixed A retr | Delta |
+|---|---|---|---|
+| education_public | 13.3% | **26.7%** | +13.4pp |
+| scorerift | 0% | **50%** | +50pp (1/2) |
+| steam | 7.1% | 7.1% | flat |
+| tally | 25% | 0% | -25pp (regressed) |
+| **helix** | **0%** | **0%** | zero (7/7 still missed) |
+| **cosmic** | **0%** | **0%** | zero (6/6 still missed) |
+
+The score-floor fix is a structural improvement but only solved the
+easy half. Helix and cosmic stayed at 0% — meaning the target gene is
+ranked so far outside top-12 that widening the net doesn't help. This
+is a retrieval-*ordering* problem, not a budget-tier problem.
+
+After the fix, curated SIKE hits 100% and template KV-harvest still
+fails on helix/cosmic. That's diagnostic:
+- Curated queries use domain vocabulary that tag-based retrieval
+  scores correctly.
+- Template queries ("What is the value of X?") give retrieval no
+  domain signal, and the 11K Steam/education genes overwhelm the
+  ~500 helix genes by volume.
 
 **Revised B prediction (math-only ingest):**
 

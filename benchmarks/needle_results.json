@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-04-12T15:50:33",
-  "genome_genes": 17685,
-  "compression_ratio": 2.197722840388819,
+  "timestamp": "2026-04-12T20:57:08",
+  "genome_genes": 17748,
+  "compression_ratio": 2.197556546602569,
   "needles": [
     {
       "name": "helix_port",
@@ -9,12 +9,12 @@
       "expected": "11437",
       "found_in_context": true,
       "answer_correct": true,
-      "context_latency_s": 6.264,
-      "proxy_latency_s": 6.362,
-      "ellipticity": 0.6165,
+      "context_latency_s": 10.719,
+      "proxy_latency_s": 16.962,
+      "ellipticity": 0.5519,
       "status": "sparse",
-      "genes_expressed": 3,
-      "answer_preview": "11437"
+      "genes_expressed": 12,
+      "answer_preview": "The Helix proxy server listens on **port 11437**. This is explicitly stated in the GENE block from `helix-context/README.md`, where it mentions:  \n**\"Helix proxy server listens on **port 11437**\"**.  "
     },
     {
       "name": "scorerift_threshold",
@@ -22,9 +22,9 @@
       "expected": "0.15",
       "found_in_context": true,
       "answer_correct": true,
-      "context_latency_s": 1.408,
-      "proxy_latency_s": 4.259,
-      "ellipticity": 0.4515,
+      "context_latency_s": 2.713,
+      "proxy_latency_s": 7.221,
+      "ellipticity": 0.4677,
       "status": "sparse",
       "genes_expressed": 3,
       "answer_preview": "0.15"
@@ -33,14 +33,14 @@
       "name": "biged_skills_count",
       "query": "How many skills does the BigEd fleet have?",
       "expected": "125",
-      "found_in_context": false,
-      "answer_correct": false,
-      "context_latency_s": 2.213,
-      "proxy_latency_s": 6.581,
-      "ellipticity": 0.4955,
+      "found_in_context": true,
+      "answer_correct": true,
+      "context_latency_s": 7.276,
+      "proxy_latency_s": 10.988,
+      "ellipticity": 0.5903,
       "status": "sparse",
-      "genes_expressed": 3,
-      "answer_preview": "The question \"How many skills does the BigEd fleet have?\" is not addressed by any of the provided facts. No key in the ANSWER SLATE or GENE blocks mentions \"skills\" or a count related to the BigEd fle"
+      "genes_expressed": 12,
+      "answer_preview": "The BigEd fleet has **129 skills** registered across the `fleet/skills/` directory, as indicated in both the `RUNBOOK.md` and `overview.md` entries."
     },
     {
       "name": "bookkeeper_monetary",
@@ -48,12 +48,12 @@
       "expected": "Decimal",
       "found_in_context": true,
       "answer_correct": true,
-      "context_latency_s": 1.538,
-      "proxy_latency_s": 4.883,
-      "ellipticity": 0.5763,
+      "context_latency_s": 3.716,
+      "proxy_latency_s": 7.566,
+      "ellipticity": 0.6013,
       "status": "sparse",
-      "genes_expressed": 3,
-      "answer_preview": "The type that should be used for monetary values in BookKeeper instead of float is **`Decimal`** from Python's `decimal` module.\n\n**SPECIFIC VALUE:**  \n`Decimal` (from the `decimal` module)"
+      "genes_expressed": 12,
+      "answer_preview": "The exact value from the key is **`Decimal`**."
     },
     {
       "name": "helix_pipeline_steps",
@@ -61,11 +61,11 @@
       "expected": "6",
       "found_in_context": true,
       "answer_correct": false,
-      "context_latency_s": 2.031,
-      "proxy_latency_s": 8.049,
-      "ellipticity": 0.5361,
+      "context_latency_s": 5.431,
+      "proxy_latency_s": 12.479,
+      "ellipticity": 0.4638,
       "status": "sparse",
-      "genes_expressed": 3,
+      "genes_expressed": 12,
       "answer_preview": "3"
     },
     {
@@ -74,12 +74,12 @@
       "expected": "11",
       "found_in_context": true,
       "answer_correct": false,
-      "context_latency_s": 2.603,
-      "proxy_latency_s": 6.611,
-      "ellipticity": 0.6343,
+      "context_latency_s": 6.959,
+      "proxy_latency_s": 21.755,
+      "ellipticity": 0.6271,
       "status": "sparse",
-      "genes_expressed": 3,
-      "answer_preview": "50"
+      "genes_expressed": 12,
+      "answer_preview": "The provided context does not explicitly mention the binary size of the Rust BigEd build in MB. The information available focuses on the structure, dependencies, and functionality of the Rust build, s"
     },
     {
       "name": "genome_compression_target",
@@ -87,12 +87,12 @@
       "expected": "5x",
       "found_in_context": true,
       "answer_correct": false,
-      "context_latency_s": 1.969,
-      "proxy_latency_s": 5.078,
-      "ellipticity": 0.6035,
+      "context_latency_s": 8.105,
+      "proxy_latency_s": 17.829,
+      "ellipticity": 0.5677,
       "status": "sparse",
-      "genes_expressed": 3,
-      "answer_preview": "5"
+      "genes_expressed": 12,
+      "answer_preview": "The target compression ratio for Helix Context is **7.17x**, as indicated in the **BENCHMARK_NOTES.md** GENE block under the \"Helix Deep Ingest Timeline\" section. This value represents the achieved co"
     },
     {
       "name": "scorerift_preset_dimensions",
@@ -100,11 +100,11 @@
       "expected": "8",
       "found_in_context": true,
       "answer_correct": true,
-      "context_latency_s": 2.164,
-      "proxy_latency_s": 5.705,
-      "ellipticity": 0.4994,
+      "context_latency_s": 3.828,
+      "proxy_latency_s": 8.951,
+      "ellipticity": 0.5456,
       "status": "sparse",
-      "genes_expressed": 3,
+      "genes_expressed": 6,
       "answer_preview": "8"
     },
     {
@@ -113,30 +113,30 @@
       "expected": "3000",
       "found_in_context": true,
       "answer_correct": true,
-      "context_latency_s": 1.47,
-      "proxy_latency_s": 4.758,
-      "ellipticity": 0.5063,
+      "context_latency_s": 6.194,
+      "proxy_latency_s": 10.24,
+      "ellipticity": 0.5661,
       "status": "sparse",
-      "genes_expressed": 3,
+      "genes_expressed": 6,
       "answer_preview": "3000"
     },
     {
       "name": "biged_default_model",
       "query": "What is the default local model used by BigEd for conductor tasks?",
       "expected": "qwen3",
-      "found_in_context": false,
-      "answer_correct": false,
-      "context_latency_s": 2.925,
-      "proxy_latency_s": 24.813,
-      "ellipticity": 0.601,
+      "found_in_context": true,
+      "answer_correct": true,
+      "context_latency_s": 6.815,
+      "proxy_latency_s": 13.935,
+      "ellipticity": 0.6262,
       "status": "sparse",
-      "genes_expressed": 3,
-      "answer_preview": "claude-haiku-4-5"
+      "genes_expressed": 12,
+      "answer_preview": "The default local model used by BigEd for conductor tasks is **qwen3:4b**. This is specified in the `OPERATIONS.md` file, where it explicitly states:\n\n```\nollama pull qwen3:4b # conductor (CPU)\n```\n\nT"
     }
   ],
   "summary": {
-    "context_retrieval_rate": 0.8,
-    "answer_accuracy_rate": 0.5,
-    "avg_context_latency_s": 2.458
+    "context_retrieval_rate": 1.0,
+    "answer_accuracy_rate": 0.7,
+    "avg_context_latency_s": 6.176
   }
 }

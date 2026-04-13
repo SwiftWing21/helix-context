@@ -635,20 +635,32 @@ class HelixContextManager:
                     candidates = gated
 
                 # Confidence tiering (with shadow pool tracking)
-                if ratio >= 3.0 and len(candidates) >= 3:
-                    # High confidence — top gene dominates, send 3
-                    # Move cut genes (4-12) to shadow pool
+                #
+                # Absolute floors prevent the ratio from triggering TIGHT/FOCUSED
+                # when ALL candidates are weak. Before the floor, a query with
+                # top_score=1.2, mean=0.4 (ratio=3.0) got the same "tight" treatment
+                # as top=8.5, mean=2.8 — even though the first is "retrieval is
+                # uncertain, widen the net" and the second is "we found it, send 3."
+                # Empirically: on N=50 KV-harvest bench (2026-04-12), 45/50 failed
+                # queries landed in tight mode with top_score < 3.0. Adding the
+                # absolute floor keeps weak-signal queries in BROAD mode where
+                # the larger candidate set gives them a recall chance.
+                TIGHT_SCORE_FLOOR = 5.0
+                FOCUSED_SCORE_FLOOR = 2.5
+                if ratio >= 3.0 and top_score >= TIGHT_SCORE_FLOOR and len(candidates) >= 3:
+                    # High confidence — top gene dominates AND is strong, send 3
                     shadow_pool = shadow_pool + candidates[3:]
                     candidates = candidates[:3]
                     budget_tier = "tight"
                     budget_tokens_est = 6000
-                elif ratio >= 1.8 and len(candidates) >= 6:
+                elif ratio >= 1.8 and top_score >= FOCUSED_SCORE_FLOOR and len(candidates) >= 6:
                     # Moderate confidence — narrow to 6
                     shadow_pool = shadow_pool + candidates[6:]
                     candidates = candidates[:6]
                     budget_tier = "focused"
                     budget_tokens_est = 9000
                 # else: broad — keep current up-to-max_genes set
+                #   (weak absolute scores or weak ratio → widen the net)
 
                 # Stash shadow pool for Lagrange check (#3)
                 self._last_shadow_pool = shadow_pool

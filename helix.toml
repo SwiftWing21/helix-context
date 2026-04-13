@@ -1,13 +1,13 @@
 [ribosome]
 model = "gemma4:e4b"                    # Ollama model for pack + replicate (lighter, 4.2GB VRAM)
 base_url = "http://localhost:11434"
-timeout = 30                            # seconds — Ollama timeout before fallback
+timeout = 120                            # Increased for bulk ingestion
 keep_alive = "30m"                      # keep Ollama model loaded
 warmup = false                          # pre-load Ollama model on server start (disabled for N=1000 bench — qwen3:4b holds VRAM)
-backend = "claude"                      # "ollama" | "deberta" | "claude" | "litellm" — switch back to "ollama" when done
+backend = "claude"                      # "ollama" | "deberta" | "claude" | "litellm" — claude avoids GPU contention with qwen3:8b bench
 claude_model = "claude-haiku-4-5-20251001"   # haiku=cost-effective bulk; swap to claude-sonnet-4-6 for higher resolution
-claude_base_url = "http://127.0.0.1:8787"   # Headroom proxy; "" = direct Anthropic
-litellm_model = "gemini/gemini-2.5-flash"   # LiteLLM model string — any provider: gemini/, gpt-, claude-, ollama/
+claude_base_url = ""                    # direct Anthropic API (bench mode); was http://localhost:11434 for ollama, http://127.0.0.1:8787 for Headroom
+litellm_model = "ollama/gemma4:e4b"   # LiteLLM model string — using local Ollama
 
 [budget]
 ribosome_tokens = 3000                  # fixed decoder prompt
