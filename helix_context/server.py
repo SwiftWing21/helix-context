@@ -489,6 +489,18 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
         if session_context is not None and not isinstance(session_context, dict):
             session_context = None  # ignore malformed input
 
+        # clean=true: reset per-session caches (TCM drift, intent LRU,
+        # shadow pool) before this request runs. Intended for synthetic
+        # benches where every query is independent of the previous one —
+        # letting state accumulate across unrelated queries pollutes
+        # signals like TCM that are designed for related-query coherence.
+        # Real users / live sessions should leave this false (default).
+        if data.get("clean", False):
+            try:
+                helix.reset_session_state()
+            except Exception:
+                log.debug("reset_session_state failed", exc_info=True)
+
         if not query:
             return JSONResponse({"error": "No query provided"}, status_code=400)
 

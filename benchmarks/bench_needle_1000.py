@@ -351,11 +351,14 @@ def run_needle(client: httpx.Client, needle: dict) -> dict:
         "query": query,
     }
 
-    # Step 1: retrieval (stateless — no benchmark_mode flag needed for current harness)
+    # Step 1: retrieval (stateless per query — clean=true resets TCM
+    # drift + intent cache + shadow pool between unrelated needles so
+    # state from query N-1 doesn't bleed into query N).
     t0 = time.time()
     context_payload = {
         "query": query,
         "decoder_mode": "none",
+        "clean": True,  # synthetic bench — fresh state per query
     }
     if INCLUDE_COLD_TIER is not None:
         context_payload["include_cold"] = INCLUDE_COLD_TIER

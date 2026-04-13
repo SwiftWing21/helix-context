@@ -872,6 +872,50 @@ class HelixContextManager:
             _executor, self.build_context, query, downstream_model, include_cold, session_context,
         )
 
+    def reset_session_state(self) -> None:
+        """Clear per-session caches and TCM drift between unrelated queries.
+
+        Intended for synthetic benches (N=1000+) where every needle is
+        independent of the previous one — letting TCM drift accumulate
+        across unrelated queries pollutes the temporal context signal,
+        and lets the intent-expansion LRU grow without bound.
+
+        Resets:
+          - _intent_cache (LRU of LLM-expanded queries)
+          - _tcm_session (re-initializes the temporal context to zero)
+          - genome.last_query_scores (per-call but better cleared)
+          - _last_shadow_pool / _last_shadow_scores (Lagrange leftovers)
+
+        Does NOT touch:
+          - genome content (genes, embeddings, attribution)
+          - LRU-cached parse results (those are content-keyed)
+          - chromatin tier state (per-gene)
+
+        Safe to call between every /context request when running
+        in synthetic-bench mode. Typical real-user sessions should NOT
+        call this — the TCM drift IS the value-add for related queries.
+        """
+        try:
+            if hasattr(self, "_intent_cache"):
+                self._intent_cache.clear()
+        except Exception:
+            pass
+        try:
+            if self._tcm_session is not None:
+                from .tcm import SessionContext
+                self._tcm_session = SessionContext(n_dims=20, beta=0.5)
+        except Exception:
+            pass
+        try:
+            self.genome.last_query_scores = {}
+        except Exception:
+            pass
+        try:
+            self._last_shadow_pool = []
+            self._last_shadow_scores = {}
+        except Exception:
+            pass
+
     # -- Learn: replicate exchange back to genome (Step 6) -------------
 
     def learn(self, query: str, response: str, timeout_s: float = 15.0) -> Optional[str]:
