@@ -120,6 +120,116 @@ def is_denied_source(source_id: Optional[str]) -> bool:
     return bool(_DENY_RE.search(source_id))
 
 
+# ── Path tokenization for the path_key_index retrieval layer ────────────
+# Splits source_id on common path separators + common filename punctuation.
+# Each token becomes a retrieval signal paired with the gene's key_values
+# keys. A query like "what is the value of helix_port?" hits the index on
+# path_token='helix' AND kv_key='port' → direct boost to the gene.
+#
+# No LLM, no manual project list, no re-ingest required — purely derived
+# from source_id + CpuTagger-extracted key_values. When a new project
+# ingests at /SomeDir/NewProject/..., the token "newproject" becomes a
+# retrieval signal automatically.
+_PATH_SPLIT_RE = re.compile(r"[\\/\-_.\s:]+")
+
+# Tokens that appear on nearly every path and carry no discriminating
+# signal. Keeping this list tiny on purpose — it's the only maintenance
+# burden, and overflowing it would be throwing signal away. Subset
+# chosen from the actual source_id distribution on the 2026-04-12 genome.
+_PATH_NOISE_TOKENS = frozenset({
+    "",
+    # Drive / filesystem roots
+    "f", "c", "d", "e", "g", "h",
+    # Ubiquitous container dirs
+    "projects", "project", "src", "lib", "app", "apps", "test", "tests",
+    "docs", "doc", "main", "master", "common", "shared", "core", "util",
+    "utils", "include", "includes", "public", "private", "tmp", "temp",
+    "cache", "dist", "build", "bin", "obj", "x64", "x86", "arm64", "debug",
+    "release", "data", "file", "files", "assets", "resources", "scripts",
+    "config", "configs", "node_modules", "pycache", "__pycache__",
+    # Filename-level noise
+    "init", "index", "new", "old", "copy", "readme", "license",
+    # Extensions that appear as tokens after splitting
+    "py", "js", "ts", "tsx", "jsx", "md", "txt", "json", "toml", "yaml",
+    "yml", "ini", "cfg", "xml", "html", "css", "scss", "rs", "go",
+    "java", "c", "cpp", "h", "hpp", "sh", "bat", "ps1", "log",
+})
+
+
+def _kv_keys_from_list(kv_list) -> list:
+    """Extract lowercased key names from a key_values List[str] of 'key=value'.
+
+    Gene.key_values is stored as ["port=8080", "model=llava", ...] — each
+    entry is a 'key=value' string. This helper pulls out just the key side,
+    lowercased, deduped, skipping empties.
+
+    Works transparently on dict inputs too for forward-compat — if a future
+    gene schema changes key_values to Dict[str, str], this still returns
+    the right keys.
+    """
+    if not kv_list:
+        return []
+    # dict path (future-proof)
+    if isinstance(kv_list, dict):
+        return [k.lower() for k in kv_list.keys() if k]
+    # list-of-strings path (current schema)
+    out = []
+    seen = set()
+    for entry in kv_list:
+        if not isinstance(entry, str):
+            continue
+        # Split on the FIRST '=' only — values can contain '='
+        if "=" not in entry:
+            continue
+        key = entry.split("=", 1)[0].strip().lower()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        out.append(key)
+    return out
+
+
+def path_tokens(source_id: Optional[str]) -> set:
+    """Extract retrieval-signal tokens from a file path.
+
+    Splits on path separators and common filename punctuation, lowercases
+    everything, drops single-char tokens and generic noise (see
+    _PATH_NOISE_TOKENS). The result is the set of tokens that meaningfully
+    identify this gene's provenance for compound-lookup retrieval.
+
+    Examples:
+        "F:/Projects/helix-context/helix_context/config.py"
+          → {"helix-context", "helix_context", "helix", "context"}
+
+        "F:/SteamLibrary/steamapps/common/Hades II/content/maps.lua"
+          → {"steamlibrary", "steamapps", "hades", "ii", "content", "maps"}
+
+        "F:/Projects/CosmicTasha/src/components/Hero.tsx"
+          → {"cosmictasha", "components", "hero"}
+
+    Exposed as a module-level function so tests, backfill scripts, and
+    retrieval code can reuse it without constructing a Genome.
+    """
+    if not source_id:
+        return set()
+    out = set()
+    # First pass: raw split on separators + punctuation
+    for tok in _PATH_SPLIT_RE.split(source_id):
+        t = tok.lower()
+        if len(t) <= 1 or t in _PATH_NOISE_TOKENS:
+            continue
+        out.add(t)
+        # Sub-split on interior hyphens/underscores to surface "helix"
+        # from "helix-context" and "helix_context". Keeps the compound
+        # form too so direct matches still work.
+        if "-" in t or "_" in t:
+            for sub in re.split(r"[-_]+", t):
+                s = sub.lower()
+                if len(s) > 1 and s not in _PATH_NOISE_TOKENS:
+                    out.add(s)
+    return out
+
+
 # Thresholds for the score-based gate. Calibrated against the 2026-04-10
 # noise-diluted genome (8,063 genes, ~42% structural noise). See
 # scripts/simulate_density_gate_v2.py for the empirical basis.
@@ -290,6 +400,30 @@ class Genome:
         cur.execute(
             "CREATE INDEX IF NOT EXISTS idx_entity_graph_gene "
             "ON entity_graph(gene_id)"
+        )
+
+        # path_key_index: compound (path_token, kv_key) → gene_id lookup for
+        # fast retrieval on template queries like "what is the value of
+        # helix_port?" where the answer gene has the key "port" and lives
+        # under a path containing "helix-context". Populated at ingest from
+        # source_id tokenization + key_values.keys(). Auto-applies to every
+        # gene that has a source_id + extracted key_values — no LLM, no
+        # manual tagging, no project bucket list to maintain.
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS path_key_index (
+            path_token TEXT NOT NULL,
+            kv_key     TEXT NOT NULL,
+            gene_id    TEXT NOT NULL,
+            PRIMARY KEY (path_token, kv_key, gene_id)
+        )
+        """)
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_pki_lookup "
+            "ON path_key_index(path_token, kv_key)"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_pki_gene "
+            "ON path_key_index(gene_id)"
         )
 
         cur.execute(
@@ -914,6 +1048,23 @@ class Genome:
             # Auto-link: find genes sharing 2+ entities with this gene
             self._auto_link_by_entity(gene_id, gene.promoter.entities, cur)
 
+        # path_key_index — compound (path_token, kv_key) → gene_id for
+        # fast template-query retrieval ("what is the value of helix_port?"
+        # → index hit on (helix, port) → this gene). Auto-derived from
+        # source_id + already-extracted key_values; no LLM, no manual list.
+        cur.execute("DELETE FROM path_key_index WHERE gene_id = ?", (gene_id,))
+        if gene.source_id and gene.key_values:
+            p_tokens = path_tokens(gene.source_id)
+            kv_keys = _kv_keys_from_list(gene.key_values)
+            if p_tokens and kv_keys:
+                for pt in p_tokens:
+                    for kk in kv_keys:
+                        cur.execute(
+                            "INSERT OR IGNORE INTO path_key_index "
+                            "(path_token, kv_key, gene_id) VALUES (?, ?, ?)",
+                            (pt, kk, gene_id),
+                        )
+
         # SPLADE sparse index (if enabled, non-blocking)
         if self._splade_enabled:
             try:
@@ -1093,6 +1244,88 @@ class Genome:
                     "(SELECT gene_id FROM gene_attribution WHERE party_id = ?)"
                 )
                 _party_params = [party_id]
+
+        # ── Tier 0: path-key compound index (IDF-weighted) ─────────
+        # Highest-confidence retrieval signal — a hit means the query
+        # mentions both a path-token (project/module) AND a kv_key that
+        # an indexed gene was tagged with at ingest. This catches
+        # template queries like "what is the value of helix_port?" where
+        # FTS5/SPLADE both miss because the query lacks domain context.
+        #
+        # CRITICAL: bonus is INVERSELY proportional to the (path_token,
+        # kv_key) pair cardinality. Rare pairs like (helix, port) — only
+        # 2-3 genes share — each get a strong boost (~+5). Common pairs
+        # like (steamapps, url) — 3000+ genes share — get ~zero boost,
+        # so they don't drown the signal. This is the standard IDF
+        # idea applied to compound retrieval keys.
+        #
+        # Without IDF weighting, a query containing common terms like
+        # "url" or "value" would dump +8 on thousands of false-positive
+        # genes, regressing retrieval (empirically observed 12% -> 6%
+        # on the 2026-04-12 KV-harvest bench before this fix).
+        q_lower_tokens = [t.lower() for t in query_terms if t]
+        if q_lower_tokens:
+            try:
+                # Group hits by (path_token, kv_key) to compute per-pair
+                # cardinality. SQLite GROUP BY + COUNT does this in one
+                # pass over the index.
+                pt_ph = ",".join("?" * len(q_lower_tokens))
+                kk_ph = ",".join("?" * len(q_lower_tokens))
+                pki_sql = (
+                    f"SELECT path_token, kv_key, gene_id FROM path_key_index "
+                    f"WHERE path_token IN ({pt_ph}) AND kv_key IN ({kk_ph})"
+                )
+                pki_params = list(q_lower_tokens) + list(q_lower_tokens)
+                if party_id is not None and _party_filter:
+                    pki_sql = (
+                        f"SELECT path_token, kv_key, gene_id FROM path_key_index "
+                        f"WHERE path_token IN ({pt_ph}) "
+                        f"AND kv_key IN ({kk_ph}) "
+                        f"AND gene_id IN (SELECT gene_id FROM "
+                        f"gene_attribution WHERE party_id = ?)"
+                    )
+                    pki_params = pki_params + [party_id]
+                pki_hits = cur.execute(pki_sql, pki_params).fetchall()
+
+                # Bucket: pair_count[(pt, kk)] = number of distinct genes
+                # gene_pairs[gene_id] = list of (pt, kk) pairs that hit
+                pair_count: Dict[tuple, int] = {}
+                gene_pairs: Dict[str, list] = {}
+                for r in pki_hits:
+                    pt = r["path_token"]
+                    kk = r["kv_key"]
+                    gid = r["gene_id"]
+                    pair_count[(pt, kk)] = pair_count.get((pt, kk), 0) + 1
+                    gene_pairs.setdefault(gid, []).append((pt, kk))
+
+                # Score each gene by sum of inverse-cardinality boosts
+                # over all (pt, kk) pairs it matched on.
+                #
+                # Boost formula:
+                #   per-pair bonus = PKI_BASE / max(pair_card, PKI_FLOOR)
+                # where:
+                #   PKI_BASE  = 10.0  (so a unique pair lands at +10)
+                #   PKI_FLOOR =  2.0  (caps top-end at +5 for 2-gene pairs)
+                # A pair with 100 genes contributes only +0.1 per gene —
+                # essentially noise. A pair with 5 genes contributes +2.
+                PKI_BASE = 10.0
+                PKI_FLOOR = 2.0
+                # Hard-skip pairs with cardinality > this — they're noise
+                PKI_NOISE_CUTOFF = 200
+                for gid, pairs in gene_pairs.items():
+                    bonus = 0.0
+                    for pair in pairs:
+                        card = pair_count[pair]
+                        if card > PKI_NOISE_CUTOFF:
+                            continue  # too common, skip
+                        bonus += PKI_BASE / max(card, PKI_FLOOR)
+                    if bonus > 0:
+                        # Cap total bonus to keep one runaway gene from
+                        # saturating; 12.0 is roughly 3x the strongest
+                        # single signal.
+                        gene_scores[gid] = gene_scores.get(gid, 0) + min(bonus, 12.0)
+            except Exception as exc:
+                log.debug("path_key_index tier skipped: %s", exc)
 
         # ── Tier 1: exact promoter tag match (weight 3.0) ──────────
         placeholders = ",".join("?" * len(query_terms))

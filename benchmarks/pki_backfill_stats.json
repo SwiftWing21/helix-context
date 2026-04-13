@@ -1,0 +1,11 @@
+{
+  "total_genes": 17825,
+  "eligible_genes": 11642,
+  "pre_rows": 0,
+  "rows_inserted": 742598,
+  "genes_processed": 11642,
+  "genes_with_no_tokens": 0,
+  "genes_with_bad_kv": 0,
+  "elapsed_s": 8.19,
+  "post_rows": 742598
+}
