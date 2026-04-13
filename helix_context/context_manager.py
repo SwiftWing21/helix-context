@@ -456,6 +456,7 @@ class HelixContextManager:
         query: str,
         downstream_model: Optional[str] = None,
         include_cold: Optional[bool] = None,
+        session_context: Optional[Dict] = None,
     ) -> ContextWindow:
         """
         Build the active context window for a query.
@@ -469,6 +470,16 @@ class HelixContextManager:
                 config flag in helix.toml. ``True`` forces cold-tier on,
                 ``False`` forces it off. Plumbed from the /context endpoint's
                 ``include_cold`` body parameter.
+            session_context: optional dict carrying the caller's working
+                context — typically ``{"active_project": "helix-context",
+                "active_files": ["helix_context/genome.py", ...]}``. The
+                path-tokens of these are appended to the entity list so
+                the path_key_index tier in ``query_genes`` can fire on
+                compound (project, key) pairs even when the user's natural
+                query doesn't restate the project name. This is the
+                "implicit THIS project" signal that real users have but
+                synthetic benches lack. None = no session context, which
+                preserves the previous behaviour exactly.
         """
         self._maybe_compact()
 
@@ -486,6 +497,33 @@ class HelixContextManager:
 
         # Step 1: Extract promoter signals (heuristic, no model)
         domains, entities = self._extract_query_signals(expanded_query)
+
+        # Step 1b: Inject implicit "THIS" tokens from session_context.
+        # The user's editor / cwd / open files tell us which project they
+        # are AT — this is information the synthetic bench harness lacks
+        # but real callers always have. Tokens become path_key_index
+        # lookup keys via query_terms in the Tier 0 retrieval pass.
+        if session_context:
+            try:
+                from .genome import path_tokens
+                implicit = set()
+                ap = session_context.get("active_project")
+                if ap:
+                    implicit |= path_tokens(str(ap))
+                for f in session_context.get("active_files", []) or []:
+                    implicit |= path_tokens(str(f))
+                # Also accept a flat list of project names (multi-repo
+                # workspaces, "I'm bouncing between helix and cosmic")
+                for p in session_context.get("active_projects", []) or []:
+                    implicit |= path_tokens(str(p))
+                # Add as entities — query_genes treats them identically
+                # to extracted entities, and the PKI tier will pair them
+                # with the kv_keys from the actual query.
+                if implicit:
+                    existing = {e.lower() for e in entities}
+                    entities = entities + [t for t in implicit if t not in existing]
+            except Exception:
+                log.debug("session_context plumb failed", exc_info=True)
 
         # Step 2: Express (genome query + pending buffer + optional cold tier)
         candidates = self._express(
@@ -826,11 +864,12 @@ class HelixContextManager:
         query: str,
         downstream_model: Optional[str] = None,
         include_cold: Optional[bool] = None,
+        session_context: Optional[Dict] = None,
     ) -> ContextWindow:
         """Async wrapper -- runs the sync pipeline in thread pool."""
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(
-            _executor, self.build_context, query, downstream_model, include_cold,
+            _executor, self.build_context, query, downstream_model, include_cold, session_context,
         )
 
     # -- Learn: replicate exchange back to genome (Step 6) -------------

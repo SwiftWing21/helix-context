@@ -16,7 +16,10 @@ Endpoints:
 from __future__ import annotations
 
 import asyncio
+import getpass
 import logging
+import os
+import socket
 from contextlib import asynccontextmanager
 from typing import Dict, Optional
 
@@ -40,6 +43,42 @@ log = logging.getLogger("helix.server")
 
 _CHECKPOINT_INTERVAL = 60  # seconds between background WAL checkpoints
 _REGISTRY_SWEEP_INTERVAL = 60  # seconds between session registry status sweeps
+
+
+def _local_attribution_defaults() -> tuple[Optional[str], Optional[str]]:
+    """Resolve OS-level (handle, party) for trust-on-first-use attribution.
+
+    Order of precedence:
+      1. HELIX_AGENT env var → handle (e.g., "laude", "taude")
+      2. getpass.getuser() → handle (e.g., "max")
+      3. HELIX_PARTY env var → party (e.g., "swiftwing")
+      4. socket.gethostname() → party (e.g., "max-desktop")
+
+    Returns (handle, party). Either may be None if discovery fails — the
+    /ingest path tolerates None and skips attribution rather than failing.
+
+    This is the OS-level federation primitive: every gene gets attributed
+    to "who created it" (HELIX_AGENT or OS user) and "where" (HELIX_PARTY
+    or hostname) without any auth infrastructure. When SSO is added later,
+    the auth edge replaces these defaults with OAuth-resolved IDs and the
+    rest of the pipeline keeps working unchanged.
+
+    See docs/FEDERATION_LOCAL.md for the full design.
+    """
+    try:
+        handle = os.environ.get("HELIX_AGENT") or getpass.getuser()
+    except Exception:
+        handle = None
+    try:
+        party = os.environ.get("HELIX_PARTY") or socket.gethostname()
+    except Exception:
+        party = None
+    # Normalize: lowercase, strip whitespace, sanity-cap length
+    if handle:
+        handle = str(handle).strip().lower()[:64] or None
+    if party:
+        party = str(party).strip().lower()[:64] or None
+    return handle, party
 
 
 async def _background_checkpoint(helix: HelixContextManager) -> None:
@@ -242,6 +281,34 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
         metadata = data.get("metadata")
         participant_id = data.get("participant_id")
         party_id = data.get("party_id")
+        # Trust-on-first-use OS-level federation: when the caller doesn't
+        # supply explicit participant/party, derive them from HELIX_AGENT
+        # / HELIX_PARTY env vars (falling back to OS username + hostname).
+        # This auto-attributes every gene to who created it without any
+        # auth infrastructure. See docs/FEDERATION_LOCAL.md.
+        # Caller can disable by passing ``"local_federation": false`` in
+        # the request body.
+        local_federation = data.get("local_federation", True)
+        if not participant_id and local_federation:
+            handle, default_party = _local_attribution_defaults()
+            if handle:
+                effective_party = party_id or default_party
+                if effective_party:
+                    try:
+                        # Find-or-create the participant for (handle, party)
+                        # and use its server-side participant_id for attribution.
+                        participant_id = registry.local_participant(
+                            handle=handle, party_id=effective_party,
+                        )
+                        # If no party_id was explicitly passed, adopt the
+                        # OS-derived one so attribute_gene resolves cleanly.
+                        if not party_id:
+                            party_id = effective_party
+                    except Exception:
+                        log.warning(
+                            "OS-level federation failed for handle=%s party=%s",
+                            handle, effective_party, exc_info=True,
+                        )
 
         if not content:
             return JSONResponse({"error": "No content provided"}, status_code=400)
@@ -300,6 +367,19 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
         if include_cold is not None:
             include_cold = bool(include_cold)
 
+        # session_context: optional dict carrying the caller's working
+        # context (active_project, active_files). Plumbed through to the
+        # path_key_index tier so PKI can fire on (project, key) pairs even
+        # when the user's natural query doesn't restate the project name.
+        # Shape:
+        #   {"active_project": "helix-context",
+        #    "active_files": ["helix_context/genome.py", "helix.toml"],
+        #    "active_projects": ["helix-context", "cosmictasha"]}
+        # All keys are optional. Unknown keys are ignored.
+        session_context = data.get("session_context")
+        if session_context is not None and not isinstance(session_context, dict):
+            session_context = None  # ignore malformed input
+
         if not query:
             return JSONResponse({"error": "No query provided"}, status_code=400)
 
@@ -311,7 +391,11 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             helix._decoder_mode = decoder_override
             helix._decoder_prompt = DECODER_MODES[decoder_override]
 
-        window = await helix.build_context_async(query, include_cold=include_cold)
+        window = await helix.build_context_async(
+            query,
+            include_cold=include_cold,
+            session_context=session_context,
+        )
 
         # Restore original mode after request
         if decoder_override and decoder_override in ("full", "condensed", "minimal", "none"):

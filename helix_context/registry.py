@@ -155,6 +155,49 @@ class Registry:
             metadata=metadata,
         )
 
+    def local_participant(
+        self,
+        handle: str,
+        party_id: str,
+        workspace: Optional[str] = None,
+    ) -> str:
+        """Find-or-create a participant identified by (party_id, handle).
+
+        This is the OS-level federation entry point — it lets ingest paths
+        attribute genes to "max@desktop", "laude@desktop", etc. without
+        any auth infrastructure. The handle is the OS username or the
+        HELIX_AGENT env var; the party_id is the hostname or the HELIX_PARTY
+        env var. See docs/FEDERATION_LOCAL.md for the rationale.
+
+        Idempotent: subsequent calls with the same (party_id, handle)
+        return the same participant_id without creating duplicates. Heart-
+        beat is touched on every call so the participant stays "active".
+
+        Returns: the participant_id (UUID) used for gene_attribution rows.
+        """
+        cur = self.genome.conn.cursor()
+        # Look up by (party_id, handle) — this is the natural local key.
+        row = cur.execute(
+            "SELECT participant_id FROM participants "
+            "WHERE party_id = ? AND handle = ? "
+            "ORDER BY started_at DESC LIMIT 1",
+            (party_id, handle),
+        ).fetchone()
+        if row is not None:
+            pid_existing = row["participant_id"]
+            # Touch heartbeat so the participant stays active across sessions.
+            self.touch_heartbeat(pid_existing)
+            return pid_existing
+
+        # Not found — register a new one (creates the party row trust-on-first-use).
+        p = self.register_participant(
+            party_id=party_id,
+            handle=handle,
+            workspace=workspace,
+            metadata={"source": "os_federation", "trust_domain": "local"},
+        )
+        return p.participant_id
+
     def heartbeat(self, participant_id: str) -> Optional[Tuple[float, str]]:
         """Refresh last_heartbeat for a participant.
 
