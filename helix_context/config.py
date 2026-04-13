@@ -106,6 +106,22 @@ class CymaticsConfig:
 
 
 @dataclass
+class RetrievalConfig:
+    """Tier 5.5 SR + theta ray_trace bias (Sprint 2)."""
+    # Successor Representation (Stachenfeld 2017) - lazy on-demand SR rows
+    # via truncated power series over co-activation graph.
+    sr_enabled: bool = False            # Dark ship — flip on for A/B
+    sr_gamma: float = 0.85              # Discount factor (5-10 hop horizon at 0.9)
+    sr_k_steps: int = 4                 # Power-series truncation depth
+    sr_weight: float = 1.5              # Per-gene contribution multiplier
+    sr_cap: float = 3.0                 # Max per-gene SR boost (matches harmonic cap)
+    # Theta alternation (Wang/Foster/Pfeiffer 2020) — fore/aft ray_trace
+    # sampling biased by the current TCM velocity vector.
+    ray_trace_theta: bool = False       # Dark ship
+    theta_weight: float = 1.0           # Softmax temperature on v·gene dot product
+
+
+@dataclass
 class HelixConfig:
     ribosome: RibosomeConfig = field(default_factory=RibosomeConfig)
     budget: BudgetConfig = field(default_factory=BudgetConfig)
@@ -114,6 +130,7 @@ class HelixConfig:
     ingestion: IngestionConfig = field(default_factory=IngestionConfig)
     context: ContextConfig = field(default_factory=ContextConfig)
     cymatics: CymaticsConfig = field(default_factory=CymaticsConfig)
+    retrieval: RetrievalConfig = field(default_factory=RetrievalConfig)
     synonym_map: Dict[str, List[str]] = field(default_factory=dict)
 
 
@@ -222,6 +239,19 @@ def load_config(path: Optional[str] = None) -> HelixConfig:
             use_embeddings=cy.get("use_embeddings", cfg.cymatics.use_embeddings),
             harmonic_links=cy.get("harmonic_links", cfg.cymatics.harmonic_links),
             distance_metric=str(cy.get("distance_metric", cfg.cymatics.distance_metric)).lower(),
+        )
+
+    # Retrieval (Sprint 2 — SR Tier 5.5 + theta alternation)
+    if "retrieval" in raw:
+        r = raw["retrieval"]
+        cfg.retrieval = RetrievalConfig(
+            sr_enabled=bool(r.get("sr_enabled", cfg.retrieval.sr_enabled)),
+            sr_gamma=float(r.get("sr_gamma", cfg.retrieval.sr_gamma)),
+            sr_k_steps=int(r.get("sr_k_steps", cfg.retrieval.sr_k_steps)),
+            sr_weight=float(r.get("sr_weight", cfg.retrieval.sr_weight)),
+            sr_cap=float(r.get("sr_cap", cfg.retrieval.sr_cap)),
+            ray_trace_theta=bool(r.get("ray_trace_theta", cfg.retrieval.ray_trace_theta)),
+            theta_weight=float(r.get("theta_weight", cfg.retrieval.theta_weight)),
         )
 
     # Fix 1: synonym map

@@ -187,6 +187,11 @@ class HelixContextManager:
             sema_codec=self._sema_codec,
             splade_enabled=config.ingestion.splade_enabled,
             entity_graph=config.ingestion.entity_graph,
+            sr_enabled=config.retrieval.sr_enabled,
+            sr_gamma=config.retrieval.sr_gamma,
+            sr_k_steps=config.retrieval.sr_k_steps,
+            sr_weight=config.retrieval.sr_weight,
+            sr_cap=config.retrieval.sr_cap,
         )
 
         # Replication manager (distributed genome clones)
@@ -604,9 +609,25 @@ class HelixContextManager:
             try:
                 from .ray_trace import harmonic_bin_boost
                 seed_ids = [g.gene_id for g in candidates[:3]]
+                # Sprint 2 item 6: when theta alternation is enabled and
+                # the TCM session has enough history to provide a
+                # velocity direction, bias ray sampling fore/aft along
+                # that direction. Requires Howard 2005 velocity TCM
+                # (Sprint 1 item 3) — the context vector now carries
+                # trajectory not raw position.
+                velocity = None
+                theta_w = 1.0
+                if (
+                    getattr(self.config.retrieval, "ray_trace_theta", False)
+                    and self._tcm_session is not None
+                    and self._tcm_session.depth >= 2
+                ):
+                    velocity = list(self._tcm_session.context_vector)
+                    theta_w = self.config.retrieval.theta_weight
                 overtones = harmonic_bin_boost(
                     seed_ids, self.genome,
                     k_rays=100, max_bounces=2,  # lightweight for per-query use
+                    velocity_vector=velocity, theta_weight=theta_w,
                 )
                 if overtones:
                     scores = self.genome.last_query_scores or {}

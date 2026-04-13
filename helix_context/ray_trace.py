@@ -40,6 +40,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import random
 from typing import Dict, List, Optional, TYPE_CHECKING
 
@@ -108,6 +109,80 @@ def _build_adjacency(
     return adjacency
 
 
+def _build_direction_scores(
+    genome: "Genome",
+    gene_ids,
+    velocity_vector: List[float],
+) -> Dict[str, float]:
+    """Cosine(sema(g), velocity) per gene. Reads the pre-materialized
+    ΣĒMA cache so we don't JSON-parse per ray. Genes missing from the
+    cache score 0 (neutral — falls back to uniform sampling)."""
+    scores: Dict[str, float] = {}
+    cache = getattr(genome, "_sema_cache", None)
+    if not cache or cache.get("matrix") is None:
+        return scores
+    try:
+        import numpy as np
+    except ImportError:
+        return scores
+    v = np.asarray(velocity_vector, dtype=np.float64)
+    v_norm = float(np.linalg.norm(v))
+    if v_norm < 1e-12:
+        return scores
+    gid_to_idx = cache.get("_id_index")
+    if gid_to_idx is None:
+        gid_to_idx = {g: i for i, g in enumerate(cache["gene_ids"])}
+        cache["_id_index"] = gid_to_idx  # memoise on the cache dict
+    matrix = cache["matrix"]
+    for gid in gene_ids:
+        idx = gid_to_idx.get(gid)
+        if idx is None:
+            continue
+        emb = matrix[idx]
+        e_norm = float(np.linalg.norm(emb))
+        if e_norm < 1e-12:
+            continue
+        scores[gid] = float(np.dot(emb, v)) / (v_norm * e_norm)
+    return scores
+
+
+def _theta_choice(
+    rng: random.Random,
+    neighbors: List[str],
+    direction_scores: Dict[str, float],
+    sign: int,
+    theta_weight: float,
+) -> str:
+    """Pick a neighbor via softmax over (sign * theta_weight * cos).
+
+    sign=+1 biases toward neighbors aligned with velocity (fore sweep);
+    sign=-1 biases away (aft sweep). Wang/Foster/Pfeiffer 2020 theta
+    alternation pattern — each theta cycle sweeps forward then backward.
+    Falls back to uniform when no neighbor has a direction score.
+    """
+    weights = []
+    any_score = False
+    for n in neighbors:
+        s = direction_scores.get(n)
+        if s is None:
+            weights.append(1.0)
+        else:
+            any_score = True
+            weights.append(math.exp(sign * theta_weight * s))
+    if not any_score:
+        return rng.choice(neighbors)
+    total = sum(weights)
+    if total <= 0:
+        return rng.choice(neighbors)
+    r = rng.random() * total
+    acc = 0.0
+    for n, w in zip(neighbors, weights):
+        acc += w
+        if r <= acc:
+            return n
+    return neighbors[-1]  # floating-point rounding guard
+
+
 def _load_harmonic_weights(
     genome: "Genome",
     gene_ids: set,
@@ -147,6 +222,8 @@ def cast_evidence_rays(
     max_bounces: int = DEFAULT_MAX_BOUNCES,
     decay_per_bounce: float = DEFAULT_DECAY,
     seed: Optional[int] = 0,
+    velocity_vector: Optional[List[float]] = None,
+    theta_weight: float = 1.0,
 ) -> Dict[str, float]:
     """
     Cast Monte Carlo rays from seed genes through co-activation graph.
@@ -181,6 +258,19 @@ def cast_evidence_rays(
 
     harmonic = _load_harmonic_weights(genome, all_gene_ids)
 
+    # Theta-alternation prep: when the caller provides a velocity
+    # vector, bias each bounce's neighbour sample by the cosine of
+    # gene-ΣĒMA against the velocity, alternating sign per bounce
+    # (Wang/Foster/Pfeiffer 2020 fore/aft sweep).
+    direction_scores: Dict[str, float] = {}
+    use_theta = velocity_vector is not None
+    if use_theta:
+        direction_scores = _build_direction_scores(
+            genome, all_gene_ids, velocity_vector,
+        )
+        if not direction_scores:
+            use_theta = False  # fall back silently when ΣĒMA is missing
+
     # Accumulator
     energy_acc: Dict[str, float] = {}
 
@@ -196,7 +286,13 @@ def cast_evidence_rays(
             if not neighbors:
                 break  # dead-end — deposit at current
 
-            next_gene = rng.choice(neighbors)
+            if use_theta:
+                sign = 1 if (_bounce % 2 == 0) else -1
+                next_gene = _theta_choice(
+                    rng, neighbors, direction_scores, sign, theta_weight,
+                )
+            else:
+                next_gene = rng.choice(neighbors)
 
             # Apply harmonic weight if available
             hw = harmonic.get((current, next_gene))
@@ -226,6 +322,8 @@ def ray_trace_boost(
     k_rays: int = DEFAULT_K_RAYS,
     max_bounces: int = DEFAULT_MAX_BOUNCES,
     seed: Optional[int] = 0,
+    velocity_vector: Optional[List[float]] = None,
+    theta_weight: float = 1.0,
 ) -> Dict[str, float]:
     """
     Compute retrieval boost for genes connected to seeds via evidence rays.
@@ -246,6 +344,7 @@ def ray_trace_boost(
     raw = cast_evidence_rays(
         seed_gene_ids, genome,
         k_rays=k_rays, max_bounces=max_bounces, seed=seed,
+        velocity_vector=velocity_vector, theta_weight=theta_weight,
     )
     if not raw:
         return {}
@@ -269,6 +368,8 @@ def read_overtone_series(
     k_rays: int = DEFAULT_K_RAYS,
     max_bounces: int = DEFAULT_MAX_BOUNCES,
     seed: Optional[int] = 0,
+    velocity_vector: Optional[List[float]] = None,
+    theta_weight: float = 1.0,
 ) -> Dict[str, float]:
     """
     Read Monte Carlo rays as a FREQUENCY distribution, not an energy rank.
@@ -292,6 +393,20 @@ def read_overtone_series(
     rng = random.Random(seed)
     adjacency = _build_adjacency(genome, seed_gene_ids)
 
+    # Theta-alternation prep — same pattern as cast_evidence_rays.
+    all_gene_ids: set = set()
+    for gid, neighbors in adjacency.items():
+        all_gene_ids.add(gid)
+        all_gene_ids.update(neighbors)
+    direction_scores: Dict[str, float] = {}
+    use_theta = velocity_vector is not None
+    if use_theta:
+        direction_scores = _build_direction_scores(
+            genome, all_gene_ids, velocity_vector,
+        )
+        if not direction_scores:
+            use_theta = False
+
     # Track: for each ray, which genes it visited
     visit_count: Dict[str, int] = {}
 
@@ -304,7 +419,13 @@ def read_overtone_series(
             neighbors = adjacency.get(current, [])
             if not neighbors:
                 break
-            current = rng.choice(neighbors)
+            if use_theta:
+                sign = 1 if (_bounce % 2 == 0) else -1
+                current = _theta_choice(
+                    rng, neighbors, direction_scores, sign, theta_weight,
+                )
+            else:
+                current = rng.choice(neighbors)
             visited.add(current)
 
         # Count unique gene visits for this ray
@@ -331,6 +452,8 @@ def harmonic_bin_boost(
     genome: "Genome",
     k_rays: int = DEFAULT_K_RAYS,
     max_bounces: int = DEFAULT_MAX_BOUNCES,
+    velocity_vector: Optional[List[float]] = None,
+    theta_weight: float = 1.0,
 ) -> Dict[str, float]:
     """
     Return harmonic bin boost for retrieval scoring.
@@ -338,8 +461,14 @@ def harmonic_bin_boost(
     Reads the overtone series and returns normalized [0, 1.5] weights
     for use as a retrieval score addition. Fundamentals get the full
     boost; harmonics get proportional amounts.
+
+    When velocity_vector is supplied, ray-sampling is biased via
+    alternating fore/aft theta sweeps (Wang/Foster/Pfeiffer 2020).
     """
-    overtones = read_overtone_series(seed_gene_ids, genome, k_rays, max_bounces)
+    overtones = read_overtone_series(
+        seed_gene_ids, genome, k_rays, max_bounces,
+        velocity_vector=velocity_vector, theta_weight=theta_weight,
+    )
     # Scale weights to [0, 1.5] (fundamental=1.5, 1st harmonic=0.75, etc.)
     return {gid: w * 1.5 for gid, w in overtones.items()}
 

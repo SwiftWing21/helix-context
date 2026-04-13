@@ -68,6 +68,19 @@ use_embeddings = false                  # Use Gene.embedding when populated (req
 harmonic_links = true                   # Compute weighted co-activation edges between expressed genes
 distance_metric = "cosine"              # "cosine" (weighted dot) | "w1" (Werman 1986 circular Wasserstein-1; Singh 2020 CMD)
 
+[retrieval]
+# Tier 5.5 — Successor Representation (Stachenfeld 2017). γ-discounted
+# future-occupancy boost over the co-activation graph. Lazy, on-demand.
+sr_enabled = false                      # Dark ship — flip to true for A/B on bench_dimensional_lock.py v2-3
+sr_gamma = 0.85                         # 5-10 hop horizon (Stachenfeld grid-cell sweet spot)
+sr_k_steps = 4                          # Power-series truncation (cap runaway propagation)
+sr_weight = 1.5                         # Per-gene SR contribution multiplier
+sr_cap = 3.0                            # Max per-gene SR boost (matches harmonic cap)
+# Theta alternation (Wang/Foster/Pfeiffer 2020) — bias ray_trace neighbor
+# sampling by TCM velocity direction. Fore sweep on even bounces, aft on odd.
+ray_trace_theta = false                 # Dark ship — requires TCM velocity input (Sprint 1 item 3)
+theta_weight = 1.0                      # Softmax temperature on v·gene_input_vector
+
 [synonyms]
 # Fix 1: lightweight synonym expansion for promoter queries
 slow = ["performance", "latency", "bottleneck", "timeout", "lag"]

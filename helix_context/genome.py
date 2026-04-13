@@ -264,6 +264,11 @@ class Genome:
         sema_codec=None,
         splade_enabled: bool = False,
         entity_graph: bool = False,
+        sr_enabled: bool = False,
+        sr_gamma: float = 0.85,
+        sr_k_steps: int = 4,
+        sr_weight: float = 1.5,
+        sr_cap: float = 3.0,
     ):
         self.path = path
         self.synonym_map = synonym_map or {}
@@ -271,6 +276,12 @@ class Genome:
         self._replication_mgr = None  # Set by set_replication_manager()
         self._splade_enabled = splade_enabled
         self._entity_graph_enabled = entity_graph
+        # Tier 5.5 Successor Representation (Sprint 2, Stachenfeld 2017).
+        self._sr_enabled = sr_enabled
+        self._sr_gamma = sr_gamma
+        self._sr_k_steps = sr_k_steps
+        self._sr_weight = sr_weight
+        self._sr_cap = sr_cap
 
         # Checkpoint WAL BEFORE opening our long-lived connection
         # so we see the latest state from any external writers
@@ -1767,6 +1778,29 @@ class Genome:
                         tier_contrib.setdefault(gid, {})["harmonic"] = bonus
                 except Exception:
                     log.debug("Harmonic boost failed", exc_info=True)
+
+        # ── Tier 5.5: Successor Representation boost ──────────────
+        # Discounted future-occupancy over the co-activation graph.
+        # Generalises Tier 5's 1-hop harmonic pull-forward to a
+        # gamma-discounted k-step horizon. See helix_context/sr.py and
+        # docs/FUTURE/SUCCESSOR_REPRESENTATION.md. Feature-flagged
+        # (retrieval.sr_enabled) so it can A/B before promotion.
+        if self._sr_enabled and gene_scores:
+            try:
+                from .sr import sr_boost
+                sr_bonus = sr_boost(
+                    self,
+                    list(gene_scores.keys()),
+                    gamma=self._sr_gamma,
+                    k_steps=self._sr_k_steps,
+                    weight=self._sr_weight,
+                    cap=self._sr_cap,
+                )
+                for gid, bonus in sr_bonus.items():
+                    gene_scores[gid] = gene_scores.get(gid, 0) + bonus
+                    tier_contrib.setdefault(gid, {})["sr"] = bonus
+            except Exception:
+                log.debug("SR Tier 5.5 failed", exc_info=True)
 
         # ── Party attribution bonus (+0.5) ────────────────────────
         if party_id is not None and _party_filter and gene_scores:
