@@ -1,3 +1,5 @@
+> **Status (2026-04-13):** Velocity input + ρ Gram-Schmidt fix shipped in `f4dcdcc` (always on). Theta fore/aft ray_trace addendum shipped in `c9367f8` behind `retrieval.ray_trace_theta` (dark).
+
 # TCM Velocity — Velocity Input for the Temporal Context Model (Howard 2005)
 
 > *"Position is what the session is thinking about. Velocity is where

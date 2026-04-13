@@ -155,3 +155,21 @@ public framing of the architecture: **a 12-tone retrieval engine with
 biological substrate, octave-addressed identity, and language only at
 the edges.** Whether or not we use that exact phrasing, the periodicity
 itself is a real structural fact about what's built.
+
+---
+
+## Footnote — SR Tier 5.5 (2026-04-13)
+
+Sprint 2 shipped Successor Representation as `Tier 5.5` (commit
+`c9367f8`, flag `retrieval.sr_enabled`, default false). SR is a
+γ-discounted multi-hop generalization of Tier 5's harmonic
+(1-hop co-activation) boost — mathematically the same tone played across
+a longer horizon, not a new frequency. Reading this against the 12-tone
+framing: SR **absorbs into Tier 5** (same co-activation substrate,
+different step count), preserving the 12-count. If we ever decide it
+stands alone it becomes the chromatic 13th and we need a semitone
+story — but the cleaner reading is that harmonic and SR are the same
+tone at different k, the way a plucked string and its sustained
+resonance are the same note at different envelopes. Either way, the
+"don't add a 13th tone without a reason" rule stayed respected: SR
+didn't add a signal, it deepened one.

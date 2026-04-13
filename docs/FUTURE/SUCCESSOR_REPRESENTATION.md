@@ -1,3 +1,5 @@
+> **Status (2026-04-13):** Shipped dark in `c9367f8` behind `retrieval.sr_enabled`. Defaults: γ=0.85, k_steps=4, weight=1.5, cap=3.0. Flip the flag to A/B.
+
 # Successor Representation Over the Co-Activation Graph
 
 > *"The hippocampus represents not just where you are, but the

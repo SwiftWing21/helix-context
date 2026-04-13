@@ -15,22 +15,24 @@ Date: 2026-04-13
 
 ## TL;DR — Sprint plan
 
-| Sprint | Item | Effort | Track | Blocks | Doc |
-|---|---|---|---|---|---|
-| **1** | Wasserstein-1 cymatics swap | ~25 LOC, 0.5d | Stats | nothing | [STATISTICAL_FUSION](STATISTICAL_FUSION.md) §C1 |
-| **1** | CWoLa logger | ~80 LOC, 1d | Stats | (clock starts for PLR) | [STATISTICAL_FUSION](STATISTICAL_FUSION.md) §C2 |
-| **1** | TCM velocity input (Howard 2005) | ~15 LOC, 0.5d | Trajectory | theta-alternation | [TCM_VELOCITY](TCM_VELOCITY.md) |
-| **1** | TCM ρ orthogonality bug fix | ~10 LOC, 0.5d | Trajectory | nothing | [TCM_VELOCITY](TCM_VELOCITY.md) §"What we got wrong" |
-| **2** | Successor Representation (Tier 5.5) | ~80 LOC, 1d | Trajectory | nothing | [SUCCESSOR_REPRESENTATION](SUCCESSOR_REPRESENTATION.md) |
-| **2** | Theta fore/aft in ray_trace | ~30 LOC, 0.5d | Trajectory | TCM velocity (Sprint 1) | [TCM_VELOCITY](TCM_VELOCITY.md) §"Open: theta-style" |
-| **3** | CWoLa trainer | ~100 LOC, 1d | Stats | 3-week logger clock | [STATISTICAL_FUSION](STATISTICAL_FUSION.md) §C2 |
-| **3** | PLR stacked-GBT fusion | ~170 LOC, 2d | Stats | CWoLa labels | [STATISTICAL_FUSION](STATISTICAL_FUSION.md) §C3 |
-| **4** | Kalman session tracking | ~120 LOC + state-space, 2d | Trajectory | (optional, only if SR + velocity insufficient) | TBD |
-| **DEFER** | Predictive coding gating | ~100 LOC + reinforcement loop, 3+d | Trajectory | online learning loop (doesn't exist yet) | TBD |
+| Sprint | Item | Effort | Track | Status | Commit | Doc |
+|---|---|---|---|---|---|---|
+| **1** | Wasserstein-1 cymatics swap | ~25 LOC, 0.5d | Stats | ✅ shipped (flag `cymatics.distance_metric`) | `f4dcdcc` | [STATISTICAL_FUSION](STATISTICAL_FUSION.md) §C1 |
+| **1** | CWoLa logger | ~80 LOC, 1d | Stats | ✅ live (clock ticking since 2026-04-13) | `f4dcdcc` | [STATISTICAL_FUSION](STATISTICAL_FUSION.md) §C2 |
+| **1** | TCM velocity input (Howard 2005) | ~15 LOC, 0.5d | Trajectory | ✅ live (always on) | `f4dcdcc` | [TCM_VELOCITY](TCM_VELOCITY.md) |
+| **1** | TCM ρ orthogonality bug fix | ~10 LOC, 0.5d | Trajectory | ✅ live (always on, logs on drift) | `f4dcdcc` | [TCM_VELOCITY](TCM_VELOCITY.md) §"What we got wrong" |
+| **2** | Successor Representation (Tier 5.5) | ~80 LOC, 1d | Trajectory | ✅ shipped dark (`retrieval.sr_enabled`) | `c9367f8` | [SUCCESSOR_REPRESENTATION](SUCCESSOR_REPRESENTATION.md) |
+| **2** | Theta fore/aft in ray_trace | ~30 LOC, 0.5d | Trajectory | ✅ shipped dark (`retrieval.ray_trace_theta`) | `c9367f8` | [TCM_VELOCITY](TCM_VELOCITY.md) §"Open: theta-style" |
+| **3** | CWoLa trainer | ~100 LOC, 1d | Stats | ⏳ blocked on label accumulation (~3 weeks) | — | [STATISTICAL_FUSION](STATISTICAL_FUSION.md) §C2 |
+| **3** | PLR stacked-GBT fusion | ~170 LOC, 2d | Stats | ⏳ blocked on CWoLa labels | — | [STATISTICAL_FUSION](STATISTICAL_FUSION.md) §C3 |
+| **4** | Seeded co-activation edges + Hebbian decay | ~310 LOC, 1d | Trajectory | ✅ shipped dark (`retrieval.seeded_edges_enabled`) | `5184ea8` | (designed inline 2026-04-13; see `helix_context/seeded_edges.py` docstring) |
+| **5** | Kalman session tracking | ~120 LOC + state-space, 2d | Trajectory | 📋 optional (only if SR + velocity + seeded insufficient) | — | TBD |
+| **DEFER** | Predictive coding gating | ~100 LOC + reinforcement loop, 3+d | Trajectory | online learning loop doesn't exist yet | — | TBD |
 
-**Total Sprint 1+2 = ~240 LOC, ~3.5 days**, ships the highest-ROI
-items + starts the CWoLa labeling clock. Sprint 3 (~270 LOC, 3 days)
-ships once labels accumulate.
+**Current state (2026-04-13):** Sprints 1, 2, 4 shipped (~1200 LOC
+total + 169 module tests). Sprint 3 is gated on the CWoLa label
+clock that started landing rows when Sprint 1 shipped — ship it at
+N ≥ 1.5K rows/bucket with AUC > 0.55 per STATISTICAL_FUSION.md.
 
 ## Dependency graph
 
@@ -92,6 +94,38 @@ Goal: ship infrastructure + cheap wins. Start the labeling clock.
 
 Validation: SIKE 10/10 must hold. `bench_skill_activation.py` heatmap
 should now show TCM lit on natural-sentence shapes (currently empty).
+
+## Sprint 1/2/4 shipped — next steps
+
+As of `5184ea8` (2026-04-13) Sprints 1, 2, and 4 are in the tree. The
+remaining operator work is A/B validation of the dark flags before
+Sprint 3 unblocks.
+
+**Dark flags to flip for A/B:**
+
+| Flag | Toggle to | Expected delta |
+|---|---|---|
+| `cymatics.distance_metric` | `"w1"` | [STATISTICAL_FUSION §C1](STATISTICAL_FUSION.md) — robustness under sparse-peak spectra. Measure on `bench_dimensional_lock.py` variants 2-3 |
+| `retrieval.sr_enabled` | `true` | [SUCCESSOR_REPRESENTATION.md](SUCCESSOR_REPRESENTATION.md) — multi-hop topological pull-forward. Should light `sr` column on `bench_skill_activation.py` for natural-sentence + documentation-phrase shapes (currently empty `tier_totals` on those) |
+| `retrieval.ray_trace_theta` | `true` | [TCM_VELOCITY §Open](TCM_VELOCITY.md) — fore/aft biased sampling along velocity. Requires TCM session depth ≥ 2 (real chat turns, not cold single queries); graceful fallback otherwise |
+| `retrieval.seeded_edges_enabled` | `true` | Cold-start co-activation graph for fresh OPEN genes. Watch the `harmonic_links.source` provenance distribution: seeded (0.3×) dominant at first, co_retrieved (0.7×) climbing over days of real use |
+
+**Bench commands:**
+
+```bash
+python benchmarks/bench_dimensional_lock.py     # W1 + SR primary
+python benchmarks/bench_skill_activation.py     # theta + velocity-TCM primary
+```
+
+Run each with flags off, flip one flag, re-run, diff. Promote any flag
+whose A/B shows a non-trivial NDCG@10 lift on its primary bench target
+without regression on the others. The design docs named above specify
+the exact signal each change is supposed to surface — if the bench
+doesn't show it, that's a diagnostic, not a promotion.
+
+Sprint 3 (CWoLa trainer + PLR fusion) stays blocked on label
+accumulation. Check `cwola_log` row counts periodically; promotion gate
+is AUC > 0.55 per [STATISTICAL_FUSION §C2](STATISTICAL_FUSION.md).
 
 ## Sprint 2 (next week — ~2 days, 2 items, 110 LOC)
 

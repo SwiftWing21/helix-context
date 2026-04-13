@@ -1,3 +1,5 @@
+> **Status (2026-04-13):** §C1 (W1 cymatics) and §C2 logger half shipped in `f4dcdcc` behind `cymatics.distance_metric`. §C2 trainer + §C3 PLR fusion remain blocked on label accumulation (~3 weeks from 2026-04-13).
+
 # Statistical Fusion — From Hand-Tuned Caps to Calibrated Likelihood Ratios
 
 > *"Each tier outputs a different statistic. We add them as if they
