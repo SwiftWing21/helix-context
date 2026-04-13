@@ -77,7 +77,30 @@ def sr_boost(
     def neighbours(gid: str) -> List[str]:
         if co_activation_cache is not None and gid in co_activation_cache:
             return co_activation_cache[gid]
-        return _load_co_activated(genome, gid)
+        # Union of two sources: the legacy `epigenetics.co_activated_with`
+        # JSON field (populated at ingest + on-the-fly cymatics harvest)
+        # and the harmonic_links table (populated by Sprint 4 seeded
+        # backfill + CWoLa-validated promotions). Both represent the
+        # same semantic edge, just different write paths.
+        legacy = _load_co_activated(genome, gid)
+        try:
+            cur = genome.read_conn.cursor()
+            rows = cur.execute(
+                "SELECT gene_id_b FROM harmonic_links WHERE gene_id_a = ? "
+                "UNION SELECT gene_id_a FROM harmonic_links WHERE gene_id_b = ?",
+                (gid, gid),
+            ).fetchall()
+            link_neighbours = [r[0] for r in rows]
+        except Exception:
+            link_neighbours = []
+        # Dedupe while preserving order
+        seen = set()
+        out: List[str] = []
+        for n in list(legacy) + link_neighbours:
+            if n and n != gid and n not in seen:
+                seen.add(n)
+                out.append(n)
+        return out
 
     # Uniform seed mass. Accumulator holds the discounted occupancy
     # measure; `mass` is the current wavefront that gets propagated.
