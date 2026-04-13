@@ -337,6 +337,77 @@ def build_weight_vector(
     return weights
 
 
+def flux_score_w1(
+    spec_a: List[float],
+    spec_b: List[float],
+    weights: List[float],
+) -> float:
+    """
+    Circular Wasserstein-1 distance, returned as a [0, 1] similarity.
+
+    Cosine treats bin 5 vs bin 7 the same as bin 5 vs bin 250 — there is
+    no notion of bin distance. W1 is linear in bin distance and handles
+    multi-peak spectra and near-boundary collisions correctly.
+
+    Implementation per Werman, Peleg & Rosenfeld (1986) "A distance
+    metric for multidimensional histograms" (CGIP 32(3):328) — for 1-D
+    circular support the closed form is the L1 norm of the median-
+    centred CDF difference of the two normalised PMFs. Singh et al.
+    (2020) Context Mover's Distance (arXiv:1808.09663) is the modern
+    NLP application of the same kernel.
+
+    Weights are folded in by reweighting each spectrum bin (same as
+    flux_score) before normalising to a PMF.
+
+    Returned similarity = 1 / (1 + W1) so the value range matches the
+    cosine-derived flux_score and the additive bonus in
+    context_manager.py keeps its meaning.
+    """
+    if _HAS_NUMPY:
+        a = np.array(spec_a, dtype=float) * np.array(weights, dtype=float)
+        b = np.array(spec_b, dtype=float) * np.array(weights, dtype=float)
+        sa, sb = a.sum(), b.sum()
+        if sa <= 0 or sb <= 0:
+            return 0.0
+        pa = a / sa
+        pb = b / sb
+        cdf_diff = np.cumsum(pa - pb)
+        cdf_diff -= np.median(cdf_diff)
+        w1 = float(np.abs(cdf_diff).sum())
+        return 1.0 / (1.0 + w1)
+
+    aw = [a * w for a, w in zip(spec_a, weights)]
+    bw = [b * w for b, w in zip(spec_b, weights)]
+    sa = sum(aw)
+    sb = sum(bw)
+    if sa <= 0 or sb <= 0:
+        return 0.0
+    pa = [x / sa for x in aw]
+    pb = [x / sb for x in bw]
+    diff = [x - y for x, y in zip(pa, pb)]
+    cdf = []
+    acc = 0.0
+    for d in diff:
+        acc += d
+        cdf.append(acc)
+    cdf_sorted = sorted(cdf)
+    median = cdf_sorted[len(cdf_sorted) // 2]
+    w1 = sum(abs(c - median) for c in cdf)
+    return 1.0 / (1.0 + w1)
+
+
+def flux_score_dispatch(
+    spec_a: List[float],
+    spec_b: List[float],
+    weights: List[float],
+    metric: str = "cosine",
+) -> float:
+    """Route flux scoring through the configured distance metric."""
+    if metric == "w1":
+        return flux_score_w1(spec_a, spec_b, weights)
+    return flux_score(spec_a, spec_b, weights)
+
+
 def flux_score(
     spec_a: List[float],
     spec_b: List[float],
@@ -383,6 +454,7 @@ def resonance_rank(
     synonym_map: Optional[Dict[str, List[str]]] = None,
     peak_width: float = 3.0,
     use_flux: bool = True,
+    distance_metric: str = "cosine",
 ) -> List[Gene]:
     """
     Rank candidate genes by resonance with the query spectrum.
@@ -415,7 +487,7 @@ def resonance_rank(
     for gene in candidates:
         g_spec = cached_gene_spectrum(gene, peak_width=peak_width)
         if weights:
-            score = flux_score(q_spec, g_spec, weights)
+            score = flux_score_dispatch(q_spec, g_spec, weights, distance_metric)
         else:
             score = resonance_score(q_spec, g_spec)
         if score > 0.05:  # Noise floor

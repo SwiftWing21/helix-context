@@ -66,6 +66,7 @@ n_bins = 256                            # Spectrum resolution (256 bins = <2KB p
 peak_width = 3.0                        # Gaussian peak width — overridden by Q-factor from splice_aggressiveness
 use_embeddings = false                  # Use Gene.embedding when populated (requires sentence-transformers)
 harmonic_links = true                   # Compute weighted co-activation edges between expressed genes
+distance_metric = "cosine"              # "cosine" (weighted dot) | "w1" (Werman 1986 circular Wasserstein-1; Singh 2020 CMD)
 
 [synonyms]
 # Fix 1: lightweight synonym expansion for promoter queries

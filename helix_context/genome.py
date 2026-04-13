@@ -782,6 +782,35 @@ class Genome:
             "ON hitl_events(pause_type)"
         )
 
+        # ── CWoLa label log (STATISTICAL_FUSION §C2) ─────────────────
+        # Captures (tier_features, session, party, query) per retrieval
+        # so the Sprint 3 CWoLa trainer can bucket into A (accepted) vs
+        # B (re-queried within 60s) and train a classifier from those
+        # two unlabeled mixtures. Metodiev/Nachman/Thaler 2017,
+        # arXiv:1708.02949 — the factorised labels are not needed.
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS cwola_log (
+            retrieval_id       INTEGER PRIMARY KEY AUTOINCREMENT,
+            ts                 REAL    NOT NULL,
+            session_id         TEXT,
+            party_id           TEXT,
+            query              TEXT,
+            tier_features      TEXT,     -- JSON: {tier_name: score}
+            top_gene_id        TEXT,
+            bucket             TEXT,     -- 'A' (accepted) | 'B' (re-queried) | NULL (pending)
+            bucket_assigned_at REAL,
+            requery_delta_s    REAL      -- seconds to the next same-session query (NULL if none within 60s)
+        )
+        """)
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_cwola_session_time "
+            "ON cwola_log(session_id, ts)"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_cwola_bucket "
+            "ON cwola_log(bucket)"
+        )
+
     # ── WAL snapshot management ──────────────────────────────────────
 
     def _refresh_snapshot(self) -> None:

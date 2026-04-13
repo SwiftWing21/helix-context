@@ -559,8 +559,9 @@ class HelixContextManager:
             try:
                 from .cymatics import (
                     query_spectrum, cached_gene_spectrum,
-                    flux_score, build_weight_vector,
+                    flux_score_dispatch, build_weight_vector,
                 )
+                metric = self.config.cymatics.distance_metric
                 q_spec = query_spectrum(
                     query, synonym_map=self.config.synonym_map,
                     peak_width=self._cymatics_peak_width,
@@ -572,7 +573,7 @@ class HelixContextManager:
                 scores = self.genome.last_query_scores or {}
                 for gene in candidates:
                     g_spec = cached_gene_spectrum(gene, peak_width=self._cymatics_peak_width)
-                    bonus = flux_score(q_spec, g_spec, weights) * 0.5  # max 0.5 bonus
+                    bonus = flux_score_dispatch(q_spec, g_spec, weights, metric) * 0.5  # max 0.5 bonus
                     scores[gene.gene_id] = scores.get(gene.gene_id, 0) + bonus
                 self.genome.last_query_scores = scores
                 # Re-sort by blended score

@@ -489,6 +489,13 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
         if session_context is not None and not isinstance(session_context, dict):
             session_context = None  # ignore malformed input
 
+        # CWoLa label-logger identifiers — optional. See cwola.py and
+        # STATISTICAL_FUSION.md sect C2. If absent the row is still
+        # logged with NULL session_id (treated as always-Bucket-A by
+        # sweep_buckets, i.e. never a B sample).
+        cwola_session_id = data.get("session_id")
+        cwola_party_id = data.get("party_id")
+
         # clean=true: reset per-session caches (TCM drift, intent LRU,
         # shadow pool) before this request runs. Intended for synthetic
         # benches where every query is independent of the previous one —
@@ -650,6 +657,33 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
                     log.debug("Tier contribution surfacing failed", exc_info=True)
         except Exception:
             log.debug("Agent metadata enrichment failed", exc_info=True)
+
+        # ── CWoLa label logger (STATISTICAL_FUSION sect C2) ──────────
+        # Writes one row per /context call regardless of verbose flag.
+        # Sweeps pending buckets lazily so no background thread is
+        # needed. Always soft-fails — the retrieval result must not be
+        # affected by logger hiccups.
+        try:
+            from . import cwola
+            tier_contrib_all = getattr(helix.genome, "last_tier_contributions", {}) or {}
+            cwola_tier_totals: dict = {}
+            for contribs in tier_contrib_all.values():
+                for tier, score in contribs.items():
+                    cwola_tier_totals[tier] = cwola_tier_totals.get(tier, 0.0) + score
+            expressed = window.expressed_gene_ids or []
+            top_gene = expressed[0] if expressed else None
+            cwola.log_query(
+                helix.genome.conn,
+                session_id=cwola_session_id,
+                party_id=cwola_party_id,
+                query=query,
+                tier_totals=cwola_tier_totals,
+                top_gene_id=top_gene,
+                ts=t0,
+            )
+            cwola.sweep_buckets(helix.genome.conn, now=_time.time())
+        except Exception:
+            log.debug("CWoLa log_query/sweep failed", exc_info=True)
 
         return [response]
 

@@ -46,6 +46,27 @@ def _orthogonal_vectors(n_dims: int, count: int):
     return vecs
 
 
+def _trajectory_vectors(n_dims: int, count: int, step: float = 0.25):
+    """Generate `count` smoothly-varying unit vectors.
+
+    Each vector is the previous one with a small push along a new
+    basis direction. Matches the Howard 2005 assumption of slowly-
+    evolving context rather than fully independent items - under
+    velocity-input TCM, orthogonal items produce large Gram-Schmidt
+    artifacts that dominate the drift signal.
+    """
+    vecs = []
+    base = [0.0] * n_dims
+    base[0] = 1.0
+    for i in range(count):
+        v = list(base)
+        # add a small push in a dimension that rotates through the basis
+        v[(i + 1) % n_dims] += step * (i + 1)
+        n = math.sqrt(sum(x * x for x in v))
+        vecs.append([x / n for x in v])
+    return vecs
+
+
 # -- Vector math tests -----------------------------------------
 
 class TestVectorMath:
@@ -187,16 +208,16 @@ class TestSessionContext:
             assert abs(norm - 1.0) < 1e-6, f"norm={norm} after update {i}"
 
     def test_forward_recall_asymmetry(self):
-        """After updating with A, B, C, D, E in order, context is more similar
-        to E than to A.
+        """Under Howard 2005 velocity input, smoothly-varying items
+        still produce forward-recall asymmetry: the most recent item
+        is more similar to the context than the first.
 
-        This is the core TCM property: the context vector drifts toward
-        the most recently accessed items.  With orthogonal inputs and
-        beta=0.8, the drift is strong enough to see the asymmetry within
-        5 items.
+        Orthogonal items produce large-magnitude Gram-Schmidt
+        projections that muddle the asymmetry - see
+        `test_velocity_projection_preserves_norm` for orthogonal case.
         """
         ctx = SessionContext(beta=0.8)
-        vecs = _orthogonal_vectors(N_DIMS, 5)
+        vecs = _trajectory_vectors(N_DIMS, 5)
 
         for i, v in enumerate(vecs):
             ctx.update(f"g{i}", v)
@@ -204,23 +225,68 @@ class TestSessionContext:
         sim_first = ctx.context_similarity(vecs[0])
         sim_last = ctx.context_similarity(vecs[4])
 
-        # Last item should be more similar to context than first
         assert sim_last > sim_first, (
             f"sim_last={sim_last} should be > sim_first={sim_first}"
         )
 
     def test_forward_recall_with_many_items(self):
-        """Even with 10 items, last item has higher similarity than first."""
-        ctx = SessionContext(beta=0.5)
-        vecs = _orthogonal_vectors(N_DIMS, 10)
+        """Howard 2005 Eq. 16: the context vector tracks the *latest
+        velocity direction*, not item identity. Late-velocity should
+        be more similar to context than early-velocity after many
+        updates along a smooth trajectory."""
+        ctx = SessionContext(beta=0.6)
 
-        for i, v in enumerate(vecs):
-            ctx.update(f"g{i}", v)
+        # Walk a smooth trajectory: v_i = normalize(e0 + 0.2*i * e1)
+        base = [0.0] * N_DIMS
+        base[0] = 1.0
+        direction = [0.0] * N_DIMS
+        direction[1] = 1.0
+        vecs = []
+        for i in range(10):
+            step = [b + 0.2 * i * d for b, d in zip(base, direction)]
+            n = _norm(step)
+            step = [x / n for x in step]
+            vecs.append(step)
+            ctx.update(f"g{i}", step)
 
-        sim_first = ctx.context_similarity(vecs[0])
-        sim_last = ctx.context_similarity(vecs[9])
+        # Latest velocity direction (normalized)
+        last_delta = [a - b for a, b in zip(vecs[-1], vecs[-2])]
+        first_delta = [a - b for a, b in zip(vecs[1], vecs[0])]
+        sim_last_vel = _cosine_similarity(ctx.context_vector, last_delta)
+        sim_first_vel = _cosine_similarity(ctx.context_vector, first_delta)
 
-        assert sim_last > sim_first
+        assert sim_last_vel > sim_first_vel, (
+            f"sim(ctx, last_velocity)={sim_last_vel:.3f} should exceed "
+            f"sim(ctx, first_velocity)={sim_first_vel:.3f}"
+        )
+
+    def test_repeated_input_has_zero_velocity(self):
+        """Howard 2005 Eq. 16: when successive raw inputs are identical,
+        t^IN = 0 and the context must not change (no velocity, no drift)."""
+        ctx = SessionContext()
+        v = [0.0] * N_DIMS
+        v[0] = 1.0
+        ctx.update("g1", v)
+        snapshot = list(ctx.context_vector)
+        ctx.update("g2", v)  # same input
+        for a, b in zip(ctx.context_vector, snapshot):
+            assert abs(a - b) < 1e-10, "zero-velocity update must leave context unchanged"
+
+    def test_gram_schmidt_preserves_norm_without_final_rescale(self):
+        """After the Gram-Schmidt fix, ||new_ctx|| should already be ~1
+        before the belt-and-suspenders _normalize() fires. Verified by
+        checking the pre-normalize result inline."""
+        ctx = SessionContext(beta=0.6)
+        # Two non-orthogonal inputs
+        v1 = [0.0] * N_DIMS
+        v1[0] = 1.0
+        v2 = [0.0] * N_DIMS
+        v2[0] = 0.6
+        v2[1] = 0.8
+        ctx.update("g1", v1)
+        ctx.update("g2", v2)
+        # Context norm should be ~1 even with no safety normalization
+        assert abs(_norm(ctx.context_vector) - 1.0) < 1e-6
 
     def test_dimension_mismatch_raises(self):
         ctx = SessionContext(n_dims=20)

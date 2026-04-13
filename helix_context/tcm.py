@@ -153,58 +153,99 @@ class SessionContext:
         self.beta = beta
         self.context_vector: List[float] = [0.0] * n_dims
         self.item_history: List[Tuple[str, List[float]]] = []
+        # Howard 2005 Eq. 16 velocity input: the next update subtracts
+        # this from the new raw input to produce t^IN. None on first
+        # call in a session -> fall back to raw input (no predecessor).
+        self.prev_raw_input: Optional[List[float]] = None
 
     def update(self, gene_id: str, input_vector: List[float]) -> None:
         """Integrate a new item into the context vector (TCM evolution).
 
         t_i = rho_i * t_{i-1} + beta * t^IN_i
 
-        Where rho_i is computed from the normalization constraint ||t_i|| = 1.
-        For the first item (no prior context), the context becomes the
-        normalized input directly.
+        where t^IN_i = gene_input_vector(g_i) - gene_input_vector(g_{i-1})
+        per Howard 2005 Eq. 16 (velocity input). On the first call in a
+        session there is no predecessor -- t^IN falls back to the raw
+        input. t^IN is then Gram-Schmidt projected onto the subspace
+        orthogonal to t_{i-1}, restoring the orthogonality assumption
+        behind the closed-form rho (Howard & Kahana 2002 sect 3).
+
+        Pre-2026-04-13 behaviour treated raw input as t^IN and silently
+        absorbed the orthogonality violation via a final _normalize()
+        safety net. That masked both the velocity signal and the rho
+        divergence. Both are fixed here.
         """
         if len(input_vector) != self.n_dims:
             raise ValueError(
                 f"input_vector has {len(input_vector)} dims, expected {self.n_dims}"
             )
 
-        # Normalize the input representation
-        t_in = _normalize(input_vector)
+        raw_input = list(input_vector)
+
+        # Howard 2005 Eq. 16: t^IN is the velocity delta from the
+        # previous raw input, not the raw input itself.
+        if self.prev_raw_input is not None:
+            delta = [a - b for a, b in zip(raw_input, self.prev_raw_input)]
+            t_in = _normalize(delta)
+        else:
+            t_in = _normalize(raw_input)
         t_in_norm = _norm(t_in)
 
-        # First item: context becomes the input directly
+        # First item: context becomes the input directly.
         if not self.item_history:
             self.context_vector = list(t_in)
             self.item_history.append((gene_id, list(t_in)))
+            self.prev_raw_input = raw_input
             return
 
         t_prev = self.context_vector
         t_prev_norm = _norm(t_prev)
 
-        # Edge case: if previous context is zero, just set to normalized input
+        # Edge: previous context is zero -> seed with t^IN.
         if t_prev_norm < 1e-12:
             self.context_vector = list(t_in)
             self.item_history.append((gene_id, list(t_in)))
+            self.prev_raw_input = raw_input
             return
 
-        # Edge case: if input is zero vector, context does not change
+        # Edge: identical successive inputs -> zero velocity, no update.
         if t_in_norm < 1e-12:
             self.item_history.append((gene_id, list(t_in)))
+            self.prev_raw_input = raw_input
             return
 
-        # Compute rho from normalization constraint:
-        # rho = sqrt(1 - beta^2 * ||t^IN||^2) / ||t_{i-1}||
-        # Clamp the argument to sqrt to avoid numerical issues.
+        # Gram-Schmidt: project t^IN onto the subspace orthogonal to
+        # t_{i-1}. Matches Howard 2005's perpendicular-projection step
+        # and restores the orthogonality baked into the closed-form rho.
+        dot_tp = sum(a * b for a, b in zip(t_in, t_prev))
+        proj = dot_tp / (t_prev_norm * t_prev_norm)
+        t_in_perp = [a - proj * b for a, b in zip(t_in, t_prev)]
+        t_in = _normalize(t_in_perp)
+        t_in_norm = _norm(t_in)
+
+        # Edge: velocity was parallel to current context -> no new
+        # direction to integrate, context is unchanged.
+        if t_in_norm < 1e-12:
+            self.item_history.append((gene_id, [0.0] * self.n_dims))
+            self.prev_raw_input = raw_input
+            return
+
+        # rho = sqrt(1 - beta^2 * ||t^IN||^2) / ||t_{i-1}||  (orthogonal case)
         beta_sq_tin_sq = self.beta * self.beta * t_in_norm * t_in_norm
         rho_arg = max(0.0, 1.0 - beta_sq_tin_sq)
         rho = math.sqrt(rho_arg) / t_prev_norm
 
-        # t_i = rho * t_{i-1} + beta * t^IN
         new_ctx = _add(_scale(t_prev, rho), _scale(t_in, self.beta))
 
-        # Final normalization to ensure ||t_i|| = 1 despite floating-point drift
+        # After orthogonal update + Gram-Schmidt, ||new_ctx|| should be
+        # ~1 without further rescaling. Log a warning if it drifts -
+        # surfaces numerical issues instead of masking them.
+        new_norm = _norm(new_ctx)
+        if abs(new_norm - 1.0) > 1e-6:
+            log.warning("TCM ctx norm drift after orthogonal update: %.9f", new_norm)
         self.context_vector = _normalize(new_ctx)
         self.item_history.append((gene_id, list(t_in)))
+        self.prev_raw_input = raw_input
 
     def update_from_gene(self, gene: Gene) -> None:
         """Convenience: derive input vector from a Gene and update."""
@@ -221,6 +262,7 @@ class SessionContext:
         """Reset context state (new session)."""
         self.context_vector = [0.0] * self.n_dims
         self.item_history.clear()
+        self.prev_raw_input = None
 
     @property
     def depth(self) -> int:

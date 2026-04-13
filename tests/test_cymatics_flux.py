@@ -7,6 +7,8 @@ from helix_context.cymatics import (
     N_BINS,
     build_weight_vector,
     flux_score,
+    flux_score_w1,
+    flux_score_dispatch,
     resonance_score,
     build_spectrum,
     term_to_frequency,
@@ -131,3 +133,59 @@ class TestResonanceRankFlux:
         ]
         result = resonance_rank("auth", genes, k=1, use_flux=False)
         assert len(result) == 1
+
+
+class TestW1Distance:
+    """Wasserstein-1 cymatics distance — Werman 1986 / Singh 2020."""
+
+    def test_w1_identical_spectra_score_one(self):
+        a = [0.0] * N_BINS
+        a[10] = 1.0
+        w = [1.0] * N_BINS
+        assert flux_score_w1(a, a, w) == pytest.approx(1.0)
+
+    def test_w1_zero_spectra_returns_zero(self):
+        zero = [0.0] * N_BINS
+        nonzero = [0.0] * N_BINS
+        nonzero[5] = 1.0
+        w = [1.0] * N_BINS
+        assert flux_score_w1(zero, nonzero, w) == 0.0
+
+    def test_w1_ranks_by_bin_distance(self):
+        """Cosine cannot distinguish a 3-bin gap from a 150-bin gap;
+        W1 must — that is the whole point of the swap."""
+        ref = [0.0] * N_BINS
+        ref[50] = 1.0
+        near = [0.0] * N_BINS
+        near[53] = 1.0
+        far = [0.0] * N_BINS
+        far[200] = 1.0
+        w = [1.0] * N_BINS
+        s_near = flux_score_w1(ref, near, w)
+        s_far = flux_score_w1(ref, far, w)
+        s_self = flux_score_w1(ref, ref, w)
+        assert s_self > s_near > s_far
+        cos_near = flux_score(ref, near, w)
+        cos_far = flux_score(ref, far, w)
+        assert cos_near == cos_far == 0.0  # disjoint support → cosine flat
+
+    def test_w1_symmetric(self):
+        a = [0.0] * N_BINS
+        b = [0.0] * N_BINS
+        a[20] = 0.6
+        a[80] = 0.4
+        b[25] = 1.0
+        w = [1.0] * N_BINS
+        assert flux_score_w1(a, b, w) == pytest.approx(flux_score_w1(b, a, w))
+
+    def test_dispatch_routes_metric(self):
+        a = [0.0] * N_BINS
+        b = [0.0] * N_BINS
+        a[10] = 1.0
+        b[12] = 1.0
+        w = [1.0] * N_BINS
+        cos_score = flux_score_dispatch(a, b, w, "cosine")
+        w1_score = flux_score_dispatch(a, b, w, "w1")
+        assert cos_score == flux_score(a, b, w)
+        assert w1_score == flux_score_w1(a, b, w)
+        assert cos_score != w1_score

@@ -102,6 +102,7 @@ class CymaticsConfig:
     splice_threshold_scale: float = 0.7 # Maps splice_aggressiveness to resonance threshold
     use_embeddings: bool = False        # Use Gene.embedding when available
     harmonic_links: bool = True         # Compute weighted co-activation edges
+    distance_metric: str = "cosine"     # "cosine" (weighted dot) | "w1" (Werman 1986 circular Wasserstein-1)
 
 
 @dataclass
@@ -220,6 +221,7 @@ def load_config(path: Optional[str] = None) -> HelixConfig:
             splice_threshold_scale=float(cy.get("splice_threshold_scale", cfg.cymatics.splice_threshold_scale)),
             use_embeddings=cy.get("use_embeddings", cfg.cymatics.use_embeddings),
             harmonic_links=cy.get("harmonic_links", cfg.cymatics.harmonic_links),
+            distance_metric=str(cy.get("distance_metric", cfg.cymatics.distance_metric)).lower(),
         )
 
     # Fix 1: synonym map
