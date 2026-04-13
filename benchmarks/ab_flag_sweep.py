@@ -26,15 +26,25 @@ BENCH_PORT = 11438
 BENCH_URL = f"http://127.0.0.1:{BENCH_PORT}"
 
 CONFIGS = [
-    ("baseline", {"distance_metric": "cosine", "sr_enabled": "false",
-                  "ray_trace_theta": "false", "seeded_edges_enabled": "false"}),
-    ("w1",       {"distance_metric": "w1",     "sr_enabled": "false",
-                  "ray_trace_theta": "false", "seeded_edges_enabled": "false"}),
-    ("sr",       {"distance_metric": "cosine", "sr_enabled": "true",
-                  "ray_trace_theta": "false", "seeded_edges_enabled": "false"}),
-    ("all_on",   {"distance_metric": "w1",     "sr_enabled": "true",
-                  "ray_trace_theta": "true",  "seeded_edges_enabled": "true"}),
+    ("baseline",       {"distance_metric": "cosine", "sr_enabled": "false",
+                        "ray_trace_theta": "false", "seeded_edges_enabled": "false"}),
+    ("w1",             {"distance_metric": "w1",     "sr_enabled": "false",
+                        "ray_trace_theta": "false", "seeded_edges_enabled": "false"}),
+    ("sr",             {"distance_metric": "cosine", "sr_enabled": "true",
+                        "ray_trace_theta": "false", "seeded_edges_enabled": "false"}),
+    ("seeded_plus_sr", {"distance_metric": "cosine", "sr_enabled": "true",
+                        "ray_trace_theta": "false", "seeded_edges_enabled": "true"}),
+    ("all_on",         {"distance_metric": "w1",     "sr_enabled": "true",
+                        "ray_trace_theta": "true",  "seeded_edges_enabled": "true"}),
 ]
+
+# Which benches to run per config. dim_lock retrieval-only (ASK_PROXY=0,
+# N small) is the multi-hop signal SR needs to show lift on; skill_activation
+# is the tier-heatmap signal.
+RUN_SKILL_ACTIVATION = True
+RUN_DIM_LOCK = True
+DIM_LOCK_N = "10"
+DIM_LOCK_ASK_PROXY = "0"  # retrieval-only, no LLM answer grading
 
 
 def patch_toml(out_path: Path, flags: dict) -> None:
@@ -114,30 +124,43 @@ def run_config(name: str, flags: dict) -> dict:
             print(f"[{name}] server did not become healthy; skipping")
             return {"config": name, "error": "server_unhealthy"}
 
-        print(f"[{name}] running bench_skill_activation ...", flush=True)
         bench_env = os.environ.copy()
         bench_env["HELIX_URL"] = BENCH_URL
         bench_env["PYTHONIOENCODING"] = "utf-8"
-        bench_out = subprocess.run(
-            [sys.executable, "benchmarks/bench_skill_activation.py"],
-            env=bench_env, cwd=str(REPO),
-            capture_output=True, text=True, timeout=300,
-        )
-        result_path = REPO / "benchmarks" / "skill_activation_results.json"
-        if result_path.exists():
-            shutil.copy(result_path, REPO / f"benchmarks/ab_sweep_{name}.json")
-            with result_path.open("r", encoding="utf-8") as f:
-                payload = json.load(f)
-            return {
-                "config": name,
-                "flags": {k: v for k, v in flags.items() if not k.startswith("__")},
-                "stdout_tail": bench_out.stdout.splitlines()[-10:],
-                "tier_totals_per_shape": {
-                    r["shape"]["label"]: r.get("tier_totals", {})
-                    for r in payload if isinstance(r, dict) and "shape" in r
-                },
-            }
-        return {"config": name, "error": "no_result_json"}
+
+        out = {
+            "config": name,
+            "flags": {k: v for k, v in flags.items() if not k.startswith("__")},
+        }
+
+        if RUN_SKILL_ACTIVATION:
+            print(f"[{name}] running bench_skill_activation ...", flush=True)
+            subprocess.run(
+                [sys.executable, "benchmarks/bench_skill_activation.py"],
+                env=bench_env, cwd=str(REPO),
+                capture_output=True, text=True, timeout=300,
+            )
+            sa_src = REPO / "benchmarks" / "skill_activation_results.json"
+            if sa_src.exists():
+                shutil.copy(sa_src, REPO / f"benchmarks/ab_sweep_{name}.json")
+
+        if RUN_DIM_LOCK:
+            print(f"[{name}] running bench_dimensional_lock N={DIM_LOCK_N} "
+                  f"ASK_PROXY={DIM_LOCK_ASK_PROXY} ...", flush=True)
+            dl_env = bench_env.copy()
+            dl_env["N"] = DIM_LOCK_N
+            dl_env["ASK_PROXY"] = DIM_LOCK_ASK_PROXY
+            dl_env["SEED"] = "42"
+            subprocess.run(
+                [sys.executable, "benchmarks/bench_dimensional_lock.py"],
+                env=dl_env, cwd=str(REPO),
+                capture_output=True, text=True, timeout=1200,
+            )
+            dl_src = REPO / "benchmarks" / "dimensional_lock_results.json"
+            if dl_src.exists():
+                shutil.copy(dl_src, REPO / f"benchmarks/ab_dim_lock_{name}.json")
+
+        return out
     finally:
         print(f"[{name}] stopping server ...", flush=True)
         try:

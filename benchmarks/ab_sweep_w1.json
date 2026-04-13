@@ -1,5 +1,5 @@
 {
-  "timestamp": 1776109270.0857227,
+  "timestamp": 1776118106.0503585,
   "n_shapes": 10,
   "results": [
     {
@@ -11,12 +11,12 @@
         "splade"
       ],
       "rationale": "no context, just a single token \u2014 content match dominates",
-      "latency_s": 7.99,
+      "latency_s": 8.03,
       "tier_totals": {
         "tag_exact": 111.0,
         "tag_prefix": 63.0,
         "fts5": 60.0,
-        "splade": 2.487,
+        "splade": 2.407,
         "lex_anchor": 63.0,
         "harmonic": 27.0
       },
@@ -26,7 +26,7 @@
       "moe_mode": true,
       "compression_ratio": 3.64,
       "top_source": "Projects\\Education\\BigEd\\research\\multi_model_best_practices.md",
-      "top_score": 45.89
+      "top_score": 46.27
     },
     {
       "id": "generic_question",
@@ -36,12 +36,12 @@
         "fts5"
       ],
       "rationale": "natural-language scaffolding, no project narrowing",
-      "latency_s": 6.06,
+      "latency_s": 6.57,
       "tier_totals": {
         "tag_exact": 102.0,
         "tag_prefix": 54.0,
         "fts5": 36.0,
-        "splade": 4.068,
+        "splade": 1.891,
         "lex_anchor": 60.0,
         "harmonic": 33.0
       },
@@ -63,23 +63,23 @@
         "lex_anchor"
       ],
       "rationale": "compound (helix, port) hits PKI; both terms are tag-like",
-      "latency_s": 5.94,
+      "latency_s": 6.12,
       "tier_totals": {
         "pki": 22.945,
         "tag_exact": 195.0,
         "tag_prefix": 139.5,
         "fts5": 72.0,
+        "splade": 40.125,
         "lex_anchor": 360.0,
-        "harmonic": 36.0,
-        "splade": 37.503
+        "harmonic": 36.0
       },
       "genes_expressed": 12,
-      "ellipticity": 0.5171,
+      "ellipticity": 0.5234,
       "budget_tier": "broad",
       "moe_mode": true,
       "compression_ratio": 3.87,
       "top_source": "Projects\\helix-context\\training\\export_training_data.py",
-      "top_score": 83.27
+      "top_score": 82.89
     },
     {
       "id": "project_plus_entity",
@@ -91,14 +91,14 @@
         "lex_anchor"
       ],
       "rationale": "two named entities, narrows hard",
-      "latency_s": 3.94,
+      "latency_s": 4.21,
       "tier_totals": {
         "pki": 23.324,
         "tag_exact": 180.0,
         "tag_prefix": 135.0,
         "fts5": 72.0,
-        "splade": 30.697,
-        "lex_anchor": 257.949,
+        "splade": 31.056,
+        "lex_anchor": 257.668,
         "harmonic": 33.0
       },
       "genes_expressed": 12,
@@ -107,7 +107,7 @@
       "moe_mode": true,
       "compression_ratio": 3.96,
       "top_source": "Projects\\helix-context\\training\\export_training_data.py",
-      "top_score": 74.12
+      "top_score": 74.47
     },
     {
       "id": "code_symbol",
@@ -118,23 +118,23 @@
         "splade"
       ],
       "rationale": "code-shaped token, lives in raw content not tags",
-      "latency_s": 4.79,
+      "latency_s": 5.14,
       "tier_totals": {
         "tag_exact": 69.0,
         "tag_prefix": 49.5,
         "fts5": 36.0,
-        "sema_boost": 7.078,
         "lex_anchor": 69.778,
         "harmonic": 25.0,
-        "splade": 5.414
+        "sema_boost": 6.101,
+        "splade": 1.734
       },
       "genes_expressed": 12,
       "ellipticity": 0.5354,
       "budget_tier": "broad",
       "moe_mode": true,
       "compression_ratio": 4.41,
-      "top_source": "Projects\\BookKeeper\\tests\\conftest.py",
-      "top_score": 27.26
+      "top_source": "Projects\\BookKeeper\\bookkeeper\\tenancy\\tenant_db.py",
+      "top_score": 27.36
     },
     {
       "id": "path_lookup",
@@ -146,12 +146,12 @@
         "fts5"
       ],
       "rationale": "file path tokens \u2014 PKI loves these",
-      "latency_s": 5.16,
+      "latency_s": 5.52,
       "tier_totals": {
         "tag_exact": 96.0,
         "tag_prefix": 66.0,
         "fts5": 72.0,
-        "splade": 25.275,
+        "splade": 26.667,
         "lex_anchor": 138.0,
         "harmonic": 18.0
       },
@@ -161,7 +161,7 @@
       "moe_mode": true,
       "compression_ratio": 2.59,
       "top_source": "Projects\\helix-context\\examples\\hgt_transfer.py",
-      "top_score": 42.92
+      "top_score": 42.85
     },
     {
       "id": "natural_sentence",
@@ -173,14 +173,14 @@
         "lex_anchor"
       ],
       "rationale": "long natural language; multiple weak signals stack",
-      "latency_s": 4.63,
+      "latency_s": 4.43,
       "tier_totals": {
         "pki": 24.927,
         "tag_exact": 180.0,
         "tag_prefix": 136.5,
         "fts5": 72.0,
-        "splade": 30.082,
-        "lex_anchor": 298.038,
+        "splade": 37.081,
+        "lex_anchor": 297.798,
         "harmonic": 33.0
       },
       "genes_expressed": 12,
@@ -189,7 +189,7 @@
       "moe_mode": true,
       "compression_ratio": 4.6,
       "top_source": "Projects\\helix-context\\training\\export_training_data.py",
-      "top_score": 77.89
+      "top_score": 77.87
     },
     {
       "id": "multi_key_compound",
@@ -201,21 +201,21 @@
         "lex_anchor"
       ],
       "rationale": "two PKI compound hits, two tag matches",
-      "latency_s": 5.99,
+      "latency_s": 6.56,
       "tier_totals": {
-        "pki": 33.753,
-        "tag_exact": 255.0,
-        "tag_prefix": 177.0,
-        "fts5": 60.0,
+        "pki": 26.972,
+        "tag_exact": 261.0,
+        "tag_prefix": 175.5,
+        "fts5": 54.0,
         "lex_anchor": 436.776,
         "harmonic": 27.0,
-        "splade": 31.211
+        "splade": 28.0
       },
       "genes_expressed": 12,
-      "ellipticity": 0.5257,
+      "ellipticity": 0.5307,
       "budget_tier": "broad",
       "moe_mode": true,
-      "compression_ratio": 3.57,
+      "compression_ratio": 3.31,
       "top_source": "Projects\\helix-context\\docs\\RESEARCH.md",
       "top_score": 110.29
     },
@@ -228,7 +228,7 @@
         "splade"
       ],
       "rationale": "doc-shaped, no project anchor",
-      "latency_s": 5.76,
+      "latency_s": 5.99,
       "tier_totals": {
         "pki": 3.611,
         "tag_exact": 123.0,
@@ -236,7 +236,7 @@
         "fts5": 54.0,
         "lex_anchor": 136.511,
         "harmonic": 21.0,
-        "splade": 19.864
+        "splade": 19.707
       },
       "genes_expressed": 12,
       "ellipticity": 0.4859,
@@ -256,14 +256,14 @@
         "fts5"
       ],
       "rationale": "broad semantic \u2014 semantic tiers should carry it",
-      "latency_s": 6.51,
+      "latency_s": 6.89,
       "tier_totals": {
         "tag_exact": 123.0,
         "tag_prefix": 63.0,
         "fts5": 54.0,
-        "lex_anchor": 187.36,
+        "lex_anchor": 187.313,
         "harmonic": 9.0,
-        "splade": 10.349
+        "splade": 10.413
       },
       "genes_expressed": 12,
       "ellipticity": 0.5691,
@@ -271,7 +271,7 @@
       "moe_mode": true,
       "compression_ratio": 3.05,
       "top_source": "Projects\\helix-context\\tests\\fixtures\\essay_caching.txt",
-      "top_score": 65.44
+      "top_score": 65.39
     }
   ]
 }

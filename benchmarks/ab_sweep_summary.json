@@ -6,20 +6,7 @@
       "sr_enabled": "false",
       "ray_trace_theta": "false",
       "seeded_edges_enabled": "false"
-    },
-    "stdout_tail": [
-      "     missed: ['pki']",
-      "     bonus:  ['tag_prefix']",
-      "  \u00e2\u2030\u00a0  documentation phrase      expected=['fts5', 'splade']  observed=['fts5', 'lex_anchor', 'tag_exact', 'tag_prefix']",
-      "     missed: ['splade']",
-      "     bonus:  ['lex_anchor', 'tag_exact', 'tag_prefix']",
-      "  \u00e2\u2030\u00a0  vague plea                expected=['fts5', 'sema_cold', 'splade']  observed=['lex_anchor', 'tag_exact', 'tag_prefix']",
-      "     missed: ['fts5', 'sema_cold', 'splade']",
-      "     bonus:  ['lex_anchor', 'tag_exact', 'tag_prefix']",
-      "",
-      "Results saved to F:\\Projects\\helix-context\\benchmarks\\skill_activation_results.json"
-    ],
-    "tier_totals_per_shape": {}
+    }
   },
   {
     "config": "w1",
@@ -28,20 +15,7 @@
       "sr_enabled": "false",
       "ray_trace_theta": "false",
       "seeded_edges_enabled": "false"
-    },
-    "stdout_tail": [
-      "     missed: ['pki']",
-      "     bonus:  ['tag_prefix']",
-      "  \u00e2\u2030\u00a0  documentation phrase      expected=['fts5', 'splade']  observed=['fts5', 'lex_anchor', 'tag_exact', 'tag_prefix']",
-      "     missed: ['splade']",
-      "     bonus:  ['lex_anchor', 'tag_exact', 'tag_prefix']",
-      "  \u00e2\u2030\u00a0  vague plea                expected=['fts5', 'sema_cold', 'splade']  observed=['lex_anchor', 'tag_exact', 'tag_prefix']",
-      "     missed: ['fts5', 'sema_cold', 'splade']",
-      "     bonus:  ['lex_anchor', 'tag_exact', 'tag_prefix']",
-      "",
-      "Results saved to F:\\Projects\\helix-context\\benchmarks\\skill_activation_results.json"
-    ],
-    "tier_totals_per_shape": {}
+    }
   },
   {
     "config": "sr",
@@ -50,20 +24,16 @@
       "sr_enabled": "true",
       "ray_trace_theta": "false",
       "seeded_edges_enabled": "false"
-    },
-    "stdout_tail": [
-      "     missed: ['pki']",
-      "     bonus:  ['tag_prefix']",
-      "  \u00e2\u2030\u00a0  documentation phrase      expected=['fts5', 'splade']  observed=['fts5', 'lex_anchor', 'tag_exact', 'tag_prefix']",
-      "     missed: ['splade']",
-      "     bonus:  ['lex_anchor', 'tag_exact', 'tag_prefix']",
-      "  \u00e2\u2030\u00a0  vague plea                expected=['fts5', 'sema_cold', 'splade']  observed=['lex_anchor', 'tag_exact', 'tag_prefix']",
-      "     missed: ['fts5', 'sema_cold', 'splade']",
-      "     bonus:  ['lex_anchor', 'tag_exact', 'tag_prefix']",
-      "",
-      "Results saved to F:\\Projects\\helix-context\\benchmarks\\skill_activation_results.json"
-    ],
-    "tier_totals_per_shape": {}
+    }
+  },
+  {
+    "config": "seeded_plus_sr",
+    "flags": {
+      "distance_metric": "cosine",
+      "sr_enabled": "true",
+      "ray_trace_theta": "false",
+      "seeded_edges_enabled": "true"
+    }
   },
   {
     "config": "all_on",
@@ -72,19 +42,6 @@
       "sr_enabled": "true",
       "ray_trace_theta": "true",
       "seeded_edges_enabled": "true"
-    },
-    "stdout_tail": [
-      "     missed: ['pki']",
-      "     bonus:  ['tag_prefix']",
-      "  \u00e2\u2030\u00a0  documentation phrase      expected=['fts5', 'splade']  observed=['fts5', 'lex_anchor', 'tag_exact', 'tag_prefix']",
-      "     missed: ['splade']",
-      "     bonus:  ['lex_anchor', 'tag_exact', 'tag_prefix']",
-      "  \u00e2\u2030\u00a0  vague plea                expected=['fts5', 'sema_cold', 'splade']  observed=['lex_anchor', 'tag_exact', 'tag_prefix']",
-      "     missed: ['fts5', 'sema_cold', 'splade']",
-      "     bonus:  ['lex_anchor', 'tag_exact', 'tag_prefix']",
-      "",
-      "Results saved to F:\\Projects\\helix-context\\benchmarks\\skill_activation_results.json"
-    ],
-    "tier_totals_per_shape": {}
+    }
   }
 ]
