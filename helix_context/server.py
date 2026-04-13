@@ -620,6 +620,34 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
                 "cold_tier_used": getattr(helix, "_last_cold_tier_used", False),
                 "cold_tier_count": getattr(helix, "_last_cold_tier_count", 0),
             }
+
+            # Activation profile: per-tier score breakdown for the
+            # genes that made the top-k cut. Used by the skill activation
+            # profiler bench to visualize WHICH retrieval signals fired
+            # for which query shapes. Only populated when verbose=true to
+            # avoid bloating responses for non-debug callers.
+            if verbose:
+                try:
+                    tier_contrib = getattr(helix.genome, "last_tier_contributions", {}) or {}
+                    expressed_ids = set(window.expressed_gene_ids or [])
+                    activation = {
+                        gid: contribs
+                        for gid, contribs in tier_contrib.items()
+                        if gid in expressed_ids
+                    }
+                    # Aggregate: sum of contributions per tier across
+                    # expressed genes — gives the "what fired and how much"
+                    # heatmap row for this query.
+                    tier_totals: dict = {}
+                    for contribs in activation.values():
+                        for tier, score in contribs.items():
+                            tier_totals[tier] = tier_totals.get(tier, 0.0) + score
+                    response["agent"]["tier_contributions"] = activation
+                    response["agent"]["tier_totals"] = {
+                        k: round(v, 3) for k, v in tier_totals.items()
+                    }
+                except Exception:
+                    log.debug("Tier contribution surfacing failed", exc_info=True)
         except Exception:
             log.debug("Agent metadata enrichment failed", exc_info=True)
 

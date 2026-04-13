@@ -287,6 +287,12 @@ class Genome:
         self.conn.execute("PRAGMA busy_timeout=30000")  # 30s retry on lock
         self._upsert_count = 0  # WAL checkpoint cadence counter
         self.last_query_scores: Dict[str, float] = {}  # Retrieval scores from last query
+        # Per-tier score breakdown for the last query: {gene_id: {tier_name: score}}.
+        # Populated alongside last_query_scores in query_genes(). Lets the bench /
+        # profiler see which retrieval signals fired (and how strongly) for each
+        # candidate gene — turns the lane graph into a measurable activation matrix.
+        # See benchmarks/bench_skill_activation.py and docs/PIPELINE_LANES.md.
+        self.last_tier_contributions: Dict[str, Dict[str, float]] = {}
         self._sema_cache: Optional[Dict] = None  # Pre-materialized ΣĒMA vectors (hot tier)
         self._cold_sema_cache: Optional[Dict] = None  # Pre-materialized ΣĒMA vectors (cold tier, C.2)
         self._init_db()
@@ -1361,6 +1367,12 @@ class Genome:
         # Gene scores: gene_id → float (accumulated across tiers)
         gene_scores: Dict[str, float] = {}
 
+        # Per-tier contribution tracking (parallel to gene_scores).
+        # Each accumulation point also writes the contribution to
+        # tier_contrib[gid][tier_name]. Surfaced via last_tier_contributions
+        # for the activation profiler bench (bench_skill_activation.py).
+        tier_contrib: Dict[str, Dict[str, float]] = {}
+
         # ── party_id filter clause (reused across Tiers 1-3) ──────
         _party_filter = ""
         _party_params: list = []
@@ -1457,7 +1469,9 @@ class Genome:
                         # Cap total bonus to keep one runaway gene from
                         # saturating; 12.0 is roughly 3x the strongest
                         # single signal.
-                        gene_scores[gid] = gene_scores.get(gid, 0) + min(bonus, 12.0)
+                        capped = min(bonus, 12.0)
+                        gene_scores[gid] = gene_scores.get(gid, 0) + capped
+                        tier_contrib.setdefault(gid, {})["pki"] = capped
             except Exception as exc:
                 log.debug("path_key_index tier skipped: %s", exc)
 
@@ -1477,7 +1491,9 @@ class Genome:
         ).fetchall()
 
         for r in rows:
-            gene_scores[r["gene_id"]] = r["match_count"] * 3.0
+            tag_score = r["match_count"] * 3.0
+            gene_scores[r["gene_id"]] = tag_score
+            tier_contrib.setdefault(r["gene_id"], {})["tag_exact"] = tag_score
 
         # ── Tier 2: prefix tag match (weight 1.5) ──────────────────
         # "server" matches "serverconfig", "server_api", etc.
@@ -1502,6 +1518,7 @@ class Genome:
             gid = r["gene_id"]
             prefix_score = r["match_count"] * 1.5
             gene_scores[gid] = gene_scores.get(gid, 0) + prefix_score
+            tier_contrib.setdefault(gid, {})["tag_prefix"] = prefix_score
 
         # ── Tier 3: FTS5 content search (weight 3.0) ───────────────
         if self._fts_available:
@@ -1543,6 +1560,7 @@ class Genome:
                             # (was 15*3=45 — drowned out tag matches at 3-9)
                             fts_score = min(-fts_ranks[gid], 6.0)
                             gene_scores[gid] = gene_scores.get(gid, 0) + fts_score
+                            tier_contrib.setdefault(gid, {})["fts5"] = fts_score
                 except Exception:
                     log.warning("FTS5 query failed", exc_info=True)
 
@@ -1562,6 +1580,7 @@ class Genome:
                         # Normalize SPLADE score to be comparable with other tiers
                         splade_score = min(score, 20.0) * 3.5 / 20.0  # Cap at 3.5
                         gene_scores[gid] = gene_scores.get(gid, 0) + splade_score
+                        tier_contrib.setdefault(gid, {})["splade"] = splade_score
             except Exception:
                 log.warning("SPLADE retrieval failed", exc_info=True)
 
@@ -1602,7 +1621,9 @@ class Genome:
                             for gid, sim in nearest:
                                 if sim > 0.3:
                                     boost_scale = max(0.5, 1.0 - top_score / 40.0)
-                                    gene_scores[gid] += sim * 2.0 * boost_scale
+                                    sema_boost = sim * 2.0 * boost_scale
+                                    gene_scores[gid] += sema_boost
+                                    tier_contrib.setdefault(gid, {})["sema_boost"] = sema_boost
 
                 # Mode B: Add new candidates when pool is undersized
                 # Uses pre-materialized numpy cache for fast cosine scan
@@ -1636,7 +1657,9 @@ class Genome:
                                     if gid in existing:
                                         continue
                                     if sim > 0.4:
-                                        gene_scores[gid] = sim * 3.0
+                                        sema_new = sim * 3.0
+                                        gene_scores[gid] = sema_new
+                                        tier_contrib.setdefault(gid, {})["sema_cold"] = sema_new
                                         added += 1
                         except ImportError:
                             pass  # numpy not available
@@ -1672,7 +1695,11 @@ class Genome:
                     (term, int(ChromatinState.HETEROCHROMATIN), *_party_params),
                 ).fetchall()
                 for r in anchor_genes:
-                    gene_scores[r["gene_id"]] = gene_scores.get(r["gene_id"], 0) + boost
+                    gid = r["gene_id"]
+                    gene_scores[gid] = gene_scores.get(gid, 0) + boost
+                    # Anchor IDF can fire for multiple terms in same query; sum them.
+                    tc = tier_contrib.setdefault(gid, {})
+                    tc["lex_anchor"] = tc.get("lex_anchor", 0.0) + boost
 
         # ── Authority boosts: distinguish "about X" from "mentions X" ──
         self._apply_authority_boosts(cur, gene_scores, query_terms)
@@ -1708,6 +1735,7 @@ class Genome:
                             )
                     for gid, bonus in harmonic_bonus.items():
                         gene_scores[gid] = gene_scores.get(gid, 0) + bonus
+                        tier_contrib.setdefault(gid, {})["harmonic"] = bonus
                 except Exception:
                     log.debug("Harmonic boost failed", exc_info=True)
 
@@ -1721,7 +1749,9 @@ class Genome:
                     (party_id, *list(gene_scores.keys())),
                 ).fetchall()
                 for ar in attr_rows:
-                    gene_scores[ar["gene_id"]] += 0.5
+                    gid = ar["gene_id"]
+                    gene_scores[gid] += 0.5
+                    tier_contrib.setdefault(gid, {})["party_attr"] = 0.5
             except Exception:
                 log.debug("Party attribution bonus failed", exc_info=True)
 
@@ -1743,14 +1773,18 @@ class Genome:
                         rate = epi.access_rate(3600.0)
                         if rate > 0:
                             bonus = 0.05 * min(rate * 3600.0, 5.0)
-                            gene_scores[er["gene_id"]] += bonus
+                            gid = er["gene_id"]
+                            gene_scores[gid] += bonus
+                            tier_contrib.setdefault(gid, {})["access_rate"] = bonus
                     except Exception:
                         continue
             except Exception:
                 log.debug("Access-rate tiebreaker failed", exc_info=True)
 
-        # Expose scores for score-gated expression in context_manager
+        # Expose scores + per-tier breakdown for score-gated expression in
+        # context_manager + the activation profiler bench.
         self.last_query_scores = dict(gene_scores)
+        self.last_tier_contributions = tier_contrib
 
         # Sort by combined score, fetch top genes
         ranked_ids = sorted(gene_scores, key=gene_scores.get, reverse=True)[:limit]

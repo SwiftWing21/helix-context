@@ -1,0 +1,173 @@
+{
+  "timestamp": 1776067393.086431,
+  "rag_assumptions": {
+    "chunk_tokens": 1500,
+    "top_k": 5,
+    "overhead": 500,
+    "total_per_query": 8000
+  },
+  "sike_stats": {
+    "min": 1888,
+    "median": 2786,
+    "mean": 2750.3,
+    "p95": 3163,
+    "max": 3163
+  },
+  "savings": {
+    "median_x": 2.87,
+    "mean_x": 2.95,
+    "tokens_saved_per_query_median": 5214
+  },
+  "queries": [
+    {
+      "query": "How does helix handle WAL checkpoints?",
+      "error": null,
+      "latency_s": 9.4,
+      "sike_tokens_est": 2773,
+      "compression_ratio": 8.21,
+      "genes_expressed": 12,
+      "budget_tier": "broad",
+      "content_tokens_est": 3008
+    },
+    {
+      "query": "What port does the helix proxy server listen on?",
+      "error": null,
+      "latency_s": 6.14,
+      "sike_tokens_est": 2921,
+      "compression_ratio": 3.15,
+      "genes_expressed": 12,
+      "budget_tier": "broad",
+      "content_tokens_est": 3074
+    },
+    {
+      "query": "How is the ribosome budget calculated?",
+      "error": null,
+      "latency_s": 8.83,
+      "sike_tokens_est": 2929,
+      "compression_ratio": 5.98,
+      "genes_expressed": 12,
+      "budget_tier": "broad",
+      "content_tokens_est": 3096
+    },
+    {
+      "query": "What does the path_key_index store?",
+      "error": null,
+      "latency_s": 3.61,
+      "sike_tokens_est": 1888,
+      "compression_ratio": 3.18,
+      "genes_expressed": 12,
+      "budget_tier": "broad",
+      "content_tokens_est": 1815
+    },
+    {
+      "query": "How does the density gate work?",
+      "error": null,
+      "latency_s": 5.7,
+      "sike_tokens_est": 2504,
+      "compression_ratio": 5.01,
+      "genes_expressed": 12,
+      "budget_tier": "broad",
+      "content_tokens_est": 2519
+    },
+    {
+      "query": "What is the 4-layer federation model?",
+      "error": null,
+      "latency_s": 6.76,
+      "sike_tokens_est": 3163,
+      "compression_ratio": 3.43,
+      "genes_expressed": 12,
+      "budget_tier": "broad",
+      "content_tokens_est": 3292
+    },
+    {
+      "query": "How does cymatics resonance contribute to retrieval?",
+      "error": null,
+      "latency_s": 7.28,
+      "sike_tokens_est": 2614,
+      "compression_ratio": 8.35,
+      "genes_expressed": 12,
+      "budget_tier": "broad",
+      "content_tokens_est": 2816
+    },
+    {
+      "query": "What does the chromatin tier control?",
+      "error": null,
+      "latency_s": 10.0,
+      "sike_tokens_est": 2816,
+      "compression_ratio": 9.61,
+      "genes_expressed": 12,
+      "budget_tier": "broad",
+      "content_tokens_est": 2982
+    },
+    {
+      "query": "How does TCM session drift work?",
+      "error": null,
+      "latency_s": 4.77,
+      "sike_tokens_est": 2606,
+      "compression_ratio": 2.79,
+      "genes_expressed": 12,
+      "budget_tier": "broad",
+      "content_tokens_est": 2687
+    },
+    {
+      "query": "What is the difference between SIKE and dimensional-lock benchmarks?",
+      "error": null,
+      "latency_s": 5.86,
+      "sike_tokens_est": 2895,
+      "compression_ratio": 3.61,
+      "genes_expressed": 12,
+      "budget_tier": "broad",
+      "content_tokens_est": 2827
+    },
+    {
+      "query": "How are gene attributions written?",
+      "error": null,
+      "latency_s": 9.53,
+      "sike_tokens_est": 2786,
+      "compression_ratio": 7.7,
+      "genes_expressed": 12,
+      "budget_tier": "broad",
+      "content_tokens_est": 2926
+    },
+    {
+      "query": "What does the access-rate tiebreaker do?",
+      "error": null,
+      "latency_s": 5.64,
+      "sike_tokens_est": 2980,
+      "compression_ratio": 3.37,
+      "genes_expressed": 12,
+      "budget_tier": "broad",
+      "content_tokens_est": 3206
+    },
+    {
+      "query": "How does the score-floor budget tier decide tight vs broad?",
+      "error": null,
+      "latency_s": 8.77,
+      "sike_tokens_est": 2979,
+      "compression_ratio": 6.73,
+      "genes_expressed": 12,
+      "budget_tier": "broad",
+      "content_tokens_est": 3092
+    },
+    {
+      "query": "What is the role of the harmonic_links table?",
+      "error": null,
+      "latency_s": 5.9,
+      "sike_tokens_est": 2775,
+      "compression_ratio": 3.78,
+      "genes_expressed": 12,
+      "budget_tier": "broad",
+      "content_tokens_est": 2896
+    },
+    {
+      "query": "How is the \u03a3\u0112MA cold-tier triggered?",
+      "error": null,
+      "latency_s": 11.35,
+      "sike_tokens_est": 2626,
+      "compression_ratio": 13.12,
+      "genes_expressed": 12,
+      "budget_tier": "broad",
+      "content_tokens_est": 2655
+    }
+  ]
+}
