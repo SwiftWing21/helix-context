@@ -269,6 +269,7 @@ class Genome:
         sr_k_steps: int = 4,
         sr_weight: float = 1.5,
         sr_cap: float = 3.0,
+        seeded_edges_enabled: bool = False,
     ):
         self.path = path
         self.synonym_map = synonym_map or {}
@@ -282,6 +283,8 @@ class Genome:
         self._sr_k_steps = sr_k_steps
         self._sr_weight = sr_weight
         self._sr_cap = sr_cap
+        # Sprint 4 — Hebbian seeded-edge evidence accumulation.
+        self._seeded_edges_enabled = seeded_edges_enabled
 
         # Checkpoint WAL BEFORE opening our long-lived connection
         # so we see the latest state from any external writers
@@ -820,6 +823,30 @@ class Genome:
         cur.execute(
             "CREATE INDEX IF NOT EXISTS idx_cwola_bucket "
             "ON cwola_log(bucket)"
+        )
+
+        # ── Sprint 4: seeded-edge provenance + Hebbian counters ──────
+        # Table was previously created lazily inside
+        # store_cymatics_harmonic_links; move to init so seeded_edges.py
+        # and the Sprint 4 update hook can assume it exists. Pre-Sprint-4
+        # databases get the columns added via the ALTER path in
+        # store_cymatics_harmonic_links; new databases get them here.
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS harmonic_links (
+            gene_id_a  TEXT NOT NULL,
+            gene_id_b  TEXT NOT NULL,
+            weight     REAL NOT NULL,
+            updated_at REAL NOT NULL,
+            source     TEXT NOT NULL DEFAULT 'co_retrieved',
+            co_count   INTEGER NOT NULL DEFAULT 0,
+            miss_count REAL NOT NULL DEFAULT 0.0,
+            created_at REAL,
+            PRIMARY KEY (gene_id_a, gene_id_b)
+        )
+        """)
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_harmonic_source "
+            "ON harmonic_links(source)"
         )
 
     # ── WAL snapshot management ──────────────────────────────────────
@@ -1852,6 +1879,23 @@ class Genome:
         # Sort by combined score, fetch top genes
         ranked_ids = sorted(gene_scores, key=gene_scores.get, reverse=True)[:limit]
 
+        # ── Sprint 4: Hebbian evidence accumulation on seeded edges ───
+        # Fire-and-forget update to harmonic_links so seeded / co_retrieved
+        # rows accrue co_count (both endpoints in top-k) or miss_count
+        # (one endpoint expressed, other in candidate pool but below the
+        # cut — weighted by dense-rank distance to cutoff). Candidacy
+        # gate: genes outside gene_scores are ignored (topical-orthogonal
+        # queries should not punish the edge). Soft-fails — logger
+        # hiccups never perturb the retrieval result.
+        if self._seeded_edges_enabled and ranked_ids:
+            try:
+                from .seeded_edges import update_edge_evidence
+                update_edge_evidence(
+                    self, gene_scores, ranked_ids, max_genes=max_genes,
+                )
+            except Exception:
+                log.debug("Hebbian edge update failed", exc_info=True)
+
         # Batch fetch gene rows
         id_placeholders = ",".join("?" * len(ranked_ids))
         rows = cur.execute(
@@ -2132,26 +2176,53 @@ class Genome:
     # ── Harmonic weights (cymatics) ──────────────────────────────────
 
     def store_harmonic_weights(self, weights: List[Tuple[str, str, float]]) -> None:
-        """Store weighted co-activation edges from cymatics spectral overlap."""
+        """Store weighted co-activation edges from cymatics spectral overlap.
+
+        As of Sprint 4, edges carry provenance and Hebbian evidence counters:
+          source            - 'seeded' | 'co_retrieved' | 'cwola_validated'
+          co_count          - # times both endpoints co-expressed in a query
+          miss_count        - fractional (dense-rank weighted) miss events
+          created_at        - epoch seconds
+        co_retrieved and cwola_validated promotion happens in update_edge_evidence().
+        """
         if not weights:
             return
         cur = self.conn.cursor()
         cur.execute("""
             CREATE TABLE IF NOT EXISTS harmonic_links (
-                gene_id_a TEXT NOT NULL,
-                gene_id_b TEXT NOT NULL,
+                gene_id_a  TEXT NOT NULL,
+                gene_id_b  TEXT NOT NULL,
                 weight     REAL NOT NULL,
                 updated_at REAL NOT NULL,
+                source     TEXT NOT NULL DEFAULT 'co_retrieved',
+                co_count   INTEGER NOT NULL DEFAULT 0,
+                miss_count REAL NOT NULL DEFAULT 0.0,
+                created_at REAL,
                 PRIMARY KEY (gene_id_a, gene_id_b)
             )
         """)
+        # Best-effort ALTER for pre-Sprint-4 schemas (fails silently if
+        # columns already present — SQLite has no IF NOT EXISTS for ADD COLUMN).
+        for col, defn in (
+            ("source", "TEXT NOT NULL DEFAULT 'co_retrieved'"),
+            ("co_count", "INTEGER NOT NULL DEFAULT 0"),
+            ("miss_count", "REAL NOT NULL DEFAULT 0.0"),
+            ("created_at", "REAL"),
+        ):
+            try:
+                cur.execute(f"ALTER TABLE harmonic_links ADD COLUMN {col} {defn}")
+            except sqlite3.OperationalError:
+                pass
         now = time.time()
         for a, b, w in weights:
             cur.execute(
-                """INSERT OR REPLACE INTO harmonic_links
-                   (gene_id_a, gene_id_b, weight, updated_at)
-                   VALUES (?, ?, ?, ?)""",
-                (a, b, w, now),
+                """INSERT INTO harmonic_links
+                   (gene_id_a, gene_id_b, weight, updated_at, source, created_at)
+                   VALUES (?, ?, ?, ?, 'co_retrieved', ?)
+                   ON CONFLICT(gene_id_a, gene_id_b) DO UPDATE SET
+                     weight = excluded.weight,
+                     updated_at = excluded.updated_at""",
+                (a, b, w, now, now),
             )
         self.conn.commit()
 

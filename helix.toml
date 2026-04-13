@@ -80,6 +80,9 @@ sr_cap = 3.0                            # Max per-gene SR boost (matches harmoni
 # sampling by TCM velocity direction. Fore sweep on even bounces, aft on odd.
 ray_trace_theta = false                 # Dark ship — requires TCM velocity input (Sprint 1 item 3)
 theta_weight = 1.0                      # Softmax temperature on v·gene_input_vector
+# Sprint 4 — Seeded co-activation edges (Hebbian evidence decay, dense-rank miss weighting).
+seeded_edges_enabled = false            # Dark ship — flip to start accumulating co_count / miss_count
+seeded_edge_weight = 1.0                # Base weight stamped at seed insertion
 
 [synonyms]
 # Fix 1: lightweight synonym expansion for promoter queries

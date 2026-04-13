@@ -119,6 +119,11 @@ class RetrievalConfig:
     # sampling biased by the current TCM velocity vector.
     ray_trace_theta: bool = False       # Dark ship
     theta_weight: float = 1.0           # Softmax temperature on v·gene dot product
+    # Sprint 4 — seeded co-activation edges with Hebbian evidence decay.
+    # Three-class edge provenance (seeded / co_retrieved / cwola_validated)
+    # with Laplace-smoothed co_count vs miss_count per edge.
+    seeded_edges_enabled: bool = False  # Dark ship — flip to start evidence accumulation
+    seeded_edge_weight: float = 1.0     # Base weight written on seed insertion
 
 
 @dataclass
@@ -252,6 +257,8 @@ def load_config(path: Optional[str] = None) -> HelixConfig:
             sr_cap=float(r.get("sr_cap", cfg.retrieval.sr_cap)),
             ray_trace_theta=bool(r.get("ray_trace_theta", cfg.retrieval.ray_trace_theta)),
             theta_weight=float(r.get("theta_weight", cfg.retrieval.theta_weight)),
+            seeded_edges_enabled=bool(r.get("seeded_edges_enabled", cfg.retrieval.seeded_edges_enabled)),
+            seeded_edge_weight=float(r.get("seeded_edge_weight", cfg.retrieval.seeded_edge_weight)),
         )
 
     # Fix 1: synonym map

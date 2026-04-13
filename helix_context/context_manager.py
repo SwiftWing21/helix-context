@@ -192,6 +192,7 @@ class HelixContextManager:
             sr_k_steps=config.retrieval.sr_k_steps,
             sr_weight=config.retrieval.sr_weight,
             sr_cap=config.retrieval.sr_cap,
+            seeded_edges_enabled=config.retrieval.seeded_edges_enabled,
         )
 
         # Replication manager (distributed genome clones)
