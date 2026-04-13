@@ -848,6 +848,14 @@ class Genome:
             "CREATE INDEX IF NOT EXISTS idx_harmonic_source "
             "ON harmonic_links(source)"
         )
+        # Bidirectional lookup index — critical for sr_boost's bulk
+        # neighbour query (WHERE gene_id_a IN (...) OR gene_id_b IN (...)).
+        # Without this, SR on a 191K-edge graph times out at 30s on a
+        # multi-hop frontier. Discovered via the 2026-04-13 staged A/B.
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_harmonic_b "
+            "ON harmonic_links(gene_id_b)"
+        )
 
     # ── WAL snapshot management ──────────────────────────────────────
 

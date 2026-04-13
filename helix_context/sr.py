@@ -39,6 +39,9 @@ DEFAULT_GAMMA = 0.85
 DEFAULT_K_STEPS = 4
 DEFAULT_WEIGHT = 1.5
 DEFAULT_CAP = 3.0
+FRONTIER_CAP = 2000       # Max frontier size per hop — prevents pathological
+                          # BFS expansion on a dense graph. Keeps latency
+                          # bounded at O(FRONTIER_CAP × k_steps) SQL work.
 
 
 def sr_boost(
@@ -74,33 +77,60 @@ def sr_boost(
     # Lazy import avoids a genome.py <-> sr.py circular dep.
     from .ray_trace import _load_co_activated
 
-    def neighbours(gid: str) -> List[str]:
-        if co_activation_cache is not None and gid in co_activation_cache:
-            return co_activation_cache[gid]
-        # Union of two sources: the legacy `epigenetics.co_activated_with`
-        # JSON field (populated at ingest + on-the-fly cymatics harvest)
-        # and the harmonic_links table (populated by Sprint 4 seeded
-        # backfill + CWoLa-validated promotions). Both represent the
-        # same semantic edge, just different write paths.
-        legacy = _load_co_activated(genome, gid)
+    # Build the neighbour lookup cache ONCE up-front. Without this, each
+    # hop issued one SQL query per frontier gene — k_steps=4 over a
+    # ~10K-gene frontier on the 191K-edge harmonic_links table was
+    # ~30s per /context call (discovered via staged dim_lock A/B on
+    # 2026-04-13). The lookup is now O(1) per frontier node after a
+    # single-pass seed scan + BFS expansion.
+    neighbours_cache: Dict[str, List[str]] = {}
+    if co_activation_cache is not None:
+        neighbours_cache = dict(co_activation_cache)
+
+    # Hoist the harmonic_links lookup to a single bulk query per hop.
+    def _fill_cache(gids: List[str]) -> None:
+        """Populate neighbours_cache for any gids missing from it."""
+        missing = [g for g in gids if g not in neighbours_cache]
+        if not missing:
+            return
+        # Legacy source: gene.epigenetics.co_activated_with JSON field.
+        # _load_co_activated is one row per call — fine at this scope
+        # since `missing` is bounded by the BFS frontier size.
+        legacy_lookup: Dict[str, List[str]] = {}
+        for g in missing:
+            legacy_lookup[g] = _load_co_activated(genome, g)
+        # Sprint 4 source: harmonic_links table. One SQL round-trip for
+        # the entire missing batch — IN (...) with a reasonable cap.
+        link_lookup: Dict[str, List[str]] = {g: [] for g in missing}
         try:
             cur = genome.read_conn.cursor()
+            placeholders = ",".join("?" * len(missing))
             rows = cur.execute(
-                "SELECT gene_id_b FROM harmonic_links WHERE gene_id_a = ? "
-                "UNION SELECT gene_id_a FROM harmonic_links WHERE gene_id_b = ?",
-                (gid, gid),
+                f"SELECT gene_id_a, gene_id_b FROM harmonic_links "
+                f"WHERE gene_id_a IN ({placeholders}) OR gene_id_b IN ({placeholders})",
+                (*missing, *missing),
             ).fetchall()
-            link_neighbours = [r[0] for r in rows]
+            for a, b in rows:
+                if a in link_lookup:
+                    link_lookup[a].append(b)
+                if b in link_lookup:
+                    link_lookup[b].append(a)
         except Exception:
-            link_neighbours = []
-        # Dedupe while preserving order
-        seen = set()
-        out: List[str] = []
-        for n in list(legacy) + link_neighbours:
-            if n and n != gid and n not in seen:
-                seen.add(n)
-                out.append(n)
-        return out
+            log.debug("harmonic_links bulk read failed", exc_info=True)
+        # Union + dedupe per gene, store in cache.
+        for g in missing:
+            seen = set()
+            out: List[str] = []
+            for n in list(legacy_lookup.get(g, [])) + link_lookup.get(g, []):
+                if n and n != g and n not in seen:
+                    seen.add(n)
+                    out.append(n)
+            neighbours_cache[g] = out
+
+    def neighbours(gid: str) -> List[str]:
+        if gid not in neighbours_cache:
+            _fill_cache([gid])
+        return neighbours_cache[gid]
 
     # Uniform seed mass. Accumulator holds the discounted occupancy
     # measure; `mass` is the current wavefront that gets propagated.
@@ -108,7 +138,20 @@ def sr_boost(
     mass: Dict[str, float] = {gid: seed_mass for gid in seed_ids}
     accumulated: Dict[str, float] = dict(mass)
 
+    # Pre-fill neighbours for the seeds so the first hop is a pure
+    # in-memory scan. Subsequent hops fill their frontier in bulk too.
+    _fill_cache(list(mass.keys()))
+
     for _step in range(k_steps):
+        # Frontier cap: if the wavefront has exploded past FRONTIER_CAP,
+        # keep only the top-N by current mass. Truncating the tail is
+        # information-preserving — those nodes contribute negligibly to
+        # SR at their mass level anyway.
+        if len(mass) > FRONTIER_CAP:
+            top = sorted(mass.items(), key=lambda x: -x[1])[:FRONTIER_CAP]
+            mass = dict(top)
+        # Bulk-fill any frontier nodes whose neighbours aren't cached yet.
+        _fill_cache(list(mass.keys()))
         next_mass: Dict[str, float] = {}
         for gid, m in mass.items():
             ns = neighbours(gid)
