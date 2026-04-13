@@ -525,13 +525,50 @@ class Genome:
     def _ensure_registry_schema(self, cur: sqlite3.Cursor) -> None:
         """Create session registry tables + indexes. Idempotent.
 
-        Adds three tables:
-            - parties:           atomic trust identities
-            - participants:      live runtime actors under a party
-            - gene_attribution:  links genes to the party/participant that wrote them
+        Implements the 4-layer federated identity model (see
+        docs/FEDERATION_LOCAL.md):
+            - orgs:              top-level tenant (org/team)
+            - parties:           devices (PCs) belonging to an org
+            - participants:      humans (users) on a device
+            - agents:            AI personas working on a user's behalf
+            - gene_attribution:  4-axis attribution row per gene
 
-        See docs/SESSION_REGISTRY.md for the full design.
+        Each layer is independently queryable so we can answer
+        "what did Laude on gandalf, on max's behalf, in SwiftWing21, do?"
+        with a single composite filter.
+
+        Schema is additive: pre-2026-04-12 databases auto-upgrade via
+        IF NOT EXISTS table creates and ALTER ADD COLUMN for new fields
+        on existing tables. Existing attribution rows keep their party_id +
+        participant_id and acquire NULL org_id/agent_id (interpreted as
+        "default org, manual ingest" by the resolver).
         """
+        # ── Layer 1: orgs (top-level tenant) ────────────────────────
+        # Sits above parties — devices belong to an org. For solo-dev
+        # this defaults to "local" so existing single-tenant flows
+        # remain semantically valid without explicit org assignment.
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS orgs (
+            org_id         TEXT PRIMARY KEY,
+            display_name   TEXT NOT NULL,
+            trust_domain   TEXT NOT NULL DEFAULT 'local',
+            created_at     REAL NOT NULL,
+            metadata       TEXT
+        )
+        """)
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_orgs_trust_domain "
+            "ON orgs(trust_domain)"
+        )
+        # Seed the default 'local' org so trust-on-first-use writes have
+        # a foreign-key target without needing an explicit register call.
+        cur.execute(
+            "INSERT OR IGNORE INTO orgs "
+            "(org_id, display_name, trust_domain, created_at) "
+            "VALUES ('local', 'Local Org (default)', 'local', ?)",
+            (time.time(),),
+        )
+
         cur.execute("""
         CREATE TABLE IF NOT EXISTS parties (
             party_id      TEXT PRIMARY KEY,
@@ -541,6 +578,16 @@ class Genome:
             metadata      TEXT
         )
         """)
+        # Add org_id column to existing parties table (4-layer extension).
+        # Devices belong to an org. NULL = legacy row without org link;
+        # treat as "local" org at query/resolver time.
+        try:
+            cur.execute(
+                "ALTER TABLE parties ADD COLUMN org_id TEXT "
+                "REFERENCES orgs(org_id)"
+            )
+        except sqlite3.OperationalError:
+            pass  # column already exists — schema is idempotent
         cur.execute(
             "CREATE INDEX IF NOT EXISTS idx_parties_trust_domain "
             "ON parties(trust_domain)"
@@ -577,6 +624,40 @@ class Genome:
             "ON participants(status)"
         )
 
+        # ── Layer 4: agents (AI personas under a participant) ───────
+        # An agent is the AI persona doing the work on behalf of a human
+        # participant: "laude", "taude", "raude", "claude-code", "gemini",
+        # "gpt-4". One human can drive many agents; one agent kind can
+        # be invoked by many humans across orgs. The (participant_id,
+        # handle) pair is unique — same human, same agent name = same row.
+        # NULL agent_id at attribution time means "manual ingest" (no AI
+        # involvement), which is its own meaningful signal.
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS agents (
+            agent_id        TEXT PRIMARY KEY,
+            participant_id  TEXT NOT NULL
+                            REFERENCES participants(participant_id) ON DELETE CASCADE,
+            handle          TEXT NOT NULL,
+            kind            TEXT,             -- "claude-code", "gemini", "gpt-4", ...
+            created_at      REAL NOT NULL,
+            last_seen_at    REAL,
+            metadata        TEXT,
+            UNIQUE (participant_id, handle)
+        )
+        """)
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_agents_participant "
+            "ON agents(participant_id)"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_agents_handle "
+            "ON agents(handle)"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_agents_kind "
+            "ON agents(kind)"
+        )
+
         cur.execute("""
         CREATE TABLE IF NOT EXISTS gene_attribution (
             gene_id         TEXT PRIMARY KEY
@@ -588,6 +669,27 @@ class Genome:
             authored_at     REAL NOT NULL
         )
         """)
+        # 4-layer attribution columns added 2026-04-12. Denormalized for
+        # fast filter without joins; they should match the resolved
+        # (party.org_id, agent_id-via-participant) but we store them on
+        # the row so historical queries don't need expensive joins, and
+        # so re-parented entities (party moved to a new org) preserve
+        # the original write-time identity.
+        try:
+            cur.execute(
+                "ALTER TABLE gene_attribution ADD COLUMN org_id TEXT "
+                "REFERENCES orgs(org_id)"
+            )
+        except sqlite3.OperationalError:
+            pass
+        try:
+            cur.execute(
+                "ALTER TABLE gene_attribution ADD COLUMN agent_id TEXT "
+                "REFERENCES agents(agent_id) ON DELETE SET NULL"
+            )
+        except sqlite3.OperationalError:
+            pass
+
         cur.execute(
             "CREATE INDEX IF NOT EXISTS idx_attribution_party_time "
             "ON gene_attribution(party_id, authored_at DESC)"
@@ -595,6 +697,14 @@ class Genome:
         cur.execute(
             "CREATE INDEX IF NOT EXISTS idx_attribution_participant_time "
             "ON gene_attribution(participant_id, authored_at DESC)"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_attribution_org_time "
+            "ON gene_attribution(org_id, authored_at DESC)"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_attribution_agent_time "
+            "ON gene_attribution(agent_id, authored_at DESC)"
         )
 
         # hitl_events — per-session HITL pause log, added 2026-04-11 following

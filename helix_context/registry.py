@@ -155,27 +155,128 @@ class Registry:
             metadata=metadata,
         )
 
+    def local_org(
+        self,
+        org_handle: str,
+        display_name: Optional[str] = None,
+    ) -> str:
+        """Find-or-create an org row from a handle ('swiftwing', 'local').
+
+        Used by OS-level federation as the top layer of the 4-layer model
+        (org / device / user / agent). Idempotent.
+
+        Returns: the org_id (which == org_handle for local-tier; SSO
+        would replace this with the OAuth-issued org claim).
+        """
+        cur = self.genome.conn.cursor()
+        # In local-tier the handle IS the id — keeps lookup trivial and
+        # the migration to SSO clean (the SSO upgrade just changes the
+        # source of org_id, not the schema).
+        cur.execute(
+            "INSERT OR IGNORE INTO orgs "
+            "(org_id, display_name, trust_domain, created_at) "
+            "VALUES (?, ?, 'local', ?)",
+            (org_handle, display_name or org_handle, time.time()),
+        )
+        self.genome.conn.commit()
+        return org_handle
+
+    def local_agent(
+        self,
+        handle: str,
+        participant_id: str,
+        kind: Optional[str] = None,
+    ) -> str:
+        """Find-or-create an AI agent persona under a participant.
+
+        Maps (participant_id, agent_handle) -> agent_id. The handle is
+        the persona name passed via HELIX_AGENT ('laude', 'taude',
+        'claude-code', 'manual'). The kind is the optional category
+        ('claude-code', 'gemini', 'gpt-4', 'human') — useful for
+        cross-org analytics ("how much did Claude-family agents
+        contribute?").
+
+        Idempotent: the (participant_id, handle) UNIQUE constraint
+        guarantees the same agent across calls. Touches last_seen_at
+        on every call so we can detect dormant agents later.
+
+        Returns: the agent_id (server-generated UUID).
+        """
+        cur = self.genome.conn.cursor()
+        row = cur.execute(
+            "SELECT agent_id FROM agents "
+            "WHERE participant_id = ? AND handle = ? LIMIT 1",
+            (participant_id, handle),
+        ).fetchone()
+        now = time.time()
+        if row is not None:
+            agent_id = row["agent_id"]
+            cur.execute(
+                "UPDATE agents SET last_seen_at = ? WHERE agent_id = ?",
+                (now, agent_id),
+            )
+            self.genome.conn.commit()
+            return agent_id
+
+        # New agent — generate UUID, insert, return.
+        import uuid as _uuid
+        agent_id = _uuid.uuid4().hex
+        cur.execute(
+            "INSERT INTO agents "
+            "(agent_id, participant_id, handle, kind, created_at, last_seen_at) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (agent_id, participant_id, handle, kind, now, now),
+        )
+        self.genome.conn.commit()
+        log.info(
+            "Registered agent %s (handle=%s, kind=%s, participant=%s)",
+            agent_id, handle, kind, participant_id,
+        )
+        return agent_id
+
     def local_participant(
         self,
         handle: str,
         party_id: str,
         workspace: Optional[str] = None,
+        org_id: Optional[str] = None,
     ) -> str:
         """Find-or-create a participant identified by (party_id, handle).
 
         This is the OS-level federation entry point — it lets ingest paths
         attribute genes to "max@desktop", "laude@desktop", etc. without
-        any auth infrastructure. The handle is the OS username or the
-        HELIX_AGENT env var; the party_id is the hostname or the HELIX_PARTY
-        env var. See docs/FEDERATION_LOCAL.md for the rationale.
+        any auth infrastructure. The handle is the OS username (HELIX_USER
+        or getpass.getuser()); the party_id is the hostname (HELIX_DEVICE
+        or HELIX_PARTY or socket.gethostname()). See FEDERATION_LOCAL.md.
+
+        When ``org_id`` is provided (typically from HELIX_ORG via
+        _local_attribution_defaults), the party is linked to that org so
+        the 4-layer attribution chain (org -> device -> user -> agent)
+        is queryable end-to-end. Defaults to 'local' org otherwise.
 
         Idempotent: subsequent calls with the same (party_id, handle)
-        return the same participant_id without creating duplicates. Heart-
-        beat is touched on every call so the participant stays "active".
-
-        Returns: the participant_id (UUID) used for gene_attribution rows.
+        return the same participant_id without creating duplicates.
         """
+        effective_org = org_id or "local"
+
+        # Ensure the org row exists (idempotent).
         cur = self.genome.conn.cursor()
+        cur.execute(
+            "INSERT OR IGNORE INTO orgs "
+            "(org_id, display_name, trust_domain, created_at) "
+            "VALUES (?, ?, 'local', ?)",
+            (effective_org, effective_org, time.time()),
+        )
+
+        # Ensure the party.org_id link is set even if the party row
+        # already existed without one (legacy upgrade path).
+        cur.execute(
+            "UPDATE parties SET org_id = ? "
+            "WHERE party_id = ? AND (org_id IS NULL OR org_id = '')",
+            (effective_org, party_id),
+        )
+        self.genome.conn.commit()
+
         # Look up by (party_id, handle) — this is the natural local key.
         row = cur.execute(
             "SELECT participant_id FROM participants "
@@ -185,17 +286,24 @@ class Registry:
         ).fetchone()
         if row is not None:
             pid_existing = row["participant_id"]
-            # Touch heartbeat so the participant stays active across sessions.
             self.touch_heartbeat(pid_existing)
             return pid_existing
 
-        # Not found — register a new one (creates the party row trust-on-first-use).
+        # Not found — register a new one (creates the party row
+        # trust-on-first-use, then we backfill the org_id link).
         p = self.register_participant(
             party_id=party_id,
             handle=handle,
             workspace=workspace,
             metadata={"source": "os_federation", "trust_domain": "local"},
         )
+        # Re-stamp the org_id on the party row that register_participant
+        # just created with NULL org (it doesn't know about the org layer).
+        cur.execute(
+            "UPDATE parties SET org_id = ? WHERE party_id = ? AND org_id IS NULL",
+            (effective_org, party_id),
+        )
+        self.genome.conn.commit()
         return p.participant_id
 
     def heartbeat(self, participant_id: str) -> Optional[Tuple[float, str]]:
@@ -376,30 +484,40 @@ class Registry:
         participant_id: Optional[str] = None,
         party_id: Optional[str] = None,
         authored_at: Optional[float] = None,
+        org_id: Optional[str] = None,
+        agent_id: Optional[str] = None,
     ) -> Optional[GeneAttribution]:
-        """Write an attribution row for a gene.
+        """Write a 4-axis attribution row for a gene.
 
-        If ``participant_id`` is provided and known, ``party_id`` is
-        resolved automatically. If ``participant_id`` is unknown, logs a
-        warning and returns None (does not raise — ingest must never fail
-        because of registry state).
+        Identity layers (any may be NULL except party_id):
+            org_id          top-level tenant (org/team)
+            party_id        device (PC) inside the org
+            participant_id  human (user) on the device
+            agent_id        AI persona working on the user's behalf
+
+        If ``participant_id`` is provided and known, ``party_id`` and
+        ``org_id`` are auto-resolved by joining participants -> parties
+        -> orgs. Explicit values passed in win over resolved values, so
+        callers can override (useful for cross-org SaaS scenarios).
 
         If only ``party_id`` is provided, attribution is written at the
-        party level with NULL participant_id. This is useful for
-        server-side ingestion flows that know the party but not the
-        specific participant.
+        party level with NULL participant_id and NULL agent_id, with
+        org_id resolved from parties.org_id.
 
-        If neither is provided, returns None without error.
+        If neither participant nor party is provided, returns None
+        without error. ``agent_id`` requires a participant_id (an AI
+        agent always acts on behalf of a known human).
         """
         if not participant_id and not party_id:
             return None
 
         now = authored_at if authored_at is not None else time.time()
 
-        # If participant_id is provided, resolve party_id via the participants table.
+        cur = self.genome.conn.cursor()
+
+        # Resolve party_id from participant if not explicitly given.
         resolved_party = party_id
-        if participant_id:
-            cur = self.genome.conn.cursor()
+        if participant_id and not resolved_party:
             row = cur.execute(
                 "SELECT party_id FROM participants WHERE participant_id = ?",
                 (participant_id,),
@@ -415,12 +533,25 @@ class Registry:
         if not resolved_party:
             return None
 
-        cur = self.genome.conn.cursor()
+        # Resolve org_id from party if not explicitly given. Falls back
+        # to 'local' (the seeded default org) when the party has no
+        # org_id link (legacy pre-4-layer rows or local-tier defaults).
+        resolved_org = org_id
+        if not resolved_org:
+            row = cur.execute(
+                "SELECT org_id FROM parties WHERE party_id = ?",
+                (resolved_party,),
+            ).fetchone()
+            if row is not None:
+                resolved_org = row["org_id"]
+            if not resolved_org:
+                resolved_org = "local"
+
         cur.execute(
             "INSERT OR REPLACE INTO gene_attribution "
-            "(gene_id, party_id, participant_id, authored_at) "
-            "VALUES (?, ?, ?, ?)",
-            (gene_id, resolved_party, participant_id, now),
+            "(gene_id, party_id, participant_id, authored_at, org_id, agent_id) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (gene_id, resolved_party, participant_id, now, resolved_org, agent_id),
         )
         # Implicit heartbeat — avoid round trips for clients that ingest often
         if participant_id:

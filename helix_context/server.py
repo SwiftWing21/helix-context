@@ -45,40 +45,68 @@ _CHECKPOINT_INTERVAL = 60  # seconds between background WAL checkpoints
 _REGISTRY_SWEEP_INTERVAL = 60  # seconds between session registry status sweeps
 
 
-def _local_attribution_defaults() -> tuple[Optional[str], Optional[str]]:
-    """Resolve OS-level (handle, party) for trust-on-first-use attribution.
+def _local_attribution_defaults() -> tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
+    """Resolve OS-level 4-layer identity for trust-on-first-use attribution.
 
-    Order of precedence:
-      1. HELIX_AGENT env var → handle (e.g., "laude", "taude")
-      2. getpass.getuser() → handle (e.g., "max")
-      3. HELIX_PARTY env var → party (e.g., "swiftwing")
-      4. socket.gethostname() → party (e.g., "max-desktop")
+    Returns (user_handle, device, org, agent_handle):
 
-    Returns (handle, party). Either may be None if discovery fails — the
-    /ingest path tolerates None and skips attribution rather than failing.
+        org           HELIX_ORG env       || 'local'
+        device        HELIX_DEVICE env    || HELIX_PARTY env (legacy)
+                                          || socket.gethostname()
+        user_handle   HELIX_USER env      || HELIX_AGENT env (legacy fallback
+                                             — when only HELIX_AGENT is set,
+                                             treat it as the human handle so
+                                             pre-4-layer setups don't break)
+                                          || getpass.getuser()
+        agent_handle  HELIX_AGENT env     || None (no AI agent — manual ingest)
 
-    This is the OS-level federation primitive: every gene gets attributed
-    to "who created it" (HELIX_AGENT or OS user) and "where" (HELIX_PARTY
-    or hostname) without any auth infrastructure. When SSO is added later,
-    the auth edge replaces these defaults with OAuth-resolved IDs and the
-    rest of the pipeline keeps working unchanged.
+    The legacy/back-compat note: pre-4-layer code overloaded HELIX_AGENT
+    as the "handle" of whoever was acting (could be human or AI). When
+    HELIX_USER is now also set, we honor the new split. When only
+    HELIX_AGENT is set without HELIX_USER, we keep treating it as the
+    handle (preserves the prior commit's behaviour) AND also surface it
+    as agent_handle so the agents table picks it up.
+
+    Any field may be None — /ingest tolerates None on every axis and
+    falls through to writing whichever subset resolved cleanly.
 
     See docs/FEDERATION_LOCAL.md for the full design.
     """
+    # Org (top layer)
+    org = os.environ.get("HELIX_ORG") or "local"
+
+    # Device (PC) — accept HELIX_DEVICE preferentially, fall back to
+    # legacy HELIX_PARTY, then hostname.
     try:
-        handle = os.environ.get("HELIX_AGENT") or getpass.getuser()
+        device = (
+            os.environ.get("HELIX_DEVICE")
+            or os.environ.get("HELIX_PARTY")
+            or socket.gethostname()
+        )
     except Exception:
-        handle = None
+        device = None
+
+    # Agent (AI persona) — explicit only. None means "manual / no agent".
+    agent_handle = os.environ.get("HELIX_AGENT") or None
+
+    # User (human) — HELIX_USER wins; otherwise we have to pick one of
+    # HELIX_AGENT (legacy back-compat) or OS user. Logic: if HELIX_USER
+    # is set, use it. Else if HELIX_AGENT is set AND HELIX_USER is not,
+    # the user must be the OS account that started the process (we can't
+    # tell from env alone). Use OS user.
     try:
-        party = os.environ.get("HELIX_PARTY") or socket.gethostname()
+        user_handle = os.environ.get("HELIX_USER") or getpass.getuser()
     except Exception:
-        party = None
+        user_handle = None
+
     # Normalize: lowercase, strip whitespace, sanity-cap length
-    if handle:
-        handle = str(handle).strip().lower()[:64] or None
-    if party:
-        party = str(party).strip().lower()[:64] or None
-    return handle, party
+    def _norm(v):
+        if not v:
+            return None
+        s = str(v).strip().lower()[:64]
+        return s or None
+
+    return _norm(user_handle), _norm(device), _norm(org), _norm(agent_handle)
 
 
 async def _background_checkpoint(helix: HelixContextManager) -> None:
@@ -281,34 +309,53 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
         metadata = data.get("metadata")
         participant_id = data.get("participant_id")
         party_id = data.get("party_id")
-        # Trust-on-first-use OS-level federation: when the caller doesn't
-        # supply explicit participant/party, derive them from HELIX_AGENT
-        # / HELIX_PARTY env vars (falling back to OS username + hostname).
-        # This auto-attributes every gene to who created it without any
-        # auth infrastructure. See docs/FEDERATION_LOCAL.md.
-        # Caller can disable by passing ``"local_federation": false`` in
-        # the request body.
+        org_id = data.get("org_id")
+        agent_id = data.get("agent_id")
+        agent_kind = data.get("agent_kind")  # e.g. "claude-code", "gemini"
+        # Trust-on-first-use OS-level 4-layer federation: when the caller
+        # doesn't supply explicit IDs, derive (org, device, user, agent)
+        # from env vars (HELIX_ORG / HELIX_DEVICE|HELIX_PARTY /
+        # HELIX_USER / HELIX_AGENT) with safe fallbacks to socket and
+        # getpass. Every gene auto-attributes across all four layers
+        # without any auth infrastructure. See docs/FEDERATION_LOCAL.md.
+        # Caller can disable by passing ``"local_federation": false``.
         local_federation = data.get("local_federation", True)
-        if not participant_id and local_federation:
-            handle, default_party = _local_attribution_defaults()
-            if handle:
-                effective_party = party_id or default_party
-                if effective_party:
-                    try:
-                        # Find-or-create the participant for (handle, party)
-                        # and use its server-side participant_id for attribution.
-                        participant_id = registry.local_participant(
-                            handle=handle, party_id=effective_party,
-                        )
-                        # If no party_id was explicitly passed, adopt the
-                        # OS-derived one so attribute_gene resolves cleanly.
-                        if not party_id:
-                            party_id = effective_party
-                    except Exception:
-                        log.warning(
-                            "OS-level federation failed for handle=%s party=%s",
-                            handle, effective_party, exc_info=True,
-                        )
+        if local_federation and not participant_id:
+            user_handle, default_device, default_org, agent_handle = (
+                _local_attribution_defaults()
+            )
+            effective_party = party_id or default_device
+            effective_org = org_id or default_org
+            try:
+                # 4-layer find-or-create chain. Ordering matters because
+                # each layer FK-references the one above:
+                #   org → party (device) → participant (user) → agent
+                if effective_org:
+                    org_id = registry.local_org(effective_org)
+                if user_handle and effective_party:
+                    participant_id = registry.local_participant(
+                        handle=user_handle,
+                        party_id=effective_party,
+                        org_id=org_id,
+                    )
+                    if not party_id:
+                        party_id = effective_party
+                # Agent layer is optional — only created when
+                # HELIX_AGENT is set OR the caller passed agent_id
+                # explicitly. NULL agent_id at attribution time means
+                # "manual ingest, no AI persona involved."
+                if agent_handle and participant_id and not agent_id:
+                    agent_id = registry.local_agent(
+                        handle=agent_handle,
+                        participant_id=participant_id,
+                        kind=agent_kind,
+                    )
+            except Exception:
+                log.warning(
+                    "OS-level federation failed (user=%s device=%s org=%s agent=%s)",
+                    user_handle, effective_party, effective_org, agent_handle,
+                    exc_info=True,
+                )
 
         if not content:
             return JSONResponse({"error": "No content provided"}, status_code=400)
@@ -323,8 +370,10 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             )
 
         # Attribution — additive, never fails the ingest.
-        # See docs/SESSION_REGISTRY.md. If participant_id/party_id is provided
-        # and resolvable, each resulting gene gets an attribution row.
+        # See docs/SESSION_REGISTRY.md + docs/FEDERATION_LOCAL.md.
+        # All 4 layers (org, party, participant, agent) plumb through
+        # if resolved; missing layers are written as NULL, which is the
+        # natural representation of "this attribution dimension is unknown".
         attributed = 0
         if participant_id or party_id:
             for gid in gene_ids:
@@ -333,6 +382,8 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
                         gene_id=gid,
                         participant_id=participant_id,
                         party_id=party_id,
+                        org_id=org_id,
+                        agent_id=agent_id,
                     )
                     if result is not None:
                         attributed += 1
