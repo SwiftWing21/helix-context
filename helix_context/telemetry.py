@@ -100,8 +100,13 @@ def setup_telemetry(
         from opentelemetry.sdk.trace.sampling import (
             TraceIdRatioBased, ALWAYS_ON, ParentBased,
         )
-        from opentelemetry.sdk.metrics import MeterProvider
-        from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+        from opentelemetry.sdk.metrics import (
+            Counter, Histogram, ObservableCounter, ObservableGauge,
+            ObservableUpDownCounter, UpDownCounter, MeterProvider,
+        )
+        from opentelemetry.sdk.metrics.export import (
+            AggregationTemporality, PeriodicExportingMetricReader,
+        )
         from opentelemetry.sdk.resources import Resource, SERVICE_NAME, SERVICE_VERSION
         from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
             OTLPSpanExporter,
@@ -140,8 +145,30 @@ def setup_telemetry(
     trace.set_tracer_provider(tracer_provider)
     tracer = trace.get_tracer(service_name, service_version)
 
+    # Explicit CUMULATIVE temporality on every instrument type. Diagnosed
+    # 2026-04-14: without this, the Python SDK was exporting with
+    # ever-changing start_timestamps, which the OTel collector's
+    # prometheusexporter interprets as incompatible delta data and drops
+    # silently (logs "Misaligned starting timestamps" warnings on every
+    # batch). Gauges survived because they report absolute values, but
+    # counters and histograms (context_latency, tier_fired,
+    # tier_contribution_score, cwola_bucket) never made it to Prometheus.
+    # Cumulative is what Prometheus natively understands, so this is both
+    # correct-by-construction and matches the collector's expectation.
+    cumulative = {
+        Counter: AggregationTemporality.CUMULATIVE,
+        UpDownCounter: AggregationTemporality.CUMULATIVE,
+        Histogram: AggregationTemporality.CUMULATIVE,
+        ObservableCounter: AggregationTemporality.CUMULATIVE,
+        ObservableUpDownCounter: AggregationTemporality.CUMULATIVE,
+        ObservableGauge: AggregationTemporality.CUMULATIVE,
+    }
     metric_reader = PeriodicExportingMetricReader(
-        OTLPMetricExporter(endpoint=endpoint, insecure=insecure),
+        OTLPMetricExporter(
+            endpoint=endpoint,
+            insecure=insecure,
+            preferred_temporality=cumulative,
+        ),
         export_interval_millis=15_000,
     )
     meter_provider = MeterProvider(
