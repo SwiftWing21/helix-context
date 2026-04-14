@@ -144,6 +144,47 @@
           "refId": "A"
         }
       ]
+    },
+    {
+      "type": "stat",
+      "title": "Hub concentration ratio (top-1% inbound / mean)",
+      "description": "Order parameter for preferential-attachment condensation. Healthy ≲ ~10x; rising trend = retrieval flow funneling through fewer hubs than the edge count suggests. Backfill caps inbound at 500 — sustained ratios alongside p99 ≈ 500 mean the cap is binding.",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 37},
+      "targets": [
+        {
+          "expr": "helix_hub_concentration_ratio",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green",  "value": null},
+              {"color": "yellow", "value": 10},
+              {"color": "red",    "value": 25}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Inbound-degree distribution (max / p99 / p95 / p50 / mean)",
+      "description": "harmonic_links inbound-degree summary. Watch p99 vs the backfill cap (500). max / p99 sustained at the cap = the cap is the binding constraint, not organic structure.",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 37},
+      "targets": [
+        {
+          "expr": "helix_hub_inbound_degree",
+          "legendFormat": "{{stat}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "short"}}
     }
   ]
 }

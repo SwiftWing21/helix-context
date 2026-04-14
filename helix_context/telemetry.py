@@ -254,6 +254,30 @@ def tier_fired_counter():
     return _instruments["tier_fired"]
 
 
+def hub_concentration_gauge():
+    if "hub_concentration" not in _instruments:
+        _instruments["hub_concentration"] = meter.create_up_down_counter(
+            "helix_hub_concentration_ratio",
+            description="harmonic_links inbound-degree top-1% mean / overall mean. "
+                        "Watch for condensation transition (preferential-attachment "
+                        "graphs collapse flow into hubs as N grows). Healthy ≲ ~10x; "
+                        "rising trend = hub monopolization, retrieval flowing through "
+                        "fewer paths than the edge count suggests.",
+        )
+    return _instruments["hub_concentration"]
+
+
+def hub_inbound_degree_gauge():
+    if "hub_inbound_degree" not in _instruments:
+        _instruments["hub_inbound_degree"] = meter.create_up_down_counter(
+            "helix_hub_inbound_degree",
+            description="harmonic_links inbound-degree summary statistics, labelled by stat "
+                        "(max / p99 / p95 / p50 / mean). Backfill cap is 500; values "
+                        "approaching that consistently mean the cap is the binding constraint.",
+        )
+    return _instruments["hub_inbound_degree"]
+
+
 def emit_gauges_snapshot(genome) -> None:
     """Poll-driven gauges for chromatin + harmonic-edges + genome size.
 
@@ -296,5 +320,33 @@ def emit_gauges_snapshot(genome) -> None:
             size_gauge.add(int(row[0]), {"kind": "raw"})
         if row and row[1]:
             size_gauge.add(int(row[1]), {"kind": "compressed"})
+
+        # Hub-concentration / inbound-degree summary. Preferential-attachment
+        # graphs have no classical percolation threshold but condense flow into
+        # hubs as N grows; the right order parameter for that pathology is the
+        # ratio of top-1% inbound degree to mean inbound degree, not the
+        # giant-component size. Backfill caps inbound at 500 (see
+        # scripts/backfill_seeded_edges.py); persistent values near the cap are
+        # the cap acting as the binding constraint, not organic structure.
+        in_degrees = [
+            int(n) for (_, n) in cur.execute(
+                "SELECT gene_id_b, COUNT(*) FROM harmonic_links GROUP BY gene_id_b"
+            ).fetchall()
+        ]
+        if in_degrees:
+            in_degrees.sort()
+            n = len(in_degrees)
+            mean_deg = sum(in_degrees) / n
+            top_1pct_count = max(1, n // 100)
+            top_1pct_mean = sum(in_degrees[-top_1pct_count:]) / top_1pct_count
+            ratio = top_1pct_mean / mean_deg if mean_deg > 0 else 0.0
+
+            hub_concentration_gauge().add(float(ratio))
+            deg_gauge = hub_inbound_degree_gauge()
+            deg_gauge.add(float(in_degrees[-1]),               {"stat": "max"})
+            deg_gauge.add(float(in_degrees[int(n * 0.99) - 1]), {"stat": "p99"})
+            deg_gauge.add(float(in_degrees[int(n * 0.95) - 1]), {"stat": "p95"})
+            deg_gauge.add(float(in_degrees[n // 2]),            {"stat": "p50"})
+            deg_gauge.add(float(mean_deg),                     {"stat": "mean"})
     except Exception:
         log.debug("emit_gauges_snapshot failed", exc_info=True)
