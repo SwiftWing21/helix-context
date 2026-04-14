@@ -354,4 +354,9 @@ def emit_gauges_snapshot(genome) -> None:
             deg_gauge.set(float(in_degrees[n // 2]),            {"stat": "p50"})
             deg_gauge.set(float(mean_deg),                     {"stat": "mean"})
     except Exception:
-        log.debug("emit_gauges_snapshot failed", exc_info=True)
+        # Promoted from debug to warning: silent debug-level was hiding a
+        # real failure (chromatin gauge would emit, harmonic/hub/genome_size
+        # would silently disappear). If you see this in normal operation,
+        # the SQL inside this function raised — likely a stale read_conn
+        # schema cache or a replica-vs-master path mismatch.
+        log.warning("emit_gauges_snapshot failed", exc_info=True)
