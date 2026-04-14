@@ -125,9 +125,9 @@ def sweep_buckets(conn: sqlite3.Connection, now: Optional[float] = None) -> int:
             log.debug("sweep_buckets update failed for %s", rid, exc_info=True)
     if updates:
         conn.commit()
-        # Emit one counter tick per newly-assigned bucket + an up-down
-        # counter update with the current f_gap_sq divergence (negative
-        # increments reset when snapshot() is called below).
+        # Emit one counter tick per newly-assigned bucket + a gauge .set()
+        # with the current f_gap_sq divergence (Gauge sets absolute value
+        # rather than accumulating deltas).
         try:
             from .telemetry import cwola_bucket_counter, cwola_f_gap_gauge
             # Re-read the just-assigned rows to label them correctly.
@@ -140,9 +140,7 @@ def sweep_buckets(conn: sqlite3.Connection, now: Optional[float] = None) -> int:
                 cwola_bucket_counter().add(int(n), {"bucket": bucket or "unassigned"})
             s = stats(conn)
             if s.get("f_gap_sq") is not None:
-                # up_down_counter snapshots absolute divergence; the
-                # Grafana panel tracks the latest value as a gauge.
-                cwola_f_gap_gauge().add(float(s["f_gap_sq"]))
+                cwola_f_gap_gauge().set(float(s["f_gap_sq"]))
         except Exception:
             log.debug("cwola telemetry emit failed", exc_info=True)
     return updates

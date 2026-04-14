@@ -58,6 +58,7 @@ class _NoopMeter:
     def create_counter(self, *a, **kw): return _NoopInstrument()
     def create_up_down_counter(self, *a, **kw): return _NoopInstrument()
     def create_observable_gauge(self, *a, **kw): return _NoopInstrument()
+    def create_gauge(self, *a, **kw): return _NoopInstrument()
 
 
 tracer: Any = _NoopTracer()
@@ -160,8 +161,12 @@ def setup_telemetry(
                         "FastAPI routes will not be auto-traced")
 
     _initialised = True
-    log.info("OTel telemetry ON, endpoint=%s insecure=%s sampler=%.2f",
-             endpoint, insecure, ratio)
+    # Promoted to WARNING so the confirmation is visible even when the root
+    # logger is at the default WARNING level (uvicorn's --log-level only
+    # affects uvicorn's own loggers; helix.* loggers are not auto-promoted).
+    # Without this, operators can't confirm OTel is actually on.
+    log.warning("OTel telemetry ON, endpoint=%s insecure=%s sampler=%.2f",
+                endpoint, insecure, ratio)
     return True
 
 
@@ -210,7 +215,7 @@ def cwola_bucket_counter():
 
 def cwola_f_gap_gauge():
     if "cwola_f_gap" not in _instruments:
-        _instruments["cwola_f_gap"] = meter.create_up_down_counter(
+        _instruments["cwola_f_gap"] = meter.create_gauge(
             "helix_cwola_f_gap_sq",
             description="(f_A - f_B)^2 — CWoLa bucket divergence (0.16 promotes PLR)",
         )
@@ -219,7 +224,7 @@ def cwola_f_gap_gauge():
 
 def harmonic_edges_counter():
     if "harmonic_edges" not in _instruments:
-        _instruments["harmonic_edges"] = meter.create_up_down_counter(
+        _instruments["harmonic_edges"] = meter.create_gauge(
             "helix_harmonic_edges_total",
             description="Count of harmonic_links edges by provenance source",
         )
@@ -228,7 +233,7 @@ def harmonic_edges_counter():
 
 def chromatin_state_counter():
     if "chromatin_state" not in _instruments:
-        _instruments["chromatin_state"] = meter.create_up_down_counter(
+        _instruments["chromatin_state"] = meter.create_gauge(
             "helix_chromatin_state_total",
             description="Gene count by chromatin state (OPEN/EUCHROMATIN/HETEROCHROMATIN)",
         )
@@ -237,7 +242,7 @@ def chromatin_state_counter():
 
 def genome_size_gauge():
     if "genome_size" not in _instruments:
-        _instruments["genome_size"] = meter.create_up_down_counter(
+        _instruments["genome_size"] = meter.create_gauge(
             "helix_genome_size_bytes",
             unit="By",
             description="Genome total char count — raw vs compressed",
@@ -256,7 +261,7 @@ def tier_fired_counter():
 
 def hub_concentration_gauge():
     if "hub_concentration" not in _instruments:
-        _instruments["hub_concentration"] = meter.create_up_down_counter(
+        _instruments["hub_concentration"] = meter.create_gauge(
             "helix_hub_concentration_ratio",
             description="harmonic_links inbound-degree top-1% mean / overall mean. "
                         "Watch for condensation transition (preferential-attachment "
@@ -269,7 +274,7 @@ def hub_concentration_gauge():
 
 def hub_inbound_degree_gauge():
     if "hub_inbound_degree" not in _instruments:
-        _instruments["hub_inbound_degree"] = meter.create_up_down_counter(
+        _instruments["hub_inbound_degree"] = meter.create_gauge(
             "helix_hub_inbound_degree",
             description="harmonic_links inbound-degree summary statistics, labelled by stat "
                         "(max / p99 / p95 / p50 / mean). Backfill cap is 500; values "
@@ -297,7 +302,7 @@ def emit_gauges_snapshot(genome) -> None:
             label = {0: "open", 1: "euchromatin", 2: "heterochromatin"}.get(
                 int(state) if state is not None else 0, "unknown",
             )
-            chrom_gauge.add(int(n), {"state": label})
+            chrom_gauge.set(int(n), {"state": label})
 
         # Harmonic-edges by provenance source.
         edges = cur.execute(
@@ -305,7 +310,7 @@ def emit_gauges_snapshot(genome) -> None:
         ).fetchall()
         edges_gauge = harmonic_edges_counter()
         for source, n in edges:
-            edges_gauge.add(int(n), {"source": source or "unknown"})
+            edges_gauge.set(int(n), {"source": source or "unknown"})
 
         # Genome total-chars (raw vs compressed) — genome.stats() owns this
         # view; hand-roll here so we don't circular-import stats().
@@ -317,9 +322,9 @@ def emit_gauges_snapshot(genome) -> None:
         ).fetchone()
         size_gauge = genome_size_gauge()
         if row and row[0]:
-            size_gauge.add(int(row[0]), {"kind": "raw"})
+            size_gauge.set(int(row[0]), {"kind": "raw"})
         if row and row[1]:
-            size_gauge.add(int(row[1]), {"kind": "compressed"})
+            size_gauge.set(int(row[1]), {"kind": "compressed"})
 
         # Hub-concentration / inbound-degree summary. Preferential-attachment
         # graphs have no classical percolation threshold but condense flow into
@@ -341,12 +346,12 @@ def emit_gauges_snapshot(genome) -> None:
             top_1pct_mean = sum(in_degrees[-top_1pct_count:]) / top_1pct_count
             ratio = top_1pct_mean / mean_deg if mean_deg > 0 else 0.0
 
-            hub_concentration_gauge().add(float(ratio))
+            hub_concentration_gauge().set(float(ratio))
             deg_gauge = hub_inbound_degree_gauge()
-            deg_gauge.add(float(in_degrees[-1]),               {"stat": "max"})
-            deg_gauge.add(float(in_degrees[int(n * 0.99) - 1]), {"stat": "p99"})
-            deg_gauge.add(float(in_degrees[int(n * 0.95) - 1]), {"stat": "p95"})
-            deg_gauge.add(float(in_degrees[n // 2]),            {"stat": "p50"})
-            deg_gauge.add(float(mean_deg),                     {"stat": "mean"})
+            deg_gauge.set(float(in_degrees[-1]),               {"stat": "max"})
+            deg_gauge.set(float(in_degrees[int(n * 0.99) - 1]), {"stat": "p99"})
+            deg_gauge.set(float(in_degrees[int(n * 0.95) - 1]), {"stat": "p95"})
+            deg_gauge.set(float(in_degrees[n // 2]),            {"stat": "p50"})
+            deg_gauge.set(float(mean_deg),                     {"stat": "mean"})
     except Exception:
         log.debug("emit_gauges_snapshot failed", exc_info=True)
