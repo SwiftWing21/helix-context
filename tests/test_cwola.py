@@ -23,7 +23,9 @@ def conn():
         top_gene_id        TEXT,
         bucket             TEXT,
         bucket_assigned_at REAL,
-        requery_delta_s    REAL
+        requery_delta_s    REAL,
+        query_sema         TEXT,
+        top_candidate_sema TEXT
     );
     CREATE INDEX idx_cwola_session_time ON cwola_log(session_id, ts);
     CREATE INDEX idx_cwola_bucket ON cwola_log(bucket);
@@ -140,6 +142,41 @@ def test_sweep_isolates_sessions(conn):
         "SELECT bucket FROM cwola_log WHERE retrieval_id=?", (rid_s1,),
     ).fetchone()[0]
     assert bucket == "A"  # different sessions do not count as re-query
+
+
+def test_log_query_stores_sema_vectors(conn):
+    """PWPC Phase 1: query_sema + top_candidate_sema passthrough."""
+    q_vec = [0.1 * i for i in range(20)]
+    c_vec = [-0.05 * i for i in range(20)]
+    rid = cwola.log_query(
+        conn,
+        session_id="s1", party_id="alice", query="q",
+        tier_totals={"fts5": 1.0}, top_gene_id="g_001",
+        query_sema=q_vec, top_candidate_sema=c_vec,
+    )
+    assert rid is not None
+    row = conn.execute(
+        "SELECT query_sema, top_candidate_sema "
+        "FROM cwola_log WHERE retrieval_id=?", (rid,),
+    ).fetchone()
+    assert json.loads(row[0]) == pytest.approx(q_vec)
+    assert json.loads(row[1]) == pytest.approx(c_vec)
+
+
+def test_log_query_sema_vectors_optional(conn):
+    """Missing embeddings stay NULL rather than failing the insert."""
+    rid = cwola.log_query(
+        conn,
+        session_id="s1", party_id="alice", query="q",
+        tier_totals={}, top_gene_id=None,
+    )
+    assert rid is not None
+    row = conn.execute(
+        "SELECT query_sema, top_candidate_sema "
+        "FROM cwola_log WHERE retrieval_id=?", (rid,),
+    ).fetchone()
+    assert row[0] is None
+    assert row[1] is None
 
 
 def test_stats_reports_f_gap(conn):

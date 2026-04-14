@@ -21,11 +21,22 @@ import json
 import logging
 import sqlite3
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Sequence
 
 log = logging.getLogger("helix.cwola")
 
 BUCKET_WINDOW_S = 60.0  # same-session re-query counts as Bucket B within this
+
+
+def _embed_json(vec: Optional[Sequence[float]]) -> Optional[str]:
+    """Serialise an embedding vector for cwola_log storage. None-safe."""
+    if vec is None:
+        return None
+    try:
+        return json.dumps([float(x) for x in vec])
+    except Exception:
+        log.debug("embedding not JSON-serialisable; storing NULL", exc_info=True)
+        return None
 
 
 def log_query(
@@ -37,6 +48,8 @@ def log_query(
     tier_totals: Dict[str, float],
     top_gene_id: Optional[str],
     ts: Optional[float] = None,
+    query_sema: Optional[Sequence[float]] = None,
+    top_candidate_sema: Optional[Sequence[float]] = None,
 ) -> Optional[int]:
     """Append one CWoLa log row. Returns the row id, or None on failure.
 
@@ -44,6 +57,12 @@ def log_query(
     object surfaced on /context verbose=true responses). It is stored
     as JSON so the trainer can extract an ordered feature vector later
     without schema migrations when new tiers ship.
+
+    query_sema / top_candidate_sema are optional 20d SEMA vectors captured
+    at retrieval time (PWPC Phase 1 enrichment — see
+    docs/collab/comms/REPLY_PWPC_FROM_LAUDE.md). Stored as JSON lists;
+    NULL for rows logged before this column landed or when the codec
+    is unavailable.
     """
     if ts is None:
         ts = time.time()
@@ -52,15 +71,21 @@ def log_query(
     except Exception:
         log.debug("tier_totals not JSON-serialisable; storing empty", exc_info=True)
         features_json = "{}"
+    query_sema_json = _embed_json(query_sema)
+    top_candidate_sema_json = _embed_json(top_candidate_sema)
     try:
         cur = conn.execute(
             """
             INSERT INTO cwola_log
                 (ts, session_id, party_id, query, tier_features,
-                 top_gene_id, bucket, bucket_assigned_at, requery_delta_s)
-            VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, NULL)
+                 top_gene_id, bucket, bucket_assigned_at, requery_delta_s,
+                 query_sema, top_candidate_sema)
+            VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, NULL, ?, ?)
             """,
-            (ts, session_id, party_id, query, features_json, top_gene_id),
+            (
+                ts, session_id, party_id, query, features_json, top_gene_id,
+                query_sema_json, top_candidate_sema_json,
+            ),
         )
         conn.commit()
         try:

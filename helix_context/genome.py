@@ -813,9 +813,21 @@ class Genome:
             top_gene_id        TEXT,
             bucket             TEXT,     -- 'A' (accepted) | 'B' (re-queried) | NULL (pending)
             bucket_assigned_at REAL,
-            requery_delta_s    REAL      -- seconds to the next same-session query (NULL if none within 60s)
+            requery_delta_s    REAL,     -- seconds to the next same-session query (NULL if none within 60s)
+            query_sema         TEXT,     -- JSON: List[float] 20d query SEMA vector (PWPC Phase 1)
+            top_candidate_sema TEXT      -- JSON: List[float] 20d top-gene SEMA vector (PWPC Phase 1)
         )
         """)
+        # PWPC Phase 1 enrichment — add columns to pre-existing tables
+        # created before the 2026-04-14 schema change.
+        for _alter in (
+            "ALTER TABLE cwola_log ADD COLUMN query_sema TEXT",
+            "ALTER TABLE cwola_log ADD COLUMN top_candidate_sema TEXT",
+        ):
+            try:
+                cur.execute(_alter)
+            except sqlite3.OperationalError:
+                pass  # already present
         cur.execute(
             "CREATE INDEX IF NOT EXISTS idx_cwola_session_time "
             "ON cwola_log(session_id, ts)"

@@ -699,6 +699,25 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
                     cwola_tier_totals[tier] = cwola_tier_totals.get(tier, 0.0) + score
             expressed = window.expressed_gene_ids or []
             top_gene = expressed[0] if expressed else None
+
+            # PWPC Phase 1 enrichment — capture 20d SEMA vectors so the
+            # downstream retrieval-manifold trainer has semantic signal, not
+            # just normalized tier features. See docs/collab/comms/
+            # REPLY_PWPC_FROM_LAUDE.md. Soft-fails: missing codec or missing
+            # gene embedding → NULL columns, which the trainer already handles.
+            query_sema_vec = None
+            top_candidate_sema_vec = None
+            try:
+                codec = getattr(helix, "_sema_codec", None)
+                if codec is not None:
+                    query_sema_vec = codec.encode(query)
+                if top_gene:
+                    gene = helix.genome.get_gene(top_gene)
+                    if gene is not None and gene.embedding:
+                        top_candidate_sema_vec = gene.embedding
+            except Exception:
+                log.debug("CWoLa sema enrichment failed", exc_info=True)
+
             cwola.log_query(
                 helix.genome.conn,
                 session_id=cwola_session_id,
@@ -707,6 +726,8 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
                 tier_totals=cwola_tier_totals,
                 top_gene_id=top_gene,
                 ts=t0,
+                query_sema=query_sema_vec,
+                top_candidate_sema=top_candidate_sema_vec,
             )
             cwola.sweep_buckets(helix.genome.conn, now=_time.time())
         except Exception:
