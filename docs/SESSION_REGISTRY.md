@@ -4,12 +4,44 @@ A presence and attribution layer for multi-session Helix usage. Lets sibling
 Claude/Gemini sessions see each other, tag what they ingest, and retrieve each
 other's recent work without relying on BM25 to surface short broadcasts.
 
-**Status:** Design spec — not yet implemented.
-**Target version:** `helix-context v0.4.0b1` (TBD — minor bump since it adds new
-endpoints and a schema extension).
+**Status:** **SHIPPED** (core + HITL-1 + federation extensions landed
+2026-04-11 → 2026-04-14). See "Status — what shipped" below for the
+commit-level trail. Remaining work is post-landing refinement, not
+core implementation.
+**Target version:** `helix-context v0.4.0b1`.
 **Depends on:** nothing — purely additive to v0.3.0b5.
 **Related:** [`RESTART_PROTOCOL.md`](RESTART_PROTOCOL.md) (complementary — restart
 protocol announces outages, session registry announces presence).
+
+## Status — what shipped
+
+| Commit | Date | Slice |
+|---|---|---|
+| `8f24913` | 2026-04-11 | Session registry core + launcher (supervisor + dashboard) + token metrics |
+| `62280c6` | 2026-04-11 | Citation enrichment (`authored_by_party`/`authored_by_handle`), background sweep, `AgentBridge` HTTP client |
+| `599fe98` | 2026-04-11 | Launcher tray, install-service, `/admin/shutdown`, orphan adoption |
+| `174aea6` | 2026-04-11 | HITL-1: `hitl_events` table + `emit_hitl_event`/`get_hitl_events`/`hitl_rate`/`hitl_stats` + 24 tests |
+| `5563763` | ~2026-04-12 | `session_context` + OS-level attribution defaults |
+| `8990fb7` | ~2026-04-12 | 4-layer identity model (org / device / user / agent) |
+| `a62ca4c` | ~2026-04-12 | Timezone forensics — `parties.timezone` + `authored_tz` |
+
+Known gaps (tracked as follow-up work, not blockers):
+
+- **MCP host participant registration.** The stdio MCP server
+  (`helix_context/mcp_server.py`) does not yet call
+  `Registry.register_participant` / heartbeat on startup. Consequence:
+  sessions reaching Helix via MCP (Claude Code, Claude Desktop,
+  Antigravity, Cursor) do NOT appear in `GET /sessions`. Fix is
+  forward-compat: read handle from `HELIX_MCP_HANDLE` env var, passed
+  in the host's MCP config. Filed in the top-level todos.
+- **Phase 2** (GeneAttribution wired into `query_genes` for per-party
+  scoping + authorship-class scoring) — design in
+  `~/.helix/shared/handoffs/2026-04-11_8d_dimensional_roadmap.md` §
+  Phase 2. Unblocked now that the registry is on master.
+
+The rest of this document is the original design spec, preserved for
+reference. Any divergence between the spec below and the shipped code
+should be resolved by the code.
 
 ---
 
