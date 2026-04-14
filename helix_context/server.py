@@ -727,7 +727,10 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
                 },
             )
         except Exception:
-            log.debug("OTel /context latency emit failed", exc_info=True)
+            # Promoted to warning so silent histogram failures surface.
+            # /context latency is the primary user-visible health metric;
+            # if it disappears the dashboard goes blind.
+            log.warning("OTel /context latency emit failed", exc_info=True)
 
         return [response]
 

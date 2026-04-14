@@ -57,7 +57,7 @@
       "gridPos": {"h": 10, "w": 24, "x": 0, "y": 9},
       "targets": [
         {
-          "expr": "sum by (le, tier) (rate(helix_tier_contribution_bucket[5m]))",
+          "expr": "sum by (le, tier) (rate(helix_tier_contribution_score_bucket[5m]))",
           "legendFormat": "{{tier}}",
           "refId": "A",
           "format": "heatmap"

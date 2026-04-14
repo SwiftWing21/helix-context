@@ -1901,7 +1901,10 @@ class Genome:
             for tier in tiers_seen:
                 cnt.add(1, {"tier": tier})
         except Exception:
-            log.debug("tier telemetry emit failed", exc_info=True)
+            # Promoted to warning so silent histogram failures surface.
+            # The tier-activation + per-tier-contribution panels go dark
+            # when this swallows; matching the cwola/latency/gauges pattern.
+            log.warning("tier telemetry emit failed", exc_info=True)
 
         # Sort by combined score, fetch top genes
         ranked_ids = sorted(gene_scores, key=gene_scores.get, reverse=True)[:limit]
