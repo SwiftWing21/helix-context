@@ -137,6 +137,17 @@ def make_variants(needle: dict) -> list[dict]:
     Returns a list of {variant_id, axes, query} dicts. The variant_id is
     1..4; axes is a string describing what's specified (used for
     debug/visualization).
+
+    ORDER MODES (selectable via DEWEY env var):
+      DEWEY=0 (default, original): project → module → filename
+        "outside-in" — starts broad, narrows via classification.
+      DEWEY=1: filename → project → module
+        "Dewey Decimal" — filename as primary anchor (like a call number),
+        project/module layered on as classification metadata. Hypothesis
+        test: does filename-first produce a rising curve where project-first
+        produces a falling one? (See 2026-04-14 dim-lock N=200 run that
+        showed recall@1 = [7.0, 5.5, 4.0, 17.5] under the default order —
+        falling until filename rescued at axis 4.)
     """
     key = needle["key"]
     src = needle.get("source", "")
@@ -145,61 +156,111 @@ def make_variants(needle: dict) -> list[dict]:
     # Display-friendly key for natural-language phrasing
     key_phrase = key.replace("_", " ")
 
+    dewey = os.environ.get("DEWEY", "0") == "1"
+
     variants = []
 
-    # Variant 1: just the key (1 axis)
+    # Variant 1: just the key (1 axis) — identical in both modes so the
+    # 1-axis baseline is directly comparable across runs.
     variants.append({
         "variant_id": 1,
         "axes": "key",
         "query": f"What is the value of {key_phrase}?",
     })
 
-    # Variant 2: key + project (2 axes)
-    if project:
-        variants.append({
-            "variant_id": 2,
-            "axes": "key+project",
-            "query": f"What is the value of {key_phrase} in {project}?",
-        })
-    else:
-        # No project token available — fall back to category as project hint
-        cat = needle.get("category", "")
-        variants.append({
-            "variant_id": 2,
-            "axes": "key+category",
-            "query": f"What is the value of {key_phrase} in the {cat} source?",
-        })
+    if dewey:
+        # Dewey / filename-first ordering.
+        # Variant 2: key + filename (2 axes)
+        if filename:
+            variants.append({
+                "variant_id": 2,
+                "axes": "key+filename",
+                "query": f"What is the value of {key_phrase} in {filename}?",
+            })
+        else:
+            cat = needle.get("category", "")
+            variants.append({
+                "variant_id": 2,
+                "axes": "key+category (no filename)",
+                "query": f"What is the value of {key_phrase} in the {cat} source?",
+            })
 
-    # Variant 3: key + project + module (3 axes)
-    locator = " ".join(p for p in (project, module) if p)
-    if locator:
-        variants.append({
-            "variant_id": 3,
-            "axes": "key+project+module",
-            "query": f"What is the {key_phrase} configured in {locator}?",
-        })
-    else:
-        # No module — duplicate variant 2 to keep the grid square; flag it
-        variants.append({
-            "variant_id": 3,
-            "axes": "key+project (no module)",
-            "query": variants[-1]["query"],
-        })
+        # Variant 3: key + filename + project (3 axes)
+        if filename and project:
+            variants.append({
+                "variant_id": 3,
+                "axes": "key+filename+project",
+                "query": f"What is the value of {key_phrase} in {filename} ({project})?",
+            })
+        else:
+            variants.append({
+                "variant_id": 3,
+                "axes": variants[-1]["axes"] + " (no project)",
+                "query": variants[-1]["query"],
+            })
 
-    # Variant 4: key + project + module + filename (4 axes)
-    full_locator = "/".join(p for p in (project, module, filename) if p)
-    if full_locator and filename:
-        variants.append({
-            "variant_id": 4,
-            "axes": "key+project+module+filename",
-            "query": f"What is the {key_phrase} value in {full_locator}?",
-        })
+        # Variant 4: key + filename + project + module (4 axes)
+        full_locator = "/".join(p for p in (project, module, filename) if p)
+        if filename and full_locator:
+            variants.append({
+                "variant_id": 4,
+                "axes": "key+filename+project+module",
+                "query": f"What is the {key_phrase} value in {full_locator}?",
+            })
+        else:
+            variants.append({
+                "variant_id": 4,
+                "axes": variants[-1]["axes"] + " (partial locator)",
+                "query": variants[-1]["query"],
+            })
     else:
-        variants.append({
-            "variant_id": 4,
-            "axes": "key+project+module (no filename)",
-            "query": variants[-1]["query"],
-        })
+        # Original / project-first ordering.
+        # Variant 2: key + project (2 axes)
+        if project:
+            variants.append({
+                "variant_id": 2,
+                "axes": "key+project",
+                "query": f"What is the value of {key_phrase} in {project}?",
+            })
+        else:
+            # No project token available — fall back to category as project hint
+            cat = needle.get("category", "")
+            variants.append({
+                "variant_id": 2,
+                "axes": "key+category",
+                "query": f"What is the value of {key_phrase} in the {cat} source?",
+            })
+
+        # Variant 3: key + project + module (3 axes)
+        locator = " ".join(p for p in (project, module) if p)
+        if locator:
+            variants.append({
+                "variant_id": 3,
+                "axes": "key+project+module",
+                "query": f"What is the {key_phrase} configured in {locator}?",
+            })
+        else:
+            # No module — duplicate variant 2 to keep the grid square; flag it
+            variants.append({
+                "variant_id": 3,
+                "axes": "key+project (no module)",
+                "query": variants[-1]["query"],
+            })
+
+        # Variant 4: key + project + module + filename (4 axes)
+        full_locator = "/".join(p for p in (project, module, filename) if p)
+        if full_locator and filename:
+            variants.append({
+                "variant_id": 4,
+                "axes": "key+project+module+filename",
+                "query": f"What is the {key_phrase} value in {full_locator}?",
+            })
+        else:
+            variants.append({
+                "variant_id": 4,
+                "axes": "key+project+module (no filename)",
+                "query": variants[-1]["query"],
+            })
 
     return variants
 
