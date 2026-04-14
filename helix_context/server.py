@@ -550,6 +550,7 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             query,
             include_cold=include_cold,
             session_context=session_context,
+            party_id=cwola_party_id,
         )
 
         # Restore original mode after request

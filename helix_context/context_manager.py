@@ -463,6 +463,7 @@ class HelixContextManager:
         downstream_model: Optional[str] = None,
         include_cold: Optional[bool] = None,
         session_context: Optional[Dict] = None,
+        party_id: Optional[str] = None,
     ) -> ContextWindow:
         """
         Build the active context window for a query.
@@ -534,7 +535,7 @@ class HelixContextManager:
         # Step 2: Express (genome query + pending buffer + optional cold tier)
         candidates = self._express(
             domains, entities, max_genes,
-            query_text=query, include_cold=include_cold,
+            query_text=query, include_cold=include_cold, party_id=party_id,
         )
 
         if not candidates:
@@ -888,11 +889,18 @@ class HelixContextManager:
         downstream_model: Optional[str] = None,
         include_cold: Optional[bool] = None,
         session_context: Optional[Dict] = None,
+        party_id: Optional[str] = None,
     ) -> ContextWindow:
         """Async wrapper -- runs the sync pipeline in thread pool."""
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(
-            _executor, self.build_context, query, downstream_model, include_cold, session_context,
+            _executor,
+            self.build_context,
+            query,
+            downstream_model,
+            include_cold,
+            session_context,
+            party_id,
         )
 
     def reset_session_state(self) -> None:
@@ -1226,6 +1234,7 @@ class HelixContextManager:
         max_genes: int,
         query_text: Optional[str] = None,
         include_cold: Optional[bool] = None,
+        party_id: Optional[str] = None,
     ) -> List[Gene]:
         """Query genome + pending buffer for matching genes.
 
@@ -1245,12 +1254,21 @@ class HelixContextManager:
             Plumbed from the /context endpoint's ``include_cold`` body
             parameter so callers can opt in/out per request without
             touching the config file.
+        party_id : str, optional
+            Caller's party identity. When provided, ``query_genes``
+            excludes genes attributed to OTHER parties (cross-party
+            leakage prevention) and grants a +0.5 score bonus to genes
+            attributed to this party. Unattributed legacy genes remain
+            retrievable regardless. ``None`` = no filtering, no bonus
+            (existing behavior).
         """
         candidates: List[Gene] = []
 
         # ── Hot-tier retrieval (chromatin < HETEROCHROMATIN) ────────────
         try:
-            candidates = self.genome.query_genes(domains, entities, max_genes=max_genes)
+            candidates = self.genome.query_genes(
+                domains, entities, max_genes=max_genes, party_id=party_id,
+            )
         except PromoterMismatch:
             pass
 
