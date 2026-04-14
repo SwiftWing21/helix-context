@@ -189,6 +189,18 @@ def _parse_args(argv: Optional[list] = None) -> argparse.Namespace:
         help="Ollama base URL for model discovery (default: http://127.0.0.1:11434)",
     )
     p.add_argument(
+        "--grafana-url",
+        default=None,
+        help="If set, tray menu gains 'Open Grafana' item pointing here "
+             "(e.g. http://localhost:3000/d/helix-overview/helix-overview)",
+    )
+    p.add_argument(
+        "--prometheus-url",
+        default=None,
+        help="If set, tray menu gains 'Open Prometheus' item pointing here "
+             "(e.g. http://localhost:9090/graph)",
+    )
+    p.add_argument(
         "--dry-run", action="store_true",
         help="For install-service / uninstall-service: show what would happen without making changes",
     )
@@ -332,6 +344,8 @@ def main(argv: Optional[list] = None) -> int:
         # Windows-only combined mode — see platform guard above.
         return _run_tray_native_combined(
             app, args.host, args.port, url, supervisor,
+            grafana_url=args.grafana_url,
+            prometheus_url=args.prometheus_url,
         )
 
     if args.tray:
@@ -353,6 +367,8 @@ def main(argv: Optional[list] = None) -> int:
         tray_icon = HelixTrayIcon(
             supervisor=supervisor,
             dashboard_url=url,
+            grafana_url=args.grafana_url,
+            prometheus_url=args.prometheus_url,
         )
         log.info("Tray mode active — dashboard at %s", url)
         log.info("Click the tray icon to open the dashboard; Quit from its menu to exit.")
@@ -391,6 +407,8 @@ def _run_tray_native_combined(
     port: int,
     url: str,
     supervisor: HelixSupervisor,
+    grafana_url: Optional[str] = None,
+    prometheus_url: Optional[str] = None,
 ) -> int:
     """Close-to-tray mode: pywebview window + persistent tray icon.
 
@@ -509,12 +527,32 @@ def _run_tray_native_combined(
             except Exception:
                 log.warning("Tray stop failed", exc_info=True)
 
+    def _open_grafana(icon, item):  # noqa: ARG001
+        if grafana_url:
+            try:
+                webbrowser.open(grafana_url)
+            except Exception:
+                log.warning("Open Grafana failed", exc_info=True)
+
+    def _open_prometheus(icon, item):  # noqa: ARG001
+        if prometheus_url:
+            try:
+                webbrowser.open(prometheus_url)
+            except Exception:
+                log.warning("Open Prometheus failed", exc_info=True)
+
     # ── build the tray menu ───────────────────────────────────────
-    tray_menu = pystray.Menu(
+    menu_items = [
         pystray.MenuItem("Show Window", _show_window, default=True),
         pystray.MenuItem("Hide to Tray", _hide_window),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Open in Browser", _open_browser),
+    ]
+    if grafana_url:
+        menu_items.append(pystray.MenuItem("Open Grafana", _open_grafana))
+    if prometheus_url:
+        menu_items.append(pystray.MenuItem("Open Prometheus", _open_prometheus))
+    menu_items.extend([
         pystray.Menu.SEPARATOR,
         pystray.MenuItem(
             "Start helix", _start_helix,
@@ -530,7 +568,8 @@ def _run_tray_native_combined(
         ),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Quit", _quit_all),
-    )
+    ])
+    tray_menu = pystray.Menu(*menu_items)
 
     tray_icon = pystray.Icon(
         name="helix-launcher",

@@ -100,12 +100,16 @@ class HelixTrayIcon:
         name: str = "helix-launcher",
         tooltip: str = "Helix Launcher",
         on_quit: Optional[Callable[[], None]] = None,
+        grafana_url: Optional[str] = None,
+        prometheus_url: Optional[str] = None,
     ) -> None:
         self.supervisor = supervisor
         self.dashboard_url = dashboard_url
         self.name = name
         self.tooltip = tooltip
         self._on_quit_extra = on_quit
+        self.grafana_url = grafana_url
+        self.prometheus_url = prometheus_url
         self._icon = None  # type: ignore[assignment]
         self._quit_event = threading.Event()
 
@@ -117,6 +121,24 @@ class HelixTrayIcon:
             webbrowser.open(self.dashboard_url)
         except Exception:
             log.warning("Tray: failed to open browser", exc_info=True)
+
+    def _open_grafana(self, icon, item) -> None:  # noqa: ARG002
+        if not self.grafana_url:
+            return
+        log.info("Tray: opening Grafana at %s", self.grafana_url)
+        try:
+            webbrowser.open(self.grafana_url)
+        except Exception:
+            log.warning("Tray: failed to open Grafana", exc_info=True)
+
+    def _open_prometheus(self, icon, item) -> None:  # noqa: ARG002
+        if not self.prometheus_url:
+            return
+        log.info("Tray: opening Prometheus at %s", self.prometheus_url)
+        try:
+            webbrowser.open(self.prometheus_url)
+        except Exception:
+            log.warning("Tray: failed to open Prometheus", exc_info=True)
 
     def _start_helix(self, icon, item) -> None:  # noqa: ARG002
         log.info("Tray: starting helix")
@@ -200,12 +222,20 @@ class HelixTrayIcon:
 
         running = self.supervisor.is_running()
 
-        return pystray.Menu(
+        items = [
             pystray.MenuItem(
                 "Open Dashboard",
                 self._open_dashboard,
                 default=True,  # click on the tray icon itself triggers this
             ),
+        ]
+        # Observability links — only shown if URLs were configured. Keeps
+        # the menu clean for users who aren't running the OTel stack.
+        if self.grafana_url:
+            items.append(pystray.MenuItem("Open Grafana", self._open_grafana))
+        if self.prometheus_url:
+            items.append(pystray.MenuItem("Open Prometheus", self._open_prometheus))
+        items.extend([
             pystray.Menu.SEPARATOR,
             pystray.MenuItem(
                 "Start helix",
@@ -224,7 +254,8 @@ class HelixTrayIcon:
             ),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("Quit", self._quit),
-        )
+        ])
+        return pystray.Menu(*items)
 
     def _refresh_menu(self) -> None:
         if self._icon is not None:
