@@ -37,6 +37,16 @@ training/data/
 # Ingest logs
 deep_ingest*.log
 
+# Server runtime log (redirected stdout when starting via `python -m helix_context.server > helix_server.log`)
+helix_server.log
+
+# cwola_log export staging area (scripts/export_cwola_log.py writes here before rclone upload)
+cwola_export/
+
+# Upload tarballs built for R2 delivery (see scripts/ + docs/collab/)
+helix-collab-bundle*.tar.gz
+helix-code-bundle*.tar.gz
+
 # OS
 Thumbs.db
 .DS_Store

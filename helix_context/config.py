@@ -112,6 +112,24 @@ class CymaticsConfig:
 
 
 @dataclass
+class SessionConfig:
+    """CWoLa label-logger session/party defaults.
+
+    Without these, clients that don't pass ``session_id`` / ``party_id`` in
+    the /context POST body get logged with NULL in cwola_log, which causes
+    sweep_buckets to treat every row as Bucket A (no re-query detectable
+    without a session). The synthetic fallback generates a deterministic
+    session_id from (client_ip, time_window), so bursts of traffic from the
+    same operator get grouped into coherent sessions for bucket assignment.
+
+    See docs/future/STATISTICAL_FUSION.md §C2 for the CWoLa framework.
+    """
+    default_party_id: str = "default"         # Used when the request omits party_id
+    synthetic_session_window_s: int = 300     # 5 min — close-in-time same-IP requests become one session
+    synthetic_session_enabled: bool = True    # Flip to false to preserve prior "NULL = all A" behavior
+
+
+@dataclass
 class RetrievalConfig:
     """Tier 5.5 SR + theta ray_trace bias (Sprint 2)."""
     # Successor Representation (Stachenfeld 2017) - lazy on-demand SR rows
@@ -142,6 +160,7 @@ class HelixConfig:
     context: ContextConfig = field(default_factory=ContextConfig)
     cymatics: CymaticsConfig = field(default_factory=CymaticsConfig)
     retrieval: RetrievalConfig = field(default_factory=RetrievalConfig)
+    session: SessionConfig = field(default_factory=SessionConfig)
     synonym_map: Dict[str, List[str]] = field(default_factory=dict)
 
 
@@ -266,6 +285,15 @@ def load_config(path: Optional[str] = None) -> HelixConfig:
             theta_weight=float(r.get("theta_weight", cfg.retrieval.theta_weight)),
             seeded_edges_enabled=bool(r.get("seeded_edges_enabled", cfg.retrieval.seeded_edges_enabled)),
             seeded_edge_weight=float(r.get("seeded_edge_weight", cfg.retrieval.seeded_edge_weight)),
+        )
+
+    # Session (CWoLa session/party fallback — 2026-04-13 fix for always-A bucket bug)
+    if "session" in raw:
+        s = raw["session"]
+        cfg.session = SessionConfig(
+            default_party_id=str(s.get("default_party_id", cfg.session.default_party_id)),
+            synthetic_session_window_s=int(s.get("synthetic_session_window_s", cfg.session.synthetic_session_window_s)),
+            synthetic_session_enabled=bool(s.get("synthetic_session_enabled", cfg.session.synthetic_session_enabled)),
         )
 
     # Fix 1: synonym map

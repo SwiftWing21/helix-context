@@ -17,6 +17,16 @@ max_genes_per_turn = 12
 splice_aggressiveness = 0.3             # 0=keep all, 1=ruthless trim (lower preserves more literal detail)
 decoder_mode = "condensed"              # "full"|"condensed"|"minimal"|"none" (none saves ~750 tokens for API models)
 
+[session]
+# CWoLa session / party fallback. Prior to 2026-04-13 the /context endpoint
+# passed NULL to cwola.log_query when clients didn't supply session_id or
+# party_id — which caused sweep_buckets to treat every row as Bucket A
+# (no re-query detectable without a session), making CWoLa training
+# impossible. See cwola.py + STATISTICAL_FUSION.md §C2.
+default_party_id = "swift_wing21"       # Attribution fallback when the request omits party_id
+synthetic_session_window_s = 300        # 5 min — same-IP requests within this window group into one session
+synthetic_session_enabled = true        # Flip to false to restore prior NULL-session behavior (not recommended)
+
 [genome]
 path = "F:/Projects/helix-context/genome.db"
 compact_interval = 3600                 # seconds between source-change checks (hourly)

@@ -498,12 +498,30 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
         if session_context is not None and not isinstance(session_context, dict):
             session_context = None  # ignore malformed input
 
-        # CWoLa label-logger identifiers — optional. See cwola.py and
-        # STATISTICAL_FUSION.md sect C2. If absent the row is still
-        # logged with NULL session_id (treated as always-Bucket-A by
-        # sweep_buckets, i.e. never a B sample).
+        # CWoLa label-logger identifiers. See cwola.py and
+        # STATISTICAL_FUSION.md sect C2.
+        #
+        # Prior to 2026-04-13 this block passed NULL to log_query when the
+        # request omitted these fields, which caused sweep_buckets to treat
+        # every row as Bucket A (no re-query detectable without a session).
+        # The [session] config now provides a deterministic fallback: a
+        # synthetic session_id from sha1(client_ip + time_window_bucket) so
+        # close-in-time same-operator requests group into coherent sessions,
+        # and a default party_id for attribution. Set
+        # `synthetic_session_enabled = false` in helix.toml to restore the
+        # prior behavior.
         cwola_session_id = data.get("session_id")
         cwola_party_id = data.get("party_id")
+        if cwola_session_id is None and config.session.synthetic_session_enabled:
+            import hashlib as _hashlib
+            client_ip = request.client.host if request.client else "unknown"
+            window_s = max(1, config.session.synthetic_session_window_s)
+            bucket_ts = int(t0 // window_s) * window_s
+            cwola_session_id = "syn_" + _hashlib.sha1(
+                f"{client_ip}:{bucket_ts}".encode("utf-8")
+            ).hexdigest()[:12]
+        if cwola_party_id is None:
+            cwola_party_id = config.session.default_party_id
 
         # clean=true: reset per-session caches (TCM drift, intent LRU,
         # shadow pool) before this request runs. Intended for synthetic
