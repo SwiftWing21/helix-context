@@ -209,6 +209,66 @@ def helix_resonance(query: str, k: int = 10, downsample: int = 64) -> Dict[str, 
 # points: this file for A, helix_context/context_manager.py for B.
 
 
+def _register_with_registry() -> None:
+    """Register this MCP process as a participant in the session registry.
+
+    Closes the gap where MCP-host sessions (Claude Code, Claude Desktop,
+    Antigravity, Cursor) did not appear in ``GET /sessions`` alongside
+    laude/raude/taude. Each host spawns its own mcp_server process, so
+    each gets its own participant_id under the configured party.
+
+    Env vars (all optional — sensible defaults):
+        HELIX_MCP_HANDLE   Handle for this session (default: mcp-<pid>).
+                           Hosts SHOULD set this: "laude", "gemini", etc.
+        HELIX_PARTY_ID     Party this participant belongs to
+                           (default: "swift_wing21").
+        HELIX_MCP_HOST     MCP host name — used as a capability tag so
+                           ``GET /sessions`` can tell which IDE spawned
+                           this process. E.g. "claude-code",
+                           "antigravity", "cursor". Default: "unknown".
+
+    Registration failure is non-fatal — tool calls still proxy to the
+    HTTP API. Logged as a warning so the user can diagnose.
+    """
+    try:
+        from helix_context.bridge import AgentBridge
+    except Exception as exc:
+        log.warning("Registry bridge import failed, skipping registration: %s", exc)
+        return
+
+    handle = os.environ.get("HELIX_MCP_HANDLE", f"mcp-{os.getpid()}")
+    party_id = os.environ.get("HELIX_PARTY_ID", "swift_wing21")
+    mcp_host = os.environ.get("HELIX_MCP_HOST", "unknown")
+    workspace: Optional[str]
+    try:
+        workspace = os.getcwd()
+    except Exception:
+        workspace = None
+
+    # Capability tags let GET /sessions consumers filter by host/role.
+    capabilities = ["mcp_tools", f"host:{mcp_host}"]
+
+    bridge = AgentBridge(helix_base_url=HELIX_URL)
+    participant_id = bridge.register_participant(
+        party_id=party_id,
+        handle=handle,
+        workspace=workspace,
+        capabilities=capabilities,
+        start_auto_heartbeat=True,
+    )
+    if participant_id:
+        log.info(
+            "Registered as %s (party=%s, host=%s, pid=%d)",
+            handle, party_id, mcp_host, os.getpid(),
+        )
+    else:
+        log.warning(
+            "Session registration failed (is helix running at %s?) "
+            "— tool calls will still work",
+            HELIX_URL,
+        )
+
+
 def main() -> None:
     logging.basicConfig(
         level=os.environ.get("HELIX_MCP_LOG_LEVEL", "INFO"),
@@ -217,22 +277,7 @@ def main() -> None:
     log.info("helix-mcp starting — proxying to %s (timeout=%.1fs)",
              HELIX_URL, TIMEOUT_S)
 
-    # Auto-register this MCP participant if handle is provided
-    handle = os.environ.get("HELIX_MCP_HANDLE")
-    if handle:
-        from helix_context.bridge import AgentBridge
-        bridge = AgentBridge(helix_base_url=HELIX_URL)
-        party_id = os.environ.get("HELIX_PARTY_ID", "swift_wing21")
-        participant_id = bridge.register_participant(
-            party_id=party_id,
-            handle=handle,
-            capabilities=["mcp_tools"],
-            start_auto_heartbeat=True
-        )
-        if participant_id:
-            log.info("Registered MCP participant: handle=%s, party=%s, id=%s", handle, party_id, participant_id)
-        else:
-            log.warning("Failed to register MCP participant %s (is the helix server running at %s?)", handle, HELIX_URL)
+    _register_with_registry()
 
     mcp.run()
 

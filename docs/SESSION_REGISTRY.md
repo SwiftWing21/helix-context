@@ -27,13 +27,15 @@ protocol announces outages, session registry announces presence).
 
 Known gaps (tracked as follow-up work, not blockers):
 
-- **MCP host participant registration.** The stdio MCP server
-  (`helix_context/mcp_server.py`) does not yet call
-  `Registry.register_participant` / heartbeat on startup. Consequence:
-  sessions reaching Helix via MCP (Claude Code, Claude Desktop,
-  Antigravity, Cursor) do NOT appear in `GET /sessions`. Fix is
-  forward-compat: read handle from `HELIX_MCP_HANDLE` env var, passed
-  in the host's MCP config. Filed in the top-level todos.
+- **MCP host participant registration — CLOSED 2026-04-14.**
+  `helix_context/mcp_server.py` now calls
+  `AgentBridge.register_participant(..., start_auto_heartbeat=True)` on
+  startup. Handle reads from `HELIX_MCP_HANDLE` (default `mcp-<pid>`),
+  party from `HELIX_PARTY_ID` (default `swift_wing21`), host-tag from
+  `HELIX_MCP_HOST` (e.g. `claude-code`, `antigravity`, `cursor`).
+  Registration failure is non-fatal — tool calls still proxy. Each
+  MCP-host spawn gets its own `participant_id`; stale participants
+  TTL out naturally.
 - **Phase 2** (GeneAttribution wired into `query_genes` for per-party
   scoping + authorship-class scoring) — design in
   `~/.helix/shared/handoffs/2026-04-11_8d_dimensional_roadmap.md` §
