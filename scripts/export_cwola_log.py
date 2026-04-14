@@ -92,7 +92,20 @@ def parse_tier_features(raw: str | None) -> dict:
         return {}
 
 
+def _parse_embed(raw: str | None) -> list | None:
+    if not raw:
+        return None
+    try:
+        parsed = json.loads(raw)
+        return parsed if isinstance(parsed, list) else None
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+
 def row_to_dict(row: sqlite3.Row, redact: bool) -> dict:
+    # PWPC Phase 1 columns (query_sema, top_candidate_sema) are optional —
+    # older DBs or rows logged before the enrichment landed will have them
+    # NULL. The trainer treats NULL as missing, not zero.
     d = {
         "retrieval_id": row["retrieval_id"],
         "ts": row["ts"],
@@ -105,6 +118,12 @@ def row_to_dict(row: sqlite3.Row, redact: bool) -> dict:
         "bucket_assigned_at": row["bucket_assigned_at"],
         "requery_delta_s": row["requery_delta_s"],
     }
+    # sqlite3.Row raises IndexError for missing keys; guard via keys() check.
+    keys = set(row.keys())
+    if "query_sema" in keys:
+        d["query_sema"] = _parse_embed(row["query_sema"])
+    if "top_candidate_sema" in keys:
+        d["top_candidate_sema"] = _parse_embed(row["top_candidate_sema"])
     return d
 
 
@@ -163,10 +182,16 @@ def main() -> int:
     args.out_dir.mkdir(parents=True, exist_ok=True)
 
     where, params = build_where(args)
+    # PWPC Phase 1 columns may not exist on older genome.db files — fall
+    # back to the base projection if the first query raises.
+    base_cols = (
+        "retrieval_id, ts, session_id, party_id, query, "
+        "tier_features, top_gene_id, bucket, bucket_assigned_at, "
+        "requery_delta_s"
+    )
+    enriched_cols = base_cols + ", query_sema, top_candidate_sema"
     query = f"""
-        SELECT retrieval_id, ts, session_id, party_id, query,
-               tier_features, top_gene_id, bucket, bucket_assigned_at,
-               requery_delta_s
+        SELECT {enriched_cols}
         FROM cwola_log
         WHERE {where}
         ORDER BY ts DESC
@@ -181,7 +206,19 @@ def main() -> int:
     conn.row_factory = sqlite3.Row
 
     try:
-        cur = conn.execute(query, params)
+        try:
+            cur = conn.execute(query, params)
+        except sqlite3.OperationalError:
+            log.info("PWPC Phase 1 columns absent; exporting without sema vectors")
+            fallback = f"""
+                SELECT {base_cols}
+                FROM cwola_log
+                WHERE {where}
+                ORDER BY ts DESC
+            """
+            if args.sample:
+                fallback += f" LIMIT {int(args.sample)}"
+            cur = conn.execute(fallback, params)
         rows = [row_to_dict(r, redact=args.redact) for r in cur]
     except sqlite3.Error:
         log.exception("query failed")
@@ -234,6 +271,8 @@ def main() -> int:
             "bucket": "'A' (accepted — no re-query within 60s) | 'B' (re-queried within 60s) | NULL (pending)",
             "bucket_assigned_at": "REAL — epoch when bucket was assigned",
             "requery_delta_s": "REAL — seconds to next same-session query (NULL if none within 60s)",
+            "query_sema": "PWPC Phase 1 — 20d ΣĒMA projection of the query string (List[float] or null)",
+            "top_candidate_sema": "PWPC Phase 1 — 20d ΣĒMA vector of the top-ranked gene at retrieval time (List[float] or null)",
         },
         "bucket_semantics": {
             "A": "No same-session re-query within 60s of this retrieval. Implicit accept signal.",
