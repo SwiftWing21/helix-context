@@ -38,6 +38,13 @@ Issues = "https://github.com/SwiftWing21/helix-context/issues"
 accel = ["orjson>=3.9"]
 embeddings = ["numpy", "sentence-transformers"]
 cpu = ["spacy>=3.7"]
+# OpenTelemetry observability — traces + metrics + logs via OTLP gRPC.
+# Required only when `HELIX_OTEL_ENABLED=1`; core helix runs without them.
+otel = [
+    "opentelemetry-sdk>=1.27",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.27",
+    "opentelemetry-instrumentation-fastapi>=0.48b0",
+]
 launcher = ["jinja2>=3.1", "psutil>=5.9"]
 launcher-native = ["jinja2>=3.1", "psutil>=5.9", "pywebview>=5.0"]
 # pystray is LGPL-3. It is a runtime-only optional dep that the user

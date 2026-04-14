@@ -1884,6 +1884,25 @@ class Genome:
         self.last_query_scores = dict(gene_scores)
         self.last_tier_contributions = tier_contrib
 
+        # Emit per-tier contribution telemetry (OTel — no-op when off).
+        # One histogram observation per (tier, gene) pair; a single
+        # counter tick per tier that fired at all, labelled by tier
+        # name. Makes the bench_skill_activation heatmap live-observable
+        # instead of a one-shot static file.
+        try:
+            from .telemetry import tier_contribution_histogram, tier_fired_counter
+            hist = tier_contribution_histogram()
+            cnt = tier_fired_counter()
+            tiers_seen: set = set()
+            for contribs in tier_contrib.values():
+                for tier, score in contribs.items():
+                    hist.record(float(score), {"tier": tier})
+                    tiers_seen.add(tier)
+            for tier in tiers_seen:
+                cnt.add(1, {"tier": tier})
+        except Exception:
+            log.debug("tier telemetry emit failed", exc_info=True)
+
         # Sort by combined score, fetch top genes
         ranked_ids = sorted(gene_scores, key=gene_scores.get, reverse=True)[:limit]
 

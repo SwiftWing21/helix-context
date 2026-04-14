@@ -1,0 +1,64 @@
+# OpenTelemetry Collector pipeline for helix-context.
+# Receives OTLP gRPC on :4317 from helix's FastAPI server and routes:
+#   traces  -> Tempo   (http://tempo:4317)
+#   metrics -> Prometheus remote-write (http://prometheus:9090/api/v1/write)
+#   logs    -> Loki    (http://loki:3100/otlp/v1/logs)
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    timeout: 5s
+    send_batch_size: 1024
+  resource:
+    attributes:
+      - key: deployment.environment
+        value: local
+        action: upsert
+
+exporters:
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+
+  prometheusremotewrite:
+    endpoint: http://prometheus:9090/api/v1/write
+    tls:
+      insecure: true
+    target_info:
+      enabled: true
+
+  otlphttp/loki:
+    endpoint: http://loki:3100/otlp
+    tls:
+      insecure: true
+
+  # Self-metrics for the collector itself (Prometheus scrapes this)
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    namespace: otel_collector
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [resource, batch]
+      exporters: [otlp/tempo]
+    metrics:
+      receivers: [otlp]
+      processors: [resource, batch]
+      exporters: [prometheusremotewrite, prometheus]
+    logs:
+      receivers: [otlp]
+      processors: [resource, batch]
+      exporters: [otlphttp/loki]
+  telemetry:
+    logs:
+      level: info

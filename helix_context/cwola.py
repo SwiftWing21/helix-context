@@ -63,6 +63,11 @@ def log_query(
             (ts, session_id, party_id, query, features_json, top_gene_id),
         )
         conn.commit()
+        try:
+            from .telemetry import cwola_bucket_counter
+            cwola_bucket_counter().add(1, {"bucket": "pending"})
+        except Exception:
+            pass
         return int(cur.lastrowid)
     except Exception as exc:
         log.warning("CWoLa log_query failed: %s", exc, exc_info=True)
@@ -120,6 +125,26 @@ def sweep_buckets(conn: sqlite3.Connection, now: Optional[float] = None) -> int:
             log.debug("sweep_buckets update failed for %s", rid, exc_info=True)
     if updates:
         conn.commit()
+        # Emit one counter tick per newly-assigned bucket + an up-down
+        # counter update with the current f_gap_sq divergence (negative
+        # increments reset when snapshot() is called below).
+        try:
+            from .telemetry import cwola_bucket_counter, cwola_f_gap_gauge
+            # Re-read the just-assigned rows to label them correctly.
+            rows = conn.execute(
+                "SELECT bucket, COUNT(*) FROM cwola_log "
+                "WHERE bucket_assigned_at >= ? GROUP BY bucket",
+                (now - 1.0,),
+            ).fetchall()
+            for bucket, n in rows:
+                cwola_bucket_counter().add(int(n), {"bucket": bucket or "unassigned"})
+            s = stats(conn)
+            if s.get("f_gap_sq") is not None:
+                # up_down_counter snapshots absolute divergence; the
+                # Grafana panel tracks the latest value as a gauge.
+                cwola_f_gap_gauge().add(float(s["f_gap_sq"]))
+        except Exception:
+            log.debug("cwola telemetry emit failed", exc_info=True)
     return updates
 
 

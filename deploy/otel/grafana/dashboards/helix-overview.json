@@ -1,0 +1,149 @@
+{
+  "title": "Helix — Pipeline Observatory",
+  "uid": "helix-overview",
+  "editable": true,
+  "schemaVersion": 39,
+  "time": {"from": "now-1h", "to": "now"},
+  "refresh": "10s",
+  "tags": ["helix", "retrieval", "agentome"],
+  "panels": [
+    {
+      "type": "row",
+      "title": "Retrieval",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0}
+    },
+    {
+      "type": "timeseries",
+      "title": "/context latency (seconds) — p50/p95/p99 by health",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 1},
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le, health) (rate(helix_context_latency_seconds_bucket[5m])))",
+          "legendFormat": "p50 {{health}}",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, health) (rate(helix_context_latency_seconds_bucket[5m])))",
+          "legendFormat": "p95 {{health}}",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le, health) (rate(helix_context_latency_seconds_bucket[5m])))",
+          "legendFormat": "p99 {{health}}",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "s"}}
+    },
+    {
+      "type": "timeseries",
+      "title": "Tier activations per minute (which tiers are firing)",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 1},
+      "targets": [
+        {
+          "expr": "sum by (tier) (rate(helix_tier_fired_total[1m])) * 60",
+          "legendFormat": "{{tier}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "short"}}
+    },
+    {
+      "type": "heatmap",
+      "title": "Per-tier contribution histogram (score magnitude × tier)",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 10, "w": 24, "x": 0, "y": 9},
+      "targets": [
+        {
+          "expr": "sum by (le, tier) (rate(helix_tier_contribution_bucket[5m]))",
+          "legendFormat": "{{tier}}",
+          "refId": "A",
+          "format": "heatmap"
+        }
+      ],
+      "options": {
+        "calculate": false,
+        "yAxis": {"axisPlacement": "left"}
+      }
+    },
+    {
+      "type": "row",
+      "title": "CWoLa Label Clock",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 19}
+    },
+    {
+      "type": "timeseries",
+      "title": "CWoLa bucket accumulation",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 20},
+      "targets": [
+        {
+          "expr": "sum by (bucket) (increase(helix_cwola_bucket_total[1h]))",
+          "legendFormat": "bucket={{bucket}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "short"}}
+    },
+    {
+      "type": "stat",
+      "title": "f_gap_sq — (f_A − f_B)² divergence",
+      "description": "CWoLa promotion gate: >= 0.16 unlocks Sprint 3 PLR training. Auto-computed from A/B bucket ratio.",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 20},
+      "targets": [
+        {
+          "expr": "helix_cwola_f_gap_sq",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red",    "value": null},
+              {"color": "yellow", "value": 0.05},
+              {"color": "green",  "value": 0.16}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "Graph & Chromatin",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 28}
+    },
+    {
+      "type": "timeseries",
+      "title": "harmonic_links edges by provenance",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 29},
+      "targets": [
+        {
+          "expr": "helix_harmonic_edges_total",
+          "legendFormat": "{{source}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "short"}}
+    },
+    {
+      "type": "piechart",
+      "title": "Chromatin state distribution",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 29},
+      "targets": [
+        {
+          "expr": "helix_chromatin_state_total",
+          "legendFormat": "{{state}}",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}

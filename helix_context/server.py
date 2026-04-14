@@ -277,6 +277,15 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
     app.state.bridge = bridge  # Expose for testing
     app.state.registry = registry  # Expose for testing
 
+    # OpenTelemetry init (disabled unless HELIX_OTEL_ENABLED=1). Wraps
+    # every FastAPI route in a span + exposes shared tracer/meter globals
+    # for the tier-instrumentation emit points in genome.py / cwola.py.
+    try:
+        from .telemetry import setup_telemetry
+        setup_telemetry(app, service_name="helix-context")
+    except Exception:
+        log.debug("OTel setup failed", exc_info=True)
+
     # -- Proxy endpoint (primary integration) --------------------------
 
     @app.post("/v1/chat/completions")
@@ -685,12 +694,36 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
         except Exception:
             log.debug("CWoLa log_query/sweep failed", exc_info=True)
 
+        # OTel latency histogram — measured at the /context boundary so
+        # it captures decoder mode + cold-tier + cymatics + everything
+        # downstream of the retrieval. Labelled by health status so the
+        # aligned/sparse/denatured/stale split is visible in Grafana.
+        try:
+            from .telemetry import context_latency_histogram, redact_query
+            context_latency_histogram().record(
+                _time.time() - t0,
+                {
+                    "health": health.status,
+                    "budget_tier": window.metadata.get("budget_tier", "broad"),
+                    "cold_tier_used": str(getattr(helix, "_last_cold_tier_used", False)),
+                },
+            )
+        except Exception:
+            log.debug("OTel /context latency emit failed", exc_info=True)
+
         return [response]
 
     # -- Stats endpoint ------------------------------------------------
 
     @app.get("/stats")
     async def stats_endpoint():
+        # Refresh OTel gauges that represent absolute state rather than
+        # event-stream metrics — cheap DB query, runs on each /stats hit.
+        try:
+            from .telemetry import emit_gauges_snapshot
+            emit_gauges_snapshot(helix.genome)
+        except Exception:
+            log.debug("telemetry gauges snapshot failed", exc_info=True)
         return helix.stats()
 
     # -- Health history endpoint ----------------------------------------
