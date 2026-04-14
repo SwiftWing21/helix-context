@@ -768,6 +768,121 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             log.debug("telemetry gauges snapshot failed", exc_info=True)
         return helix.stats()
 
+    # -- Resonance introspection endpoint -------------------------------
+    # Joint view over the four retrieval primitives: ΣĒMA prime vector,
+    # cymatic spectrum, harmonic_links edges. Pure read-only — no
+    # retrieval-path side effects, safe to call any time. Returns JSON
+    # suitable for a notebook / dashboard to plot as a two-panel
+    # resonance chart (spectrum left, ΣĒMA neighborhood right).
+    @app.get("/debug/resonance")
+    async def resonance_endpoint(query: str, k: int = 10, downsample: int = 64):
+        import json as _json
+        import traceback as _tb
+
+        try:
+            genome = helix.genome
+            codec = getattr(helix, "_sema_codec", None)
+
+            from .cymatics import query_spectrum, cached_gene_spectrum, resonance_score
+            q_spec = query_spectrum(query)
+            q_sema = codec.encode(query) if codec is not None else None
+
+            neighbors: list = []
+            if q_sema is not None:
+                rows = genome.read_conn.execute(
+                    "SELECT gene_id, embedding FROM genes "
+                    "WHERE embedding IS NOT NULL AND chromatin < 2 "
+                    "LIMIT 20000"
+                ).fetchall()
+                scored = []
+                for r in rows:
+                    try:
+                        vec = _json.loads(r["embedding"])
+                    except Exception:
+                        continue
+                    sim = codec.similarity(q_sema, vec)
+                    scored.append((sim, r["gene_id"]))
+                scored.sort(key=lambda x: x[0], reverse=True)
+                top = scored[:k]
+
+                for sim, gid in top:
+                    g = genome.get_gene(gid)
+                    if g is None:
+                        continue
+                    try:
+                        g_spec = cached_gene_spectrum(g)
+                        cym_sim = resonance_score(q_spec, g_spec)
+                    except Exception:
+                        cym_sim = 0.0
+                    path = None
+                    if g.promoter and g.promoter.metadata:
+                        path = g.promoter.metadata.get("path")
+                    chrom = 0
+                    if g.epigenetics:
+                        chrom = getattr(g.epigenetics, "chromatin", 0)
+                    neighbors.append({
+                        "gene_id": gid,
+                        "sema_cos_sim": round(float(sim), 4),
+                        "cymatic_cos_sim": round(float(cym_sim), 4),
+                        "path": path,
+                        "preview": (g.content or "")[:120],
+                        "chromatin": chrom,
+                    })
+
+            edges: list = []
+            if neighbors:
+                ids = [n["gene_id"] for n in neighbors]
+                placeholders = ",".join("?" * len(ids))
+                edge_rows = genome.read_conn.execute(
+                    f"SELECT gene_id_a, gene_id_b, weight, source FROM harmonic_links "
+                    f"WHERE gene_id_a IN ({placeholders}) AND gene_id_b IN ({placeholders})",
+                    (*ids, *ids),
+                ).fetchall()
+                for r in edge_rows:
+                    edges.append({
+                        "from": r[0], "to": r[1],
+                        "weight": round(float(r[2]), 4),
+                        "source": r[3],
+                    })
+
+            def _downsample(spec, n):
+                if len(spec) <= n:
+                    return [round(float(x), 4) for x in spec]
+                step = len(spec) / n
+                out = []
+                for i in range(n):
+                    lo = int(i * step)
+                    hi = int((i + 1) * step)
+                    chunk = spec[lo:hi] or [spec[lo]]
+                    out.append(round(sum(chunk) / len(chunk), 4))
+                return out
+
+            return {
+                "query": query,
+                "query_sema": [round(float(x), 4) for x in q_sema] if q_sema is not None else None,
+                "query_spectrum": _downsample(q_spec, downsample),
+                "spectrum_bins": downsample,
+                "spectrum_bins_raw": len(q_spec),
+                "neighbors": neighbors,
+                "edges": edges,
+                "edge_count": len(edges),
+                "k": k,
+                "sema_available": codec is not None,
+            }
+        except Exception as exc:
+            # Surface the traceback through the response instead of
+            # letting FastAPI emit a bare 500. This endpoint is a debug
+            # introspection surface; loud failure is the right default.
+            log.warning("/debug/resonance failed for query=%r", query, exc_info=True)
+            return JSONResponse(
+                {
+                    "error": type(exc).__name__,
+                    "detail": str(exc),
+                    "traceback": _tb.format_exc().splitlines()[-10:],
+                },
+                status_code=500,
+            )
+
     # -- Health history endpoint ----------------------------------------
 
     @app.get("/health/history")
