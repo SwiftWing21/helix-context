@@ -95,6 +95,18 @@ theta_weight = 1.0                      # Softmax temperature on v·gene_input_v
 seeded_edges_enabled = false            # Dark ship — flip to start accumulating co_count / miss_count
 seeded_edge_weight = 1.0                # Base weight stamped at seed insertion
 
+[mem_sync]
+# Auto-memory → helix sync. Every .md file in a watched dir becomes a
+# gene; persona/agent attribution comes from HELIX_AGENT / HELIX_USER
+# env vars on the syncer process. See scripts/run_mem_sync.py.
+enabled = false                         # Set true + run scripts/run_mem_sync.py
+helix_url = "http://127.0.0.1:11437"
+sync_interval_s = 60                    # Poll cadence; human-speed writes, cheap stat+hash
+agent_kind = "claude-code"              # Stamp on every ingest; identifies writer tool
+watch_dirs = [                          # Expand ~ automatically; add more as needed
+  "~/.claude/projects/f--Projects-Education/memory",
+]
+
 [synonyms]
 # Fix 1: lightweight synonym expansion for promoter queries
 slow = ["performance", "latency", "bottleneck", "timeout", "lag"]
