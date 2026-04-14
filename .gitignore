@@ -15,12 +15,18 @@ genome_cpu.db
 genome_cpu.db-wal
 genome_cpu.db-shm
 genome.db.pre-*.bak
+genome.db.pre-*.bak-shm
+genome.db.pre-*.bak-wal
+*.SAFETY_COPY
 helix.log
 
 # Benchmark incremental traces (one line per needle)
 benchmarks/*.incremental.jsonl
 # Benchmark monitor traces (per-check heartbeats)
 benchmarks/*.monitor.jsonl
+# Benchmark stdout captures and runtime logs (ephemeral; archive selectively if needed)
+benchmarks/*.log
+benchmarks/*.stdout.log
 
 # IDE
 .vscode/
@@ -36,6 +42,8 @@ training/data/
 
 # Ingest logs
 deep_ingest*.log
+core_ingest.log
+*_ingest*.log
 
 # Server runtime log (redirected stdout when starting via `python -m helix_context.server > helix_server.log`)
 helix_server.log
