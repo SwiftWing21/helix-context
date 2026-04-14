@@ -275,19 +275,23 @@ class TestPartyIdFilter:
         assert scores_with_party[id1] > scores_no_party[id1]
         assert scores_with_party[id1] - scores_no_party[id1] == pytest.approx(0.5, abs=0.01)
 
-    def test_party_filter_no_attribution_no_crash(self, genome):
-        """party_id filter works even when no genes are attributed to anyone.
+    def test_party_filter_legacy_unattributed_still_retrievable(self, genome):
+        """Legacy (unattributed) genes remain retrievable under party_id filter.
 
-        The gene_attribution table exists (Genome creates it) but is empty,
-        so the filter correctly returns nothing and PromoterMismatch is raised.
+        Phase 2a semantics (2026-04-14): the party filter excludes genes
+        attributed to OTHER parties, but INCLUDES genes with no
+        gene_attribution row at all. Without this fallback, retrieval on
+        the predominantly-unattributed production genome would collapse to
+        ~0 hits the moment any caller passed party_id.
         """
         g = make_gene("metrics dashboard widget code", domains=["metrics"])
         genome.upsert_gene(g)
 
         _insert_party(genome, "alice")
-        # No genes attributed — the filter finds nothing
-        with pytest.raises(PromoterMismatch):
-            genome.query_genes(["metrics"], [], party_id="alice")
+        # Gene has no attribution row → included regardless of party
+        results = genome.query_genes(["metrics"], [], party_id="alice")
+        assert len(results) == 1
+        assert results[0].content == "metrics dashboard widget code"
 
     def test_party_filter_empty_party_returns_nothing(self, genome):
         """party_id with no attributed genes raises PromoterMismatch."""

@@ -119,6 +119,86 @@ class TestPromoterRetrieval:
         assert results[0].content == "active gene"
 
 
+# ── Phase 2a: party_id filter semantics ────────────────────────────
+
+
+class TestPartyScoping:
+    """query_genes(party_id=...) implements 3-way partition:
+       attributed-to-me + unattributed (included), other-party (excluded).
+    """
+
+    def _register_party(self, genome, party_id: str) -> None:
+        """Minimal party row so FK-constrained gene_attribution writes succeed."""
+        genome.conn.execute(
+            "INSERT OR IGNORE INTO parties "
+            "(party_id, display_name, trust_domain, created_at) "
+            "VALUES (?, ?, 'local', ?)",
+            (party_id, party_id, time.time()),
+        )
+        genome.conn.commit()
+
+    def _attribute(self, genome, gene_id: str, party_id: str) -> None:
+        genome.conn.execute(
+            "INSERT OR REPLACE INTO gene_attribution "
+            "(gene_id, party_id, participant_id, authored_at) "
+            "VALUES (?, ?, NULL, ?)",
+            (gene_id, party_id, time.time()),
+        )
+        genome.conn.commit()
+
+    def test_legacy_unattributed_genes_still_retrievable(self, genome):
+        """Genes with NO gene_attribution row MUST remain retrievable
+        when party_id is set — a strict IN(...) would break retrieval
+        on the predominantly-unattributed production genome."""
+        self._register_party(genome, "alice")
+        # Three genes, NONE of them attributed.
+        for content in ("legacy auth 1", "legacy auth 2", "legacy auth 3"):
+            genome.upsert_gene(make_gene(content, domains=["auth"]))
+
+        results = genome.query_genes(domains=["auth"], entities=[], party_id="alice")
+        assert len(results) == 3
+
+    def test_other_party_genes_excluded(self, genome):
+        """Cross-party leakage prevention: genes attributed to party B
+        MUST NOT surface when querying as party A."""
+        self._register_party(genome, "alice")
+        self._register_party(genome, "bob")
+        bob_gene = make_gene("bob's secret auth note", domains=["auth"])
+        bob_id = genome.upsert_gene(bob_gene)
+        self._attribute(genome, bob_id, "bob")
+        # And one legacy gene alice SHOULD see.
+        genome.upsert_gene(make_gene("public auth doc", domains=["auth"]))
+
+        results = genome.query_genes(domains=["auth"], entities=[], party_id="alice")
+        contents = {g.content for g in results}
+        assert "bob's secret auth note" not in contents
+        assert "public auth doc" in contents
+
+    def test_own_party_genes_included(self, genome):
+        """Genes attributed to the querying party show up."""
+        self._register_party(genome, "alice")
+        my_gene = make_gene("alice's auth note", domains=["auth"])
+        my_id = genome.upsert_gene(my_gene)
+        self._attribute(genome, my_id, "alice")
+
+        results = genome.query_genes(domains=["auth"], entities=[], party_id="alice")
+        assert any(g.content == "alice's auth note" for g in results)
+
+    def test_no_party_id_preserves_existing_behavior(self, genome):
+        """party_id=None (the default) means no filtering — all matching
+        genes surface regardless of attribution."""
+        self._register_party(genome, "bob")
+        bob_gene = make_gene("bob's note", domains=["auth"])
+        bob_id = genome.upsert_gene(bob_gene)
+        self._attribute(genome, bob_id, "bob")
+        genome.upsert_gene(make_gene("public note", domains=["auth"]))
+
+        results = genome.query_genes(domains=["auth"], entities=[])  # no party_id
+        contents = {g.content for g in results}
+        assert "bob's note" in contents
+        assert "public note" in contents
+
+
 # ── Fix 1: Synonym Expansion ───────────────────────────────────────
 
 

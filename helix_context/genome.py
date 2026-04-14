@@ -1434,8 +1434,14 @@ class Genome:
             5. Harmonic co-activation boost (mutual reinforcement)
             Tiebreaker: access-rate bonus for equal-scored genes
 
-        When party_id is provided, Tiers 1-3 are filtered to genes
-        attributed to that party, and attributed genes get a +0.5 bonus.
+        When party_id is provided, Tiers 1-3 exclude genes attributed
+        to OTHER parties (cross-party leakage prevention). Genes with
+        NO attribution row (legacy ingests, bridge inbox drops without
+        a participant_id) remain retrievable — without this fallback,
+        retrieval on an unattributed legacy genome would collapse to
+        ~0 hits. Attributed-to-this-party genes do NOT get a retrieval
+        bonus here — that is a separate concern handled at a higher
+        layer (see roadmap Phase 2c).
 
         Results are merged with weighted scoring, then expanded via
         co-activation pull-forward. Returns up to max_genes * 2 candidates.
@@ -1461,6 +1467,13 @@ class Genome:
         tier_contrib: Dict[str, Dict[str, float]] = {}
 
         # ── party_id filter clause (reused across Tiers 1-3) ──────
+        # Semantics: when party_id is provided, return genes that are
+        # EITHER attributed to this party OR have no attribution at all
+        # (legacy genes ingested before the registry shipped). This keeps
+        # retrieval useful on the predominantly-unattributed current
+        # genome — a strict IN(...) clause would collapse to ~0 hits.
+        # Cross-party leakage is still prevented: genes attributed to a
+        # DIFFERENT party are excluded via the NOT IN sub-select.
         _party_filter = ""
         _party_params: list = []
         if party_id is not None:
@@ -1473,8 +1486,10 @@ class Genome:
                 _has_attr_table = False
             if _has_attr_table:
                 _party_filter = (
-                    " AND g.gene_id IN "
-                    "(SELECT gene_id FROM gene_attribution WHERE party_id = ?)"
+                    " AND ("
+                    "g.gene_id IN (SELECT gene_id FROM gene_attribution WHERE party_id = ?)"
+                    " OR g.gene_id NOT IN (SELECT gene_id FROM gene_attribution)"
+                    ")"
                 )
                 _party_params = [party_id]
 
