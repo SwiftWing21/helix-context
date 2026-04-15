@@ -65,6 +65,7 @@
   - [Context Health Monitor (Delta-Epsilon)](#context-health-monitor-delta-epsilon)
   - [Cross-Store Import (HGT)](#cross-store-import-hgt)
   - [Associative Memory](#associative-memory)
+  - [Multi-Agent Identity (4-layer attribution)](#multi-agent-identity-4-layer-attribution)
   - [Task-Conditioned Retrieval (MoE + Small Models)](#task-conditioned-retrieval-moe--small-models)
   - [Synonym Expansion](#synonym-expansion)
 - [HTTP Endpoints](#http-endpoints)
@@ -265,8 +266,10 @@ helix-launcher --tray
 The launcher:
 
 - Spawns `helix` as a supervised child process on `:11437`
-- Shows parties / participants / models / tools / genes / tokens
-  panels in a live dashboard (polls every 2 seconds)
+- Shows parties (devices) / participants (humans) / models / tools /
+  genes / tokens panels in a live dashboard (polls every 2 seconds).
+  Org and agent panels are on the roadmap — attribution captures all
+  four layers already; the UI surfaces the two middle ones today.
 - Wires Start / Restart / Stop buttons to the helix process via the
   restart-protocol-compliant announce + kill path
 - **Adopts** an already-running helix via state file on startup —
@@ -419,6 +422,52 @@ Content-addressed gene IDs ensure deduplication across instances.
 ### Associative Memory
 
 Genes that are frequently expressed together build co-activation links. When you query for topic A, the genome also pulls in topic B if they've been co-expressed before. This creates an organic associative memory that grows smarter over time.
+
+### Multi-Agent Identity (4-layer attribution)
+
+Every gene is attributed across a 4-layer identity chain at ingest time.
+This makes multi-agent deployments first-class: one agent's context can
+surface another agent's work, queries can scope by whichever layer is
+load-bearing, and enterprise deployments can audit authorship without
+retrofitting a permissions model.
+
+| Layer | Meaning | Example |
+|---|---|---|
+| `org` | External account / oauth / email-level identity | `swift_wing21@github` |
+| `party` | Device | `max-desktop`, `max-laptop` |
+| `participant` | Human user on that device | `max`, `todd` |
+| `agent` | Agent session / tool call / sub-agent | `laude-vscode-left`, `raude-mcp-pid42` |
+
+**Resolution is trust-on-first-use.** Clients identify themselves via
+env vars (`HELIX_ORG` / `HELIX_DEVICE` / `HELIX_USER` / `HELIX_AGENT`)
+with OS-level fallbacks (`getpass`, hostname) — no auth layer required
+for local/single-user deployments. The registry is additive: older
+pre-4-layer clients still work and just inherit local-tier defaults.
+
+**What the layering buys you:**
+
+- **Scoped retrieval** — "what did Laude do on this device tonight"
+  (agent + party), "what does Max's org know about X" (org), "what
+  did the human type themselves vs what did an agent write"
+  (participant vs agent).
+- **Presence genes** — each participant gets a `presence:{participant_id}`
+  gene that agents write to via heartbeat. One agent's query can retrieve
+  another's current state by direct lookup, bypassing BM25 noise.
+- **LLM-to-LLM coordination** — sibling sessions (Laude / Raude / Taude)
+  see each other's recent work via `GET /sessions/{handle}/recent`,
+  which is chronological and doesn't drown in the larger genome corpus.
+
+**Endpoints:**
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/sessions/register` | POST | Register a participant under a party (trust-on-first-use) |
+| `/sessions/{participant_id}/heartbeat` | POST | Keepalive + optional presence-gene body emit |
+| `/sessions` | GET | List live participants (active / idle / stale / gone) |
+| `/sessions/{handle}/recent` | GET | Chronological recent genes authored by `handle` (bypasses BM25) |
+
+Full design spec (and historical context on the 2-layer → 4-layer
+migration): [`docs/SESSION_REGISTRY.md`](docs/SESSION_REGISTRY.md).
 
 ### Task-Conditioned Retrieval (MoE + Small Models)
 
