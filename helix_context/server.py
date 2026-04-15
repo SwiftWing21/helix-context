@@ -546,11 +546,18 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             helix._decoder_mode = decoder_override
             helix._decoder_prompt = DECODER_MODES[decoder_override]
 
+        # Sprint 2 session working-set: thread session_id into the
+        # pipeline so _assemble can elide already-delivered genes.
+        # ignore_delivered=true bypasses elision (benches, smoke tests).
+        _ignore_delivered = bool(data.get("ignore_delivered", False))
+
         window = await helix.build_context_async(
             query,
             include_cold=include_cold,
             session_context=session_context,
             party_id=cwola_party_id,
+            session_id=cwola_session_id,
+            ignore_delivered=_ignore_delivered,
         )
 
         # Restore original mode after request
@@ -1178,6 +1185,42 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             "handle": handle,
             "genes": genes,
             "count": len(genes),
+        }
+
+    # -- AI-Consumer Sprint 2: session working-set introspection -------
+    #
+    # /session/{id}/manifest — returns everything the genome has shipped
+    # to a given session, most-recent first. Lets a client introspect
+    # what's "held in suspension" for their session so they can reason
+    # about redundancy without a round-trip through /context.
+
+    @app.get("/session/{session_id}/manifest")
+    async def session_manifest_endpoint(session_id: str, limit: int = 500):
+        """List gene deliveries recorded for a session.
+
+        Response shape: {"session_id": "...", "deliveries": [...], "count": N}
+        Each delivery row includes: delivery_id, gene_id, delivered_at,
+        content_hash, mode, retrieval_id. Returns an empty list for
+        unknown sessions — never 404s (a valid client may be asking
+        about a fresh session).
+        """
+        try:
+            from . import session_delivery as _sd
+            rows = _sd.session_manifest(
+                helix.genome.conn,
+                session_id=session_id,
+                limit=max(1, min(5000, int(limit))),
+            )
+        except Exception as exc:
+            log.warning("session_manifest failed: %s", exc, exc_info=True)
+            return JSONResponse(
+                {"error": f"Session manifest lookup failed: {exc}"},
+                status_code=500,
+            )
+        return {
+            "session_id": session_id,
+            "deliveries": rows,
+            "count": len(rows),
         }
 
     # -- HITL event endpoints ------------------------------------------

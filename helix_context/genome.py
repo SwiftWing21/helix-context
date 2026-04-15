@@ -837,6 +837,31 @@ class Genome:
             "ON cwola_log(bucket)"
         )
 
+        # ── AI-Consumer Sprint 2: session working-set register ────────
+        # Tracks which genes have been delivered to which session so
+        # re-retrievals can elide with a pointer stub rather than
+        # re-shipping the full spliced text. See session_delivery.py +
+        # docs/FUTURE/AI_CONSUMER_ROADMAP_2026-04-14.md.
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS session_delivery_log (
+            delivery_id     INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id      TEXT NOT NULL,
+            gene_id         TEXT NOT NULL,
+            retrieval_id    INTEGER,
+            delivered_at    REAL NOT NULL,
+            content_hash    TEXT,
+            mode            TEXT
+        )
+        """)
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_sdl_session_gene "
+            "ON session_delivery_log(session_id, gene_id)"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_sdl_session_time "
+            "ON session_delivery_log(session_id, delivered_at)"
+        )
+
         # ── Sprint 4: seeded-edge provenance + Hebbian counters ──────
         # Table was previously created lazily inside
         # store_cymatics_harmonic_links; move to init so seeded_edges.py

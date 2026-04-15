@@ -31,6 +31,7 @@ from .exceptions import PromoterMismatch
 from .genome import Genome
 from .headroom_bridge import compress_text
 from . import legibility
+from . import session_delivery as _session_delivery
 from .ribosome import ClaudeBackend, LiteLLMBackend, Ribosome, OllamaBackend
 from .schemas import ChromatinState, ContextHealth, ContextWindow, Gene
 
@@ -465,6 +466,8 @@ class HelixContextManager:
         include_cold: Optional[bool] = None,
         session_context: Optional[Dict] = None,
         party_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+        ignore_delivered: bool = False,
     ) -> ContextWindow:
         """
         Build the active context window for a query.
@@ -837,6 +840,8 @@ class HelixContextManager:
             query, candidates, spliced_map, relation_graph,
             query_signals=(domains, entities),
             answer_slate=answer_slate_lines if use_slate else None,
+            session_id=session_id,
+            ignore_delivered=ignore_delivered,
         )
 
         # Annotate window with dynamic budget tier (for telemetry/benchmarks)
@@ -900,6 +905,8 @@ class HelixContextManager:
         include_cold: Optional[bool] = None,
         session_context: Optional[Dict] = None,
         party_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+        ignore_delivered: bool = False,
     ) -> ContextWindow:
         """Async wrapper -- runs the sync pipeline in thread pool."""
         loop = asyncio.get_event_loop()
@@ -911,6 +918,8 @@ class HelixContextManager:
             include_cold,
             session_context,
             party_id,
+            session_id,
+            ignore_delivered,
         )
 
     def reset_session_state(self) -> None:
@@ -1358,6 +1367,8 @@ class HelixContextManager:
         relation_graph: Optional[Dict] = None,
         query_signals: Optional[Tuple[List[str], List[str]]] = None,
         answer_slate: Optional[List[str]] = None,
+        session_id: Optional[str] = None,
+        ignore_delivered: bool = False,
     ) -> ContextWindow:
         """
         Sort spliced parts, join with dividers, wrap in expressed_context tags.
@@ -1366,6 +1377,12 @@ class HelixContextManager:
         sequence_index, so the best match lands in position 0 — inside every
         SWA local attention window. Also injects an answer slate into the
         decoder prompt for front-loaded fact extraction.
+
+        Session working-set (Sprint 2): when session_id is provided and
+        budget.session_delivery_enabled is on, genes already delivered in
+        this session are emitted as elision stubs rather than full content;
+        fresh deliveries are logged to session_delivery_log for future
+        elision. ignore_delivered=True bypasses the check (still logs).
         """
         use_slate = answer_slate is not None
         if use_slate:
@@ -1398,8 +1415,38 @@ class HelixContextManager:
             _leg_tiers = {}
             _score_stats = (0.0, 0.0)
 
+        # Sprint 2 session working-set: look up prior deliveries so genes
+        # the consumer already holds can be elided with a stub. Bypassed
+        # when flag off, session_id missing, or caller opted out.
+        session_on = (
+            self.config.budget.session_delivery_enabled
+            and session_id is not None
+            and not ignore_delivered
+        )
+        _prior_deliveries: Dict[str, Tuple[float, Optional[str], Optional[str]]] = {}
+        _now_ts = time.time()
+        if session_on:
+            try:
+                for g in sorted_genes:
+                    prior = _session_delivery.already_delivered(
+                        self.genome.conn,
+                        session_id=session_id,
+                        gene_id=g.gene_id,
+                    )
+                    if prior is not None:
+                        _prior_deliveries[g.gene_id] = prior
+            except Exception:
+                log.debug("already_delivered lookup failed", exc_info=True)
+                # Treat as no prior deliveries — soft-fail preserves the
+                # retrieval path; at worst consumer re-sees content.
+                _prior_deliveries = {}
+
         parts: List[str] = []
         total_raw = 0
+        # Track per-gene log intent so budget-trim can discard entries
+        # that didn't actually make it to the consumer. Value is
+        # (mode, content_hash) for fresh deliveries, or None for elided.
+        _delivery_log_map: Dict[str, Optional[Tuple[str, str]]] = {}
 
         for g in sorted_genes:
             # Prefer ribosome-spliced text; fall back to complement summary;
@@ -1409,7 +1456,27 @@ class HelixContextManager:
                 target_chars=500,
                 content_type=g.promoter.domains,
             )
-            if legibility_on:
+            prior = _prior_deliveries.get(g.gene_id) if session_on else None
+            if prior is not None:
+                # Gene already delivered in this session — elide content
+                prior_ts, _prior_mode, _prior_hash = prior
+                try:
+                    queries_ago = _session_delivery.count_queries_in_session_since(
+                        self.genome.conn,
+                        session_id=session_id,  # type: ignore[arg-type]
+                        since=prior_ts,
+                    )
+                except Exception:
+                    queries_ago = 0
+                stub = _session_delivery.format_elision_stub(
+                    gene_id=g.gene_id,
+                    delivered_at=prior_ts,
+                    now=_now_ts,
+                    queries_ago=queries_ago,
+                )
+                parts.append(stub)
+                _delivery_log_map[g.gene_id] = None  # no re-log on elision
+            elif legibility_on:
                 header = legibility.format_gene_header(
                     gene_id=g.gene_id,
                     raw_chars=len(g.content),
@@ -1419,8 +1486,16 @@ class HelixContextManager:
                     score_stats=_score_stats,
                 )
                 parts.append(f"{header}\n{spliced_text}")
+                if session_on:
+                    _delivery_log_map[g.gene_id] = (
+                        "full", _session_delivery.content_hash(spliced_text),
+                    )
             else:
                 parts.append(spliced_text)
+                if session_on:
+                    _delivery_log_map[g.gene_id] = (
+                        "full", _session_delivery.content_hash(spliced_text),
+                    )
             total_raw += len(g.content)
 
         expressed = "\n---\n".join(parts) if parts else "(no relevant context found)"
@@ -1460,6 +1535,29 @@ class HelixContextManager:
                 est_tokens = estimate_tokens(decoder_prompt) + estimate_tokens(expressed_wrapped)
 
         compressed_chars = len(expressed)
+
+        # Sprint 2 session working-set: persist deliveries that actually
+        # made it to the consumer (post-budget-trim). Elided genes (stubs)
+        # already had their original delivery logged on the prior turn, so
+        # we don't re-log them here. Any exception is swallowed — a log
+        # hiccup must not break the retrieval response.
+        if session_on and session_id is not None:
+            try:
+                delivered_ids = [g.gene_id for g in sorted_genes[:len(parts)]]
+                for gid in delivered_ids:
+                    entry = _delivery_log_map.get(gid)
+                    if entry is None:
+                        continue  # elided stub — no fresh log
+                    mode, chash = entry
+                    _session_delivery.log_delivery(
+                        self.genome.conn,
+                        session_id=session_id,
+                        gene_id=gid,
+                        content_hash=chash,
+                        mode=mode,
+                    )
+            except Exception:
+                log.warning("session_delivery log_delivery failed", exc_info=True)
 
         # Delta-epsilon health signal
         # Use extracted domain/entity signals (not raw word splits with stop words)

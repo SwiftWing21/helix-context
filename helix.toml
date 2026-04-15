@@ -22,6 +22,12 @@ decoder_mode = "condensed"              # "full"|"condensed"|"minimal"|"none" (n
 # FUTURE/AI_CONSUMER_ROADMAP_2026-04-14.md. Flip to false to restore
 # plain-dividers format for bench A/B.
 legibility_enabled = true
+# Sprint 2 session working-set register (AI-consumer roadmap): track
+# genes delivered per session so re-retrievals elide repeats with a
+# pointer stub. Dark on first ship — flip to true after bench A/B
+# confirms the ~40% token-reduction claim in multi-turn sessions.
+# See helix_context/session_delivery.py.
+session_delivery_enabled = false
 
 [session]
 # CWoLa session / party fallback. Prior to 2026-04-13 the /context endpoint

@@ -60,6 +60,11 @@ class BudgetConfig:
     # helix_context/legibility.py. Default on; flip off to restore the
     # pre-Sprint-1 plain-dividers format (useful for bench A/B).
     legibility_enabled: bool = True
+    # Sprint 2 session working-set register: track delivered genes per
+    # session, elide repeats with a pointer stub so the consumer doesn't
+    # pay full token cost for content it already holds. Dark on first
+    # ship — flip to true in helix.toml to A/B. See session_delivery.py.
+    session_delivery_enabled: bool = False
 
 
 @dataclass
@@ -221,6 +226,7 @@ def load_config(path: Optional[str] = None) -> HelixConfig:
             splice_aggressiveness=float(b.get("splice_aggressiveness", cfg.budget.splice_aggressiveness)),
             decoder_mode=b.get("decoder_mode", cfg.budget.decoder_mode),
             legibility_enabled=bool(b.get("legibility_enabled", cfg.budget.legibility_enabled)),
+            session_delivery_enabled=bool(b.get("session_delivery_enabled", cfg.budget.session_delivery_enabled)),
         )
 
     # Genome
