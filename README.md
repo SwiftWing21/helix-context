@@ -1,4 +1,4 @@
-# 🧬 Helix Context
+# Helix Context
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
@@ -7,22 +7,45 @@
 [![Compression: 769x](https://img.shields.io/badge/inference_compression-769x-brightgreen.svg)](docs/RESEARCH.md)
 [![Paper: Agentome](https://img.shields.io/badge/paper-Agentome-purple.svg)](https://mbachaud.substack.com/p/agentome)
 
-**Genome-based context compression for local LLMs.**
+**A local-first knowledge store for LLM context compression.**
 **Scale-Invariant Knowledge Engine (SIKE) — 10/10 retrieval from 0.6B to 26B parameters.**
 
-> **The pipeline is LLM-free.** Ingest, tagging, retrieval, re-rank, and splice are all pure CPU math — Howard 2005 TCM, Stachenfeld 2017 SR, Werman 1986 W1, Hebbian co-activation, spaCy NER. The only LLM call is the final answer-generation step at `/v1/chat/completions`. Helix used to depend on an LLM to serve another LLM; now it just uses nature's math. *(One optional Step 0 query-intent expansion exists behind `[ribosome] query_expansion_enabled` — default `true` for backward compat, set to `false` for strictly LLM-free `/context`.)*
+> **The retrieval pipeline is LLM-free.** Ingest, tagging, candidate selection,
+> reranking, and fragment trimming are all pure CPU math — Howard 2005 TCM,
+> Stachenfeld 2017 SR, Werman 1986 W1, Hebbian co-activation, spaCy NER. The only
+> LLM call is the final answer-generation step at `/v1/chat/completions`. Helix
+> used to depend on an LLM to serve another LLM; now it just uses well-understood
+> retrieval math. *(One optional Step 0 query-intent expansion sits behind
+> `[compressor] query_expansion_enabled` — default `true` for backward compat,
+> set `false` for strictly LLM-free `/context`.)*
 
-> Treats context like a genome instead of a flat text buffer. A 7,200-gene SQLite
-> database (44MB raw knowledge) compresses to ~15K tokens of expressed context
-> per turn — a **769x inference compression ratio**. Retrieval is perfectly
-> scale-invariant: the same genome delivers 10/10 needle accuracy to qwen3:0.6b
-> and Claude Opus alike. *The Librarian does the work; the Reader just extracts.*
+> A persistent SQLite-backed **knowledge store** holds compressed documents.
+> 7,200 documents (44 MB raw knowledge) compress to ~15K tokens of retrieved
+> context per turn — a **769× inference compression ratio**. Retrieval is
+> scale-invariant: the same store delivers 10/10 needle accuracy to qwen3:0.6b
+> and Claude Opus alike. The retrieval engine does the work; the LLM just extracts.
 
-> **📖 Quick glossary** — If the biological metaphor is new to you:
-> **gene** = one knowledge chunk (content + metadata) · **genome** = the full SQLite store ·
-> **ribosome** = small model that packs/ranks/splices context · **promoter** = retrieval tags ·
-> **expression** = selecting + formatting genes for one query · **chromatin** = gene accessibility tier
-> (open / euchromatin / heterochromatin) · **replication** = packing conversations back into the genome.
+> **📖 Terminology note** — Helix's original vocabulary borrowed from molecular
+> biology (gene, genome, ribosome, chromatin, splice, promoter). The **canonical
+> lexicon is now standard software terminology**; the biology terms remain valid
+> aliases for older docs and commit history. See [docs/ROSETTA.md](docs/ROSETTA.md)
+> for the full bidirectional mapping. Quick cheat-sheet:
+>
+> | Biology (legacy) | Software (canonical) |
+> |---|---|
+> | gene | document |
+> | genome | knowledge store (kb) |
+> | ribosome | compressor |
+> | promoter tags | document tags |
+> | chromatin tier / OPEN·EUCHROMATIN·HETEROCHROMATIN | lifecycle tier / OPEN·WARM·COLD |
+> | expression | retrieval |
+> | replication | persistence |
+> | harmonic_links | co-activation edges |
+> | horizontal gene transfer (HGT) | cross-store import |
+>
+> Both forms are used interchangeably throughout this README; older sections
+> skew biology, newer sections skew software. `Document is Gene` is literally
+> `True` at the Python class level ([helix_context/aliases.py](helix_context/aliases.py)).
 
 <details>
 <summary><b>📑 Table of Contents</b></summary>
@@ -33,9 +56,9 @@
 - [How It Works](#how-it-works)
 - [Key Features](#key-features)
   - [Context Health Monitor (Delta-Epsilon)](#context-health-monitor-delta-epsilon)
-  - [Horizontal Gene Transfer (HGT)](#horizontal-gene-transfer-hgt)
+  - [Cross-Store Import (HGT)](#cross-store-import-hgt)
   - [Associative Memory](#associative-memory)
-  - [Tissue-Specific Expression (MoE + Small Models)](#tissue-specific-expression-moe--small-models)
+  - [Task-Conditioned Retrieval (MoE + Small Models)](#task-conditioned-retrieval-moe--small-models)
   - [Synonym Expansion](#synonym-expansion)
 - [HTTP Endpoints](#http-endpoints)
 - [Continue IDE Integration](#continue-ide-integration)
@@ -54,20 +77,20 @@
   Client (Continue, Cursor, any OpenAI client)
          |
          v
-  +--------------------------+
-  |  Helix Proxy (FastAPI)   |  Port 11437
-  |  /v1/chat/completions    |  OpenAI-compatible
-  |                          |
-  |  1. Extract query        |
-  |  2. Express pipeline     |  <-- Genome (SQLite)
-  |  3. Inject context       |  <-- Ribosome (CPU model)
-  |  4. Forward to Ollama    |  --> localhost:11434
-  |  5. Stream tee response  |
-  |  6. Background replicate |
-  +--------------------------+
+  +----------------------------+
+  |  Helix Proxy (FastAPI)     |  Port 11437
+  |  /v1/chat/completions      |  OpenAI-compatible
+  |                            |
+  |  1. Extract query          |
+  |  2. Retrieval pipeline     |  <-- Knowledge store (SQLite)
+  |  3. Inject context         |  <-- Compressor (CPU model)
+  |  4. Forward to Ollama      |  --> localhost:11434
+  |  5. Stream tee response    |
+  |  6. Background persistence |
+  +----------------------------+
 ```
 
-Instead of stuffing your entire codebase into the prompt, Helix compresses it into a persistent SQLite genome and expresses only the relevant genes per turn. The model sees compressed context, not raw text. Conversations replicate back into the genome automatically, building institutional memory over time.
+Instead of stuffing your entire codebase into the prompt, Helix compresses it into a persistent SQLite knowledge store and retrieves only the relevant documents per turn. The model sees compressed context, not raw text. Conversations persist back into the store automatically, building institutional memory over time.
 
 ## Benchmark Highlights
 
@@ -356,7 +379,7 @@ Every query computes a health signal measuring how well the genome served it:
 | `stale` | any | Expressed genes are outdated (low freshness) |
 | `denatured` | < 0.3 | Context is unreliable, high hallucination risk |
 
-### Horizontal Gene Transfer (HGT)
+### Cross-Store Import (HGT)
 
 Export a genome and import it into another Helix instance:
 
@@ -378,7 +401,7 @@ Content-addressed gene IDs ensure deduplication across instances.
 
 Genes that are frequently expressed together build co-activation links. When you query for topic A, the genome also pulls in topic B if they've been co-expressed before. This creates an organic associative memory that grows smarter over time.
 
-### Tissue-Specific Expression (MoE + Small Models)
+### Task-Conditioned Retrieval (MoE + Small Models)
 
 MoE models (Gemma 4) and sub-3.2B models can't reliably "look back" across a 15K context
 window. Helix auto-detects these architectures and switches to a tissue-specific expression
