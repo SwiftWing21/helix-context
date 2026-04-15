@@ -30,6 +30,7 @@ from .config import HelixConfig
 from .exceptions import PromoterMismatch
 from .genome import Genome
 from .headroom_bridge import compress_text
+from . import legibility
 from .ribosome import ClaudeBackend, LiteLLMBackend, Ribosome, OllamaBackend
 from .schemas import ChromatinState, ContextHealth, ContextWindow, Gene
 
@@ -1380,6 +1381,23 @@ class HelixContextManager:
             # Dense: sequence ordering for narrative coherence
             sorted_genes = sorted(candidates, key=lambda g: g.promoter.sequence_index or 0)
 
+        # Sprint 1 legibility pack: compute z-score stats once over the
+        # expressed gene set so every header's confidence symbol is
+        # calibrated against THIS response (not a genome-wide baseline).
+        # See helix_context/legibility.py + docs/FUTURE/AI_CONSUMER_ROADMAP_2026-04-14.md.
+        legibility_on = self.config.budget.legibility_enabled
+        if legibility_on:
+            _leg_scores = self.genome.last_query_scores or {}
+            _leg_tiers = getattr(self.genome, "last_tier_contributions", None) or {}
+            _expressed_scores = {
+                g.gene_id: _leg_scores.get(g.gene_id, 0.0) for g in sorted_genes
+            }
+            _score_stats = legibility.compute_score_stats(_expressed_scores)
+        else:
+            _leg_scores = {}
+            _leg_tiers = {}
+            _score_stats = (0.0, 0.0)
+
         parts: List[str] = []
         total_raw = 0
 
@@ -1391,7 +1409,18 @@ class HelixContextManager:
                 target_chars=500,
                 content_type=g.promoter.domains,
             )
-            parts.append(spliced_text)
+            if legibility_on:
+                header = legibility.format_gene_header(
+                    gene_id=g.gene_id,
+                    raw_chars=len(g.content),
+                    compressed_chars=len(spliced_text),
+                    combined_score=_leg_scores.get(g.gene_id, 0.0),
+                    tier_contrib=_leg_tiers.get(g.gene_id, {}),
+                    score_stats=_score_stats,
+                )
+                parts.append(f"{header}\n{spliced_text}")
+            else:
+                parts.append(spliced_text)
             total_raw += len(g.content)
 
         expressed = "\n---\n".join(parts) if parts else "(no relevant context found)"

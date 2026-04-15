@@ -54,6 +54,12 @@ class BudgetConfig:
     max_genes_per_turn: int = 8
     splice_aggressiveness: float = 0.5
     decoder_mode: str = "full"  # "full"|"condensed"|"minimal"|"none"
+    # Sprint 1 legibility pack (AI-consumer roadmap): emit a one-line
+    # metadata header per gene in expressed_context — fired tiers,
+    # confidence marker, short gene_id, compression ratio. See
+    # helix_context/legibility.py. Default on; flip off to restore the
+    # pre-Sprint-1 plain-dividers format (useful for bench A/B).
+    legibility_enabled: bool = True
 
 
 @dataclass
@@ -214,6 +220,7 @@ def load_config(path: Optional[str] = None) -> HelixConfig:
             max_genes_per_turn=b.get("max_genes_per_turn", cfg.budget.max_genes_per_turn),
             splice_aggressiveness=float(b.get("splice_aggressiveness", cfg.budget.splice_aggressiveness)),
             decoder_mode=b.get("decoder_mode", cfg.budget.decoder_mode),
+            legibility_enabled=bool(b.get("legibility_enabled", cfg.budget.legibility_enabled)),
         )
 
     # Genome

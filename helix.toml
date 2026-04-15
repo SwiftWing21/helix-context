@@ -16,6 +16,12 @@ expression_tokens = 12000               # 1:10 ratio at 128K = ~12.8K total cont
 max_genes_per_turn = 12
 splice_aggressiveness = 0.3             # 0=keep all, 1=ruthless trim (lower preserves more literal detail)
 decoder_mode = "condensed"              # "full"|"condensed"|"minimal"|"none" (none saves ~750 tokens for API models)
+# Sprint 1 legibility pack (AI-consumer roadmap): emit one metadata line
+# per gene in expressed_context — fired tiers, confidence marker, short
+# gene_id, raw→compressed chars. See helix_context/legibility.py + docs/
+# FUTURE/AI_CONSUMER_ROADMAP_2026-04-14.md. Flip to false to restore
+# plain-dividers format for bench A/B.
+legibility_enabled = true
 
 [session]
 # CWoLa session / party fallback. Prior to 2026-04-13 the /context endpoint
