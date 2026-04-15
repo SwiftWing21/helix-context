@@ -497,3 +497,49 @@ class TestHITLEndpoints:
         assert e["operator_tone_uncertainty"] == pytest.approx(0.42)
         assert e["operator_risk_keywords"] == ["force-push", "drop"]
         assert e["recoverability_signal"] == "recoverable"
+
+
+class TestDebugIntrospectionEndpoints:
+    """GET /genes/{id} + GET /debug/neighbors + GET /debug/preview.
+
+    Cheap introspection surface -- single-gene fetch, SEMA-only
+    neighbors (lighter than /debug/resonance), and a dry-run of the
+    express pipeline that skips the splice leg.
+    """
+
+    def test_gene_get_unknown_returns_404(self, client):
+        resp = client.get("/genes/nonexistent-gene-id")
+        assert resp.status_code == 404
+        assert "Unknown gene_id" in resp.json()["error"]
+
+    def test_neighbors_empty_genome_returns_empty_list(self, client):
+        """No genes ingested -> empty neighbor list, still 200."""
+        resp = client.get("/debug/neighbors?query=anything&k=5")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["neighbors"] == []
+        assert data["count"] == 0
+        assert data["query"] == "anything"
+        assert data["k"] == 5
+
+    def test_preview_empty_genome_returns_empty_candidates(self, client):
+        """Pipeline dry-run on empty genome: extraction still works,
+        candidates is empty."""
+        resp = client.get("/debug/preview?query=search+me&max_genes=3")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["query"] == "search me"
+        assert data["candidates"] == []
+        assert data["count"] == 0
+        assert "domains" in data["extracted"]
+        assert "entities" in data["extracted"]
+
+    def test_preview_extracts_query_signals(self, client):
+        """Extraction is pure string processing; must produce something
+        even on an empty genome."""
+        resp = client.get(
+            "/debug/preview?query=authentication+jwt+token"
+        )
+        assert resp.status_code == 200
+        extracted = resp.json()["extracted"]
+        assert extracted["domains"] or extracted["entities"]

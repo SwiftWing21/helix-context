@@ -30,6 +30,11 @@ Tools exposed:
       helix_metrics_tokens  — session + lifetime token counters
       helix_bridge_status   — federation/bridge inbox + signal state
 
+    Introspection / debugging:
+      helix_gene_get        — fetch a single gene by ID
+      helix_neighbors       — top-k SEMA neighbors for a query (light)
+      helix_splice_preview  — dry-run retrieval pipeline (skip splice)
+
 Run (stdio transport — what MCP hosts spawn):
     python -m helix_context.mcp_server
 
@@ -437,6 +442,76 @@ def helix_bridge_status() -> Dict[str, Any]:
     flight between instances.
     """
     return _http("GET", "/bridge/status")
+
+
+# ── Tool: helix_gene_get ─────────────────────────────────────────────
+# Fetch a single gene by ID. Indispensable for debugging retrieval
+# results -- "what were this gene's promoter tags? what's the content?"
+
+@mcp.tool()
+def helix_gene_get(gene_id: str) -> Dict[str, Any]:
+    """Fetch a single gene by ID.
+
+    Returns the full gene model as JSON -- content, promoter tags
+    (domains, entities, intent, summary), epigenetics (access_rate,
+    co_activated_with), codons, chromatin state, embedding vector.
+
+    Use when investigating a specific retrieval result: "gene X ranked
+    #3, let me see what its tags were."
+
+    Returns {error: str} if the gene_id is unknown.
+    """
+    return _http("GET", f"/genes/{urllib.request.quote(gene_id)}")
+
+
+# ── Tool: helix_neighbors ────────────────────────────────────────────
+# Lightweight top-k SEMA neighbors. Cheaper than helix_resonance when
+# the caller only wants "what's near this query in SEMA space?" without
+# the cymatic spectrum / harmonic edges.
+
+@mcp.tool()
+def helix_neighbors(query: str, k: int = 10) -> Dict[str, Any]:
+    """Top-k SEMA neighbors for a query (light version of helix_resonance).
+
+    Returns {query, k, neighbors: [{gene_id, sema_cos_sim, preview,
+    path}], count}. No cymatic spectrum, no harmonic edges, no query
+    SEMA vector -- just the neighbor list.
+
+    Use this when debugging "which genes are semantically closest to X?"
+    and you don't need the full four-primitive introspection of
+    helix_resonance.
+    """
+    path = f"/debug/neighbors?query={urllib.request.quote(query)}&k={int(k)}"
+    return _http("GET", path)
+
+
+# ── Tool: helix_splice_preview ───────────────────────────────────────
+# Dry-run the retrieval pipeline: extract -> express -> candidates,
+# SKIPS the expensive splice step. Answers "what WOULD be in the context
+# window?" without paying full /context cost (no ribosome calls).
+
+@mcp.tool()
+def helix_splice_preview(query: str, max_genes: int = 12) -> Dict[str, Any]:
+    """Preview which genes WOULD be selected for a query's context window.
+
+    Runs the cheap half of the /context pipeline: query keyword
+    extraction + multi-tier express (promoter tags, FTS, SEMA,
+    harmonic boost, TCM tiebreaker, access-rate tiebreaker), then
+    STOPS before the splice step.
+
+    Returns {query, extracted: {domains, entities}, candidates:
+    [{rank, gene_id, score, preview, path, domains, entities,
+    chromatin}], count}.
+
+    Much cheaper than a full /context call -- no ribosome calls
+    at all. Use for "why isn't query X surfacing gene Y?" debugging
+    without burning model quota on splice.
+    """
+    path = (
+        f"/debug/preview?query={urllib.request.quote(query)}"
+        f"&max_genes={int(max_genes)}"
+    )
+    return _http("GET", path)
 
 
 # ── Future: codebase-memory-mcp composition ──────────────────────────

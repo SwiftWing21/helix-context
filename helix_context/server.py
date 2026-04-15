@@ -884,6 +884,159 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
                 status_code=500,
             )
 
+    # -- Debug: single-gene fetch ---------------------------------------
+
+    @app.get("/genes/{gene_id}")
+    async def gene_get_endpoint(gene_id: str):
+        """Fetch a single gene by ID.
+
+        Returns the full gene model as JSON (content, promoter tags,
+        epigenetics, codons, chromatin state, embedding). 404 if unknown.
+
+        Intended for debugging retrieval: "why did gene X rank where it
+        did? what were its promoter tags?"
+        """
+        try:
+            gene = helix.genome.get_gene(gene_id)
+        except Exception as exc:
+            log.warning("/genes/%s failed: %s", gene_id, exc, exc_info=True)
+            return JSONResponse(
+                {"error": f"Gene lookup failed: {exc}"}, status_code=500,
+            )
+        if gene is None:
+            return JSONResponse(
+                {"error": f"Unknown gene_id: {gene_id}"}, status_code=404,
+            )
+        return gene.model_dump()
+
+    # -- Debug: lightweight SEMA neighbors ------------------------------
+
+    @app.get("/debug/neighbors")
+    async def neighbors_endpoint(query: str, k: int = 10):
+        """Top-k SEMA neighbors for ``query`` -- lighter than /debug/resonance.
+
+        Returns just neighbors (gene_id, sema_cos_sim, preview, path)
+        without the cymatic spectrum, harmonic edges, or query SEMA
+        vector. Cheapest introspection path when the caller just wants
+        "which genes are closest to this query in SEMA space?".
+
+        Read-only; safe to call anytime.
+        """
+        import json as _json
+
+        try:
+            codec = getattr(helix, "_sema_codec", None)
+            if codec is None:
+                return JSONResponse(
+                    {
+                        "error": "SEMA codec not available",
+                        "hint": "Ingest must have populated embeddings first.",
+                    },
+                    status_code=503,
+                )
+            q_sema = codec.encode(query)
+            rows = helix.genome.read_conn.execute(
+                "SELECT gene_id, embedding FROM genes "
+                "WHERE embedding IS NOT NULL AND chromatin < 2 "
+                "LIMIT 20000"
+            ).fetchall()
+            scored: list = []
+            for r in rows:
+                try:
+                    vec = _json.loads(r["embedding"])
+                except Exception:
+                    continue
+                sim = codec.similarity(q_sema, vec)
+                scored.append((sim, r["gene_id"]))
+            scored.sort(key=lambda x: x[0], reverse=True)
+            top = scored[:k]
+
+            neighbors: list = []
+            for sim, gid in top:
+                g = helix.genome.get_gene(gid)
+                if g is None:
+                    continue
+                path = None
+                if g.promoter and g.promoter.metadata:
+                    path = g.promoter.metadata.get("path")
+                neighbors.append({
+                    "gene_id": gid,
+                    "sema_cos_sim": round(float(sim), 4),
+                    "preview": (g.content or "")[:160],
+                    "path": path,
+                })
+            return {
+                "query": query,
+                "k": k,
+                "neighbors": neighbors,
+                "count": len(neighbors),
+            }
+        except Exception as exc:
+            log.warning("/debug/neighbors failed: %s", exc, exc_info=True)
+            return JSONResponse(
+                {"error": type(exc).__name__, "detail": str(exc)},
+                status_code=500,
+            )
+
+    # -- Debug: context-pipeline dry run (no splice) --------------------
+
+    @app.get("/debug/preview")
+    async def preview_endpoint(query: str, max_genes: int = 12):
+        """Dry-run the retrieval pipeline up to candidate selection.
+
+        Runs the cheap part of the /context pipeline -- query extraction
+        + multi-tier express -- but SKIPS the splice step (which is the
+        expensive ribosome-heavy leg). Returns the candidate genes that
+        WOULD be fed to splice, their scores, and the extracted query
+        signals.
+
+        Useful for debugging "why isn't my query surfacing gene X?"
+        without paying the full /context cost. Much cheaper than
+        /context itself; no ribosome calls.
+        """
+        try:
+            domains, entities = helix._extract_query_signals(query)
+            candidates = helix._express(
+                domains=domains,
+                entities=entities,
+                max_genes=max_genes,
+                query_text=query,
+            )
+        except Exception as exc:
+            log.warning("/debug/preview failed: %s", exc, exc_info=True)
+            return JSONResponse(
+                {"error": type(exc).__name__, "detail": str(exc)},
+                status_code=500,
+            )
+
+        scores = dict(helix.genome.last_query_scores or {})
+        result = []
+        for rank, g in enumerate(candidates):
+            path = None
+            if g.promoter and g.promoter.metadata:
+                path = g.promoter.metadata.get("path")
+            result.append({
+                "rank": rank,
+                "gene_id": g.gene_id,
+                "score": round(float(scores.get(g.gene_id, 0.0)), 4),
+                "preview": (g.content or "")[:160],
+                "path": path,
+                "domains": list(g.promoter.domains) if g.promoter else [],
+                "entities": list(g.promoter.entities) if g.promoter else [],
+                "chromatin": int(getattr(g, "chromatin", 0) or 0),
+            })
+
+        return {
+            "query": query,
+            "extracted": {
+                "domains": list(domains),
+                "entities": list(entities),
+            },
+            "candidates": result,
+            "count": len(result),
+            "note": "Splice step skipped; these are pre-splice candidates.",
+        }
+
     # -- Health history endpoint ----------------------------------------
 
     @app.get("/health/history")
