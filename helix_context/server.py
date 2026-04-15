@@ -1179,8 +1179,29 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
         }
 
     @app.post("/sessions/{participant_id}/heartbeat")
-    async def session_heartbeat_endpoint(participant_id: str):
-        """Refresh last_heartbeat for a participant. Returns 404 if unknown."""
+    async def session_heartbeat_endpoint(
+        participant_id: str,
+        request: Request,
+    ):
+        """Refresh last_heartbeat for a participant. Returns 404 if unknown.
+
+        Optional body (all fields optional) publishes a retrievable presence
+        gene so other participants' /context queries can surface this
+        participant's state:
+
+            {
+              "handle":           "laude",
+              "party_id":         "swift_wing21",
+              "current_focus":    "PWPC Phase 1 follow-up",
+              "blocked_on":       ["batman access"],
+              "in_flight":        ["v2 drilldown", "heartbeat endpoint"],
+              "last_commit_hash": "aeb1f45",
+              "notes":            "optional free-form markdown"
+            }
+
+        Empty body keeps the original behavior — registry heartbeat only,
+        no presence gene emitted. See docs/TEAM_PRESENCE.md (when written).
+        """
         result = registry.heartbeat(participant_id)
         if result is None:
             return JSONResponse(
@@ -1188,10 +1209,37 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
                 status_code=404,
             )
         ttl_remaining_s, status = result
+
+        # Optional presence-gene emit. Body is optional + additive; we must
+        # not fail the heartbeat if the gene emit chokes.
+        presence_gene_id: Optional[str] = None
+        try:
+            body = await request.json()
+        except Exception:
+            body = None
+        if isinstance(body, dict) and body:
+            try:
+                presence_gene_id = registry.upsert_presence_gene(
+                    participant_id,
+                    handle=body.get("handle"),
+                    party_id=body.get("party_id"),
+                    current_focus=body.get("current_focus"),
+                    blocked_on=body.get("blocked_on"),
+                    in_flight=body.get("in_flight"),
+                    last_commit_hash=body.get("last_commit_hash"),
+                    extra_notes=body.get("notes"),
+                )
+            except Exception:
+                log.warning(
+                    "presence gene upsert failed for %s",
+                    participant_id, exc_info=True,
+                )
+
         return {
             "ok": True,
             "ttl_remaining_s": ttl_remaining_s,
             "status": status,
+            "presence_gene_id": presence_gene_id,
         }
 
     @app.get("/sessions")

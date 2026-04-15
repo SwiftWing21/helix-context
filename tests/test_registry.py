@@ -172,6 +172,75 @@ class TestHeartbeat:
         assert registry.heartbeat("nonexistent-id") is None
 
 
+class TestPresenceGene:
+    """Team-affordance: heartbeat-emitted participant presence gene."""
+
+    def test_upsert_presence_gene_creates_retrievable_gene(self, registry, genome):
+        p = registry.register_participant(party_id="swift_wing21", handle="laude")
+        gene_id = registry.upsert_presence_gene(
+            p.participant_id,
+            handle="laude",
+            party_id="swift_wing21",
+            current_focus="PWPC Phase 1 follow-up",
+            blocked_on=["batman access"],
+            in_flight=["heartbeat endpoint", "lockstep test"],
+            last_commit_hash="aeb1f45",
+        )
+        assert gene_id == f"presence:{p.participant_id}"
+        gene = genome.get_gene(gene_id)
+        assert gene is not None
+        assert "laude" in gene.content
+        assert "PWPC Phase 1 follow-up" in gene.content
+        assert "batman access" in gene.content
+        assert "aeb1f45" in gene.content
+
+    def test_upsert_presence_gene_stable_id_updates_in_place(self, registry, genome):
+        """Re-heartbeating the same participant must REPLACE, not duplicate."""
+        p = registry.register_participant(party_id="swift_wing21", handle="laude")
+        gene_id_1 = registry.upsert_presence_gene(
+            p.participant_id, handle="laude", current_focus="first focus",
+        )
+        gene_id_2 = registry.upsert_presence_gene(
+            p.participant_id, handle="laude", current_focus="second focus",
+        )
+        assert gene_id_1 == gene_id_2
+        gene = genome.get_gene(gene_id_1)
+        assert "second focus" in gene.content
+        assert "first focus" not in gene.content
+
+    def test_upsert_presence_gene_minimal_inputs(self, registry, genome):
+        """All state fields optional — presence with just the participant_id still works."""
+        p = registry.register_participant(party_id="swift_wing21", handle="laude")
+        gene_id = registry.upsert_presence_gene(p.participant_id)
+        gene = genome.get_gene(gene_id)
+        assert gene is not None
+        assert p.participant_id in gene.content or "unknown" in gene.content.lower()
+
+    def test_upsert_presence_gene_tags_key_values(self, registry, genome):
+        """Key-values carry the participant identity for downstream tier scoring."""
+        p = registry.register_participant(party_id="swift_wing21", handle="laude")
+        gene_id = registry.upsert_presence_gene(
+            p.participant_id, handle="laude", party_id="swift_wing21",
+            last_commit_hash="abc1234",
+        )
+        gene = genome.get_gene(gene_id)
+        joined = "\n".join(gene.key_values)
+        assert "presence=true" in joined
+        assert "handle=laude" in joined
+        assert "party=swift_wing21" in joined
+        assert "last_commit=abc1234" in joined
+
+    def test_upsert_presence_gene_bypasses_density_gate(self, registry, genome):
+        """Presence genes must always land OPEN — a stale-at-birth presence
+        gene is useless, and the density gate's monotonic access_count logic
+        is orthogonal to presence semantics."""
+        from helix_context.schemas import ChromatinState
+        p = registry.register_participant(party_id="swift_wing21", handle="laude")
+        gene_id = registry.upsert_presence_gene(p.participant_id, handle="laude")
+        gene = genome.get_gene(gene_id)
+        assert gene.chromatin == ChromatinState.OPEN
+
+
 class TestListParticipants:
     def test_filter_by_party(self, registry):
         registry.register_participant(party_id="max@local", handle="taude")

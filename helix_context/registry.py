@@ -347,6 +347,103 @@ class Registry:
         self.genome.conn.commit()
         return (DEFAULT_TTL_S, "active")
 
+    def upsert_presence_gene(
+        self,
+        participant_id: str,
+        *,
+        handle: Optional[str] = None,
+        party_id: Optional[str] = None,
+        current_focus: Optional[str] = None,
+        blocked_on: Optional[List[str]] = None,
+        in_flight: Optional[List[str]] = None,
+        last_commit_hash: Optional[str] = None,
+        extra_notes: Optional[str] = None,
+    ) -> str:
+        """Upsert a retrievable presence gene for this participant.
+
+        Creates or replaces a gene with stable id ``presence:{participant_id}``
+        rendering the participant's current state as readable markdown. Other
+        participants' sessions can retrieve this gene through the normal
+        /context path — no new retrieval codepath is needed.
+
+        The gene's chromatin decays naturally with access patterns; callers
+        heartbeating regularly keep it OPEN and retrievable. A participant
+        that stops heartbeating has their presence gene demote to EUCHROMATIN
+        then HETEROCHROMATIN like any other gene — which is the correct
+        "went away" semantics.
+
+        This is the smallest affordance for multi-session team coordination
+        that doesn't require any new retrieval, chromatin, or access-control
+        primitives. Everything else composes on top of it.
+        """
+        now = time.time()
+        blocked_on = blocked_on or []
+        in_flight = in_flight or []
+
+        # Render a short markdown body so FTS5/SEMA can actually retrieve it.
+        handle_label = handle or participant_id
+        party_label = party_id or "unknown-party"
+        lines = [
+            f"# Participant presence: {handle_label} ({party_label})",
+            "",
+            f"Last heartbeat: {time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime(now))}",
+        ]
+        if current_focus:
+            lines.append(f"Current focus: {current_focus}")
+        if blocked_on:
+            lines.append(f"Blocked on: {', '.join(blocked_on)}")
+        if in_flight:
+            lines.append(f"In flight: {', '.join(in_flight)}")
+        if last_commit_hash:
+            lines.append(f"Last commit: {last_commit_hash}")
+        if extra_notes:
+            lines.append("")
+            lines.append(extra_notes)
+        content = "\n".join(lines)
+
+        # Build the Gene directly — bypass the density gate so presence
+        # genes always land OPEN, ensuring they're retrievable for the TTL
+        # window. Gate re-applies naturally at the next chromatin sweep.
+        from .schemas import (
+            ChromatinState,
+            EpigeneticMarkers,
+            Gene,
+            PromoterTags,
+        )
+        focus_tokens = (current_focus or "").split() if current_focus else []
+        codons = ["presence", "participant", handle_label, *focus_tokens[:5]]
+        promoter = PromoterTags(
+            domains=["helix:team", "helix:presence"],
+            entities=[handle_label, party_label],
+            intent="participant heartbeat",
+            summary=current_focus or f"{handle_label} is present",
+        )
+        key_values = [
+            "presence=true",
+            f"participant={participant_id}",
+            f"handle={handle_label}",
+            f"party={party_label}",
+        ]
+        if last_commit_hash:
+            key_values.append(f"last_commit={last_commit_hash}")
+
+        gene = Gene(
+            gene_id=f"presence:{participant_id}",
+            content=content,
+            complement=content,       # short enough to reuse
+            codons=codons,
+            promoter=promoter,
+            epigenetics=EpigeneticMarkers(
+                created_at=now,
+                last_accessed=now,
+                access_count=0,
+            ),
+            key_values=key_values,
+            chromatin=ChromatinState.OPEN,
+        )
+        self.genome.upsert_gene(gene, apply_gate=False)
+        return gene.gene_id
+
     def touch_heartbeat(self, participant_id: str) -> None:
         """Silent heartbeat refresh — used by implicit ingest-as-activity path.
 
