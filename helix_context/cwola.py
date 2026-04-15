@@ -171,6 +171,148 @@ def sweep_buckets(conn: sqlite3.Connection, now: Optional[float] = None) -> int:
     return updates
 
 
+# ---------------------------------------------------------------------------
+# Sliding-window correlation-matrix feature extractor
+#
+# Per docs/collab/comms/LOCKSTEP_MATRIX_FINDINGS_2026-04-14.md: the scalar
+# lockstep gate failed at |r|>=0.2, but the population correlation matrices
+# between A and B buckets diverged sharply (Frobenius 1.29, every top-delta
+# entry involving sema_boost). This extractor surfaces that population-level
+# structure as a per-retrieval feature by correlating tier scores over a
+# rolling window of the same session's recent retrievals.
+#
+# Consumers: batman's agreement head (PWPC manifold) + the Sprint 3 PLR
+# trainer. Feature shape: dict of 36 unique off-diagonal correlation entries
+# keyed "tier_i__tier_j" where (i, j) index in the canonical tier order below.
+# ---------------------------------------------------------------------------
+
+TIER_ORDER: List[str] = [
+    "fts5", "splade", "sema_boost", "lex_anchor",
+    "tag_exact", "tag_prefix", "pki", "harmonic", "sr",
+]
+
+# Minimum rows needed for a stable window correlation. Below this we emit
+# degenerate=True and callers should skip the feature.
+MIN_WINDOW_ROWS = 2
+
+
+def sliding_window_features(
+    conn: sqlite3.Connection,
+    *,
+    session_id: Optional[str],
+    before_ts: float,
+    window_size: int = 50,
+    tier_order: Optional[Sequence[str]] = None,
+) -> Dict[str, Any]:
+    """Correlation-matrix feature vector over the last `window_size` retrievals.
+
+    Returns a dict:
+        {
+          "n_rows": int,                 # actual number of rows used
+          "degenerate": bool,            # True if extraction not meaningful
+          "features": {"tier_i__tier_j": float, ...},  # 36 entries when ok
+          "reason": Optional[str],       # populated when degenerate
+        }
+
+    Degenerate cases (features returned empty or zero, no-op for consumers):
+      - No rows for this session before `before_ts`.
+      - Only 1 row (can't correlate a single observation).
+      - All rows have identical tier scores (zero variance → undefined corr).
+      - numpy not importable (falls back with explicit reason).
+
+    The window is strictly pre-`before_ts` — feature computed from history,
+    never leaks current-row info forward into itself.
+
+    Tier scores that never fired in a column are left at 0. Columns with
+    zero variance across the window produce 0 correlations (not NaN).
+    """
+    tiers: List[str] = list(tier_order) if tier_order else list(TIER_ORDER)
+    n_tiers = len(tiers)
+    empty: Dict[str, Any] = {"n_rows": 0, "degenerate": True, "features": {}, "reason": None}
+
+    if not session_id:
+        empty["reason"] = "no session_id"
+        return empty
+
+    try:
+        rows = conn.execute(
+            "SELECT tier_features FROM cwola_log "
+            "WHERE session_id = ? AND ts < ? "
+            "ORDER BY ts DESC LIMIT ?",
+            (session_id, before_ts, window_size),
+        ).fetchall()
+    except Exception:
+        log.debug("sliding_window_features read failed", exc_info=True)
+        empty["reason"] = "db read failed"
+        return empty
+
+    n = len(rows)
+    if n < MIN_WINDOW_ROWS:
+        empty["n_rows"] = n
+        empty["reason"] = f"n_rows={n} < MIN_WINDOW_ROWS={MIN_WINDOW_ROWS}"
+        return empty
+
+    try:
+        import numpy as np
+    except ImportError:
+        empty["n_rows"] = n
+        empty["reason"] = "numpy not available"
+        return empty
+
+    # Build X matrix (n × n_tiers). Missing tiers left at 0.
+    X = np.zeros((n, n_tiers), dtype=float)
+    for i, (feat_json,) in enumerate(rows):
+        if not feat_json:
+            continue
+        try:
+            feat = json.loads(feat_json)
+        except Exception:
+            continue
+        if not isinstance(feat, dict):
+            continue
+        for j, tier in enumerate(tiers):
+            v = feat.get(tier)
+            if v is None:
+                continue
+            try:
+                X[i, j] = float(v)
+            except (TypeError, ValueError):
+                continue
+
+    # Zero-variance columns produce NaN rows/cols in corrcoef — we mask those
+    # to 0 in the output so consumers can treat them as "no signal" uniformly.
+    col_std = X.std(axis=0, ddof=0)
+    zero_var_cols = col_std < 1e-12
+    if zero_var_cols.all():
+        return {
+            "n_rows": n,
+            "degenerate": True,
+            "features": {},
+            "reason": "all tier columns have zero variance",
+        }
+
+    # np.corrcoef emits a RuntimeWarning for zero-variance columns ("invalid
+    # value encountered in divide"). Suppress it; we handle the NaNs below.
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=RuntimeWarning)
+        C = np.corrcoef(X, rowvar=False)
+    C = np.nan_to_num(C, nan=0.0, posinf=0.0, neginf=0.0)
+
+    # Extract 36 unique off-diagonal entries (i < j) in canonical tier order.
+    features: Dict[str, float] = {}
+    for i in range(n_tiers):
+        for j in range(i + 1, n_tiers):
+            features[f"{tiers[i]}__{tiers[j]}"] = float(C[i, j])
+
+    return {
+        "n_rows": n,
+        "degenerate": False,
+        "features": features,
+        "reason": None,
+    }
+
+
 def stats(conn: sqlite3.Connection) -> Dict[str, Any]:
     """Coarse-grained counters for bench / dashboard observability."""
     try:
