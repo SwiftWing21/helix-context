@@ -1,14 +1,39 @@
+# ──────────────────────────────────────────────────────────────────────
+# [ribosome] — OPTIONAL ENRICHMENT LAYER. Off the hot path.
+#
+# The 12-tier retrieval pipeline and /context path are LLM-free today.
+# MiniLM (SEMA) and DeBERTa (rerank/splice, when enabled) are encoders/
+# classifiers, not generators. Context assembly is pure Python.
+#
+# The ribosome is only consulted when a ribosome op is EXPLICITLY
+# invoked — ingest-time `pack()`, background `replicate()`, or the
+# (default-off) Step 0 query intent expansion. Leave this section
+# alone and /context never touches an LLM.
+#
+# Think of it as a "subconscious" layer: reflective re-processing
+# during idle, tighter complements, cross-gene pattern noticing with
+# a larger model — separate subsystem against the same genome, not a
+# dependency of the retrieval loop. Partner/vendor eval hook too —
+# Anthropic / Google / etc. can plug a hosted compression model into
+# this seam without forking.
+# ──────────────────────────────────────────────────────────────────────
 [ribosome]
-model = "gemma4:e4b"                    # Ollama model for pack + replicate (lighter, 4.2GB VRAM)
+backend = "ollama"                      # "ollama" (local, default) | "claude" | "deberta" | "litellm"
+model = "gemma4:e2b"                    # Ollama model for pack + replicate (light, ~2GB VRAM)
 base_url = "http://localhost:11434"
 timeout = 120                            # Increased for bulk ingestion
 keep_alive = "30m"                      # keep Ollama model loaded
 warmup = false                          # pre-load Ollama model on server start (disabled for N=1000 bench — qwen3:4b holds VRAM)
-query_expansion_enabled = true          # Step 0 LLM query-intent expansion — false = strictly LLM-free /context pipeline (the 12 retrieval tiers never need this)
-backend = "claude"                      # "ollama" | "deberta" | "claude" | "litellm" — claude avoids GPU contention with qwen3:8b bench
-claude_model = "claude-haiku-4-5-20251001"   # haiku=cost-effective bulk; swap to claude-sonnet-4-6 for higher resolution
-claude_base_url = ""                    # direct Anthropic API (bench mode); was http://localhost:11434 for ollama, http://127.0.0.1:8787 for Headroom
-litellm_model = "ollama/gemma4:e4b"   # LiteLLM model string — using local Ollama
+query_expansion_enabled = false         # Step 0 LLM query-intent expansion. false = strictly LLM-free /context (the 12 retrieval tiers never need this). Flip on for an extra 2-3pp on ambiguous queries at the cost of one ribosome call per request.
+
+# Cloud-backend opt-in — keep commented so local stays default.
+# Useful for partner/vendor eval (Anthropic, Google, etc.) plugging a
+# hosted compression/extraction model into the ribosome seam without
+# forking, or for freeing the local GPU during heavy bench runs.
+# backend = "claude"
+# claude_model = "claude-haiku-4-5-20251001"   # haiku = cost-effective bulk; swap to claude-sonnet-4-6 for higher resolution
+# claude_base_url = ""                          # "" = direct Anthropic API; set to a proxy URL (e.g. http://127.0.0.1:8787) to route through a gateway
+# litellm_model = "ollama/gemma4:e2b"           # LiteLLM model string — only used when backend = "litellm"
 
 [budget]
 ribosome_tokens = 3000                  # fixed decoder prompt

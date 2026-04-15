@@ -10,14 +10,21 @@
 **A local-first knowledge store for LLM context compression.**
 **Scale-Invariant Knowledge Engine (SIKE) — 10/10 retrieval from 0.6B to 26B parameters.**
 
-> **The retrieval pipeline is LLM-free.** Ingest, tagging, candidate selection,
-> reranking, and fragment trimming are all pure CPU math — Howard 2005 TCM,
-> Stachenfeld 2017 SR, Werman 1986 W1, Hebbian co-activation, spaCy NER. The only
-> LLM call is the final answer-generation step at `/v1/chat/completions`. Helix
-> used to depend on an LLM to serve another LLM; now it just uses well-understood
-> retrieval math. *(One optional Step 0 query-intent expansion sits behind
-> `[compressor] query_expansion_enabled` — default `true` for backward compat,
-> set `false` for strictly LLM-free `/context`.)*
+> **The `/context` pipeline is LLM-free.** Ingest, tagging, candidate
+> selection, fusion, chromatin gating, and context assembly are all pure
+> CPU math — Howard 2005 TCM, Stachenfeld 2017 SR, Werman 1986 W1, Hebbian
+> co-activation, spaCy NER. MiniLM (SEMA encoder, 384d → 20d) and DeBERTa
+> (optional rerank/splice classifiers) are **not** LLMs — they're small
+> transformer encoders, no generation. The only LLM call on the hot path
+> is the final answer-generation step at `/v1/chat/completions`. Helix
+> used to depend on an LLM to serve another LLM; now it just uses
+> well-understood retrieval math.
+>
+> An optional "subconscious" layer — the ribosome — sits off the hot path
+> for idle-time re-processing (tighter complements, cross-gene pattern
+> noticing) and is how partners plug a hosted model (Anthropic, Google,
+> etc.) into the compression seam without forking. Default: off. See
+> [`[ribosome]`](#configuration) in the config.
 
 > A persistent SQLite-backed **knowledge store** holds compressed documents.
 > 7,200 documents (44 MB raw knowledge) compress to ~15K tokens of retrieved
@@ -83,6 +90,7 @@
   |                            |
   |  1. Extract query          |
   |  2. Retrieval pipeline     |  <-- Knowledge store (SQLite)
+  |     (seam compression)     |      optional: Headroom codec
   |  3. Inject context         |  <-- Compressor (CPU model)
   |  4. Forward to Ollama      |  --> localhost:11434
   |  5. Stream tee response    |
@@ -331,24 +339,35 @@ contain your project.
 
 ## How It Works
 
-**6-step expression pipeline per turn:**
+**`/context` pipeline per query (LLM-free today — zero `backend.complete()` calls on this path):**
 
-| Step | What | Cost | Blocking? |
-|------|------|------|-----------|
-| 1. Extract | Heuristic keyword extraction from query | 0 tokens | No |
-| 2. Express | SQLite promoter lookup + synonym expansion + co-activation | 0 tokens | No |
-| 3. Re-rank | Small CPU model scores candidates by relevance | ~300 tokens | Yes |
-| 4. Splice | Small CPU model trims introns, keeps exons (batched) | ~600 tokens | Yes |
-| 5. Assemble | Join spliced parts, enforce token budget, wrap in tags | 0 tokens | No |
-| 6. Replicate | Pack query+response exchange back into genome | ~300 tokens | No (background) |
+| Step | What | LLM? |
+|------|------|------|
+| 1. Query parse | Heuristic keyword / entity extraction | No |
+| 2. SEMA encode | MiniLM 384d → project to 20d (encoder, not generator) | No |
+| 3. 12-tier scorers | FTS5, SPLADE, SEMA cosine, lex_anchor, tag_exact/prefix, pki, harmonic, sr (multi-hop), cymatics — all pure math | No |
+| 4. Fusion | Weighted sum across tier scores | No |
+| 5. Top-k + chromatin gate | Filter by retrieval score + tier residency | No |
+| 6. Gene fetch | SQLite read | No |
+| 7. Codon decompression | Deterministic expansion | No |
+| 8. Context assembly | Sort + join spliced parts, wrap in tags, emit session stubs | No |
+| 9. CWoLa log write | Telemetry insert for tier-contribution analysis | No |
+
+> Two optional LLM hooks exist off the default path. `rerank_enabled`
+> (off) routes candidate rerank through DeBERTa cross-encoder (still
+> not a generator) or an LLM backend. `query_expansion_enabled` (off)
+> fires one Step 0 ribosome call per query for intent expansion —
+> worth ~2-3pp on ambiguous queries, not worth it on specific ones.
 
 **Token budget:**
-- 3k tokens: ribosome decoder prompt (fixed, tells the big model how to read codons)
 - 12k tokens: expressed context (dense XML gene format, 12 genes per turn)
 - 11M+ tokens: genome cold storage (SQLite, ~46MB raw on a mature project)
+- 3k tokens: optional decoder prompt (only emitted when the downstream
+  model benefits from an explicit codon-reading preamble — API models
+  get `decoder_mode = "none"` for free savings)
 
 **Compression metrics:**
-- Storage: 2.7x (raw content → ribosome complements)
+- Storage: 2.7x (raw content → stored complements)
 - Expression: **769x** (full genome → what the LLM sees per turn)
 - vs naive RAG at 25K tokens: 1.7x fewer tokens, 10/10 vs ~6/10 accuracy
 
@@ -552,12 +571,26 @@ resolution_to_gene("security", auto_score=0.85, manual_score=1.0,
 All config in `helix.toml`:
 
 ```toml
+# [ribosome] — OPTIONAL. The /context retrieval path is LLM-free by
+# default. This section only kicks in if you explicitly enable one of
+# the ribosome ops (query expansion, rerank, or ingest-time pack).
+# Think "subconscious layer" — reflective re-processing during idle,
+# not a hot-path dependency.
 [ribosome]
-model = "gemma4:e4b"        # context codec for pack/re_rank/splice
-backend = "ollama"          # or "deberta" for faster CPU-only ribosome
-timeout = 30                # seconds before fallback
-keep_alive = "30m"          # keep model loaded (eliminates swap latency)
-warmup = true               # pre-load model on server start
+backend = "ollama"                  # "ollama" (local) | "claude" | "deberta" | "litellm" — only consulted when a ribosome op explicitly runs
+model = "gemma4:e2b"                # Ollama model for pack/replicate (light, ~2GB VRAM)
+base_url = "http://localhost:11434"
+timeout = 30
+keep_alive = "30m"
+warmup = false                      # pre-load on server start; false keeps /context zero-LLM out of the box
+query_expansion_enabled = false     # Step 0 LLM query-intent expansion. Flip true for ~2-3pp on ambiguous queries at the cost of one ribosome call per request.
+
+# Partner / vendor hook — route the ribosome through a hosted model
+# (Anthropic, Google, etc.) for compression/extraction testing without
+# forking. Uncomment and set your key (HELIX / ANTHROPIC_API_KEY).
+# backend = "claude"
+# claude_model = "claude-haiku-4-5-20251001"   # haiku = cost-effective bulk; swap to claude-sonnet-4-6 for higher resolution
+# claude_base_url = ""                         # "" = direct Anthropic API; set to a proxy URL to route through a gateway
 
 [budget]
 ribosome_tokens = 3000

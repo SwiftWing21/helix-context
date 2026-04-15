@@ -91,10 +91,23 @@ building the primary trust-signal substrate for LLM-as-consumer.
 ### 5. LLM-to-LLM coordination is a first-class use case
 
 Presence genes (`presence:{participant_id}`), structured handoffs, and the
-party / participant registry exist so that *one* agent's context surfaces
-*another* agent's state. This use case does not exist in the human-consumer
-framing; it's distinctive to multi-agent deployments and should be optimised
-accordingly.
+4-layer identity registry (**org** → **party** → **participant** → **agent**)
+exist so that *one* agent's context surfaces *another* agent's state. The
+layering is deliberate:
+
+| Layer | What it represents | Example |
+|---|---|---|
+| `org` | External account / oauth / email identity | `swift_wing21@github` |
+| `party` | Device | `max-desktop`, `max-laptop` |
+| `participant` | Human user on that device | `max`, `todd` |
+| `agent` | Agent session / tool call / sub-agent | `laude-vscode-left`, `raude-mcp-pid42` |
+
+Each gene is attributed across all four layers so retrieval can scope by
+whichever is load-bearing for the query — "what did Laude do on this device
+tonight" (agent+party), "what does Max's org know about X" (org), "what did
+this human type themselves vs what did an agent write" (participant vs
+agent). This use case does not exist in the human-consumer framing; it's
+distinctive to multi-agent deployments and should be optimised accordingly.
 
 ### 6. Naming is a form of introspection
 
