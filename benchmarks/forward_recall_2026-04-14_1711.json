@@ -1,0 +1,141 @@
+{
+  "bench": "forward_recall_asymmetry",
+  "timestamp": "2026-04-14_1711",
+  "n_items": 20,
+  "n_seeds": 10,
+  "base_seed": 42,
+  "tcm_bonus_weight": 0.3,
+  "decision": "NEUTRAL",
+  "rationale": "TCM bonus has no measurable effect on rank order (delta_fai = -0.031, |delta| <= 0.05). Either the bonus weight is too low relative to tier-1 score spread, or the velocity-integrated context vector is not systematically closer to later-encoded genes' input vectors than to earlier ones. The docstring claim of forward-recall asymmetry is not substantiated by this setup.",
+  "aggregate": {
+    "mean_tcm_fai": 0.4321052631578947,
+    "stdev_tcm_fai": 0.04544164454993782,
+    "mean_tier1_fai": 0.4631578947368421,
+    "delta_fai": -0.031052631578947387,
+    "mean_last_gene_tcm_rank": 1.4,
+    "mean_first_gene_tcm_rank": 0,
+    "mean_max_bonus": 0.26302055159265264
+  },
+  "runs": [
+    {
+      "seed": 42,
+      "n": 20,
+      "weight": 0.3,
+      "tcm_fai": 0.45789473684210524,
+      "tier1_fai": 0.4631578947368421,
+      "last_gene_tcm_rank": 3,
+      "first_gene_tcm_rank": 0,
+      "mean_bonus": 0.09985991393712543,
+      "max_bonus": 0.26689325129799696,
+      "n_candidates": 20
+    },
+    {
+      "seed": 43,
+      "n": 20,
+      "weight": 0.3,
+      "tcm_fai": 0.46842105263157896,
+      "tier1_fai": 0.4631578947368421,
+      "last_gene_tcm_rank": 1,
+      "first_gene_tcm_rank": 0,
+      "mean_bonus": 0.07353286920589559,
+      "max_bonus": 0.2638421540036791,
+      "n_candidates": 20
+    },
+    {
+      "seed": 44,
+      "n": 20,
+      "weight": 0.3,
+      "tcm_fai": 0.35789473684210527,
+      "tier1_fai": 0.4631578947368421,
+      "last_gene_tcm_rank": 1,
+      "first_gene_tcm_rank": 0,
+      "mean_bonus": 0.11785799512476125,
+      "max_bonus": 0.2404157820749518,
+      "n_candidates": 20
+    },
+    {
+      "seed": 45,
+      "n": 20,
+      "weight": 0.3,
+      "tcm_fai": 0.4052631578947368,
+      "tier1_fai": 0.4631578947368421,
+      "last_gene_tcm_rank": 1,
+      "first_gene_tcm_rank": 0,
+      "mean_bonus": 0.10395806749685874,
+      "max_bonus": 0.2641235372842331,
+      "n_candidates": 20
+    },
+    {
+      "seed": 46,
+      "n": 20,
+      "weight": 0.3,
+      "tcm_fai": 0.3736842105263158,
+      "tier1_fai": 0.4631578947368421,
+      "last_gene_tcm_rank": 1,
+      "first_gene_tcm_rank": 0,
+      "mean_bonus": 0.09786474094257729,
+      "max_bonus": 0.2601539060483599,
+      "n_candidates": 20
+    },
+    {
+      "seed": 47,
+      "n": 20,
+      "weight": 0.3,
+      "tcm_fai": 0.4368421052631579,
+      "tier1_fai": 0.4631578947368421,
+      "last_gene_tcm_rank": 1,
+      "first_gene_tcm_rank": 0,
+      "mean_bonus": 0.09702333042651669,
+      "max_bonus": 0.2728579296504629,
+      "n_candidates": 20
+    },
+    {
+      "seed": 48,
+      "n": 20,
+      "weight": 0.3,
+      "tcm_fai": 0.43157894736842106,
+      "tier1_fai": 0.4631578947368421,
+      "last_gene_tcm_rank": 1,
+      "first_gene_tcm_rank": 0,
+      "mean_bonus": 0.08147547665493451,
+      "max_bonus": 0.25413325683844207,
+      "n_candidates": 20
+    },
+    {
+      "seed": 49,
+      "n": 20,
+      "weight": 0.3,
+      "tcm_fai": 0.5105263157894737,
+      "tier1_fai": 0.4631578947368421,
+      "last_gene_tcm_rank": 2,
+      "first_gene_tcm_rank": 0,
+      "mean_bonus": 0.08946747392602414,
+      "max_bonus": 0.2724037784420068,
+      "n_candidates": 20
+    },
+    {
+      "seed": 50,
+      "n": 20,
+      "weight": 0.3,
+      "tcm_fai": 0.45789473684210524,
+      "tier1_fai": 0.4631578947368421,
+      "last_gene_tcm_rank": 1,
+      "first_gene_tcm_rank": 0,
+      "mean_bonus": 0.09985150319863142,
+      "max_bonus": 0.26268716172392426,
+      "n_candidates": 20
+    },
+    {
+      "seed": 51,
+      "n": 20,
+      "weight": 0.3,
+      "tcm_fai": 0.42105263157894735,
+      "tier1_fai": 0.4631578947368421,
+      "last_gene_tcm_rank": 2,
+      "first_gene_tcm_rank": 0,
+      "mean_bonus": 0.08435112279603638,
+      "max_bonus": 0.2726947585624693,
+      "n_candidates": 20
+    }
+  ]
+}
