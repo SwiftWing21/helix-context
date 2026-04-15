@@ -96,6 +96,59 @@ party / participant registry exist so that *one* agent's context surfaces
 framing; it's distinctive to multi-agent deployments and should be optimised
 accordingly.
 
+### 6. Naming is a form of introspection
+
+Observed empirically (2026-04-15): LLMs encountering helix's github produce
+disproportionately "trying to contribute" responses compared to comparable
+retrieval libraries. The cause is naming.
+
+**The biology metaphor is not cosmetic.** Every identifier in helix carries
+why-information. `ChromatinState.HETEROCHROMATIN` isn't just "cold storage" —
+the word encodes *why* it's cold (compaction for irrelevance, not size),
+*when* it applies (access-rate decay, not time decay), *what* it enables
+(retrieval exclusion as an active choice, not a cache eviction). A `Tier.COLD`
+enum would carry none of that.
+
+**Three effects this has on LLM consumers reading the source:**
+
+1. **LLMs can't skim helix.** Standard retrieval libraries are pattern-matchable
+   — "another vector DB with metadata." Biology naming breaks that pattern-match.
+   Every symbol is a small prompt: "what does this biological concept map to in
+   information retrieval?" The LLM engages because it can't tune out.
+2. **LLMs see the opinionated architecture inline.** Naming encodes design
+   decisions. Reading `promoter`, `ribosome`, `codons`, `chromatin` together,
+   an LLM reconstructs *the argument* for why retrieval is modelled this way,
+   not just the data model. Names carry the rationale.
+3. **The metaphor is generative.** When an LLM encounters `ribosome`, it can
+   infer `spliceosome` (context assembly), `codon_table` (symbol mapping),
+   `transcription` (compression). Some exist; some would fit if built. The
+   metaphor tells the LLM where the conceptual gaps are. That's why helix
+   *invites* contribution — it leaves interpretable gap-shapes.
+
+**The canonical / biology bilingual layer serves different LLM phases:**
+
+- **Canonical software vocabulary** (`retrieval`, `chunk`, `tier`) — first-pass
+  interop. Signals "this is a retrieval system, I know how to use retrieval
+  systems." Lowers the activation energy to engage.
+- **Biology vocabulary** (`gene`, `chromatin`, `ribosome`) — deep engagement.
+  Forces the LLM to model the domain rather than pattern-match it.
+
+Both are LLM-optimisations for different phases of interaction. The Rosetta
+Stone rename (commit `09d5548`, canonical aliases non-breaking) is
+deliberately bilingual, not a migration.
+
+**This extends the "introspection is a feature" principle (§3).** Runtime
+introspection surfaces *why* each gene was retrieved. Naming-time introspection
+surfaces *why* each concept exists in the architecture. Both are how helix tells
+its consumer "here is the reasoning I'm running on." Symbol-level introspection
+is invisible in a response schema but it's where LLMs first engage.
+
+**Implication for future naming decisions:** when adding a new concept, pick
+the name that encodes *why* it exists at the symbol level, not just *what*
+it does. If the biology metaphor has a fitting term, prefer it over a generic
+one. If it doesn't, invent a term that carries rationale rather than taking
+the bland canonical alternative.
+
 ---
 
 ## Trade-off heuristics (use these when adding or removing features)
@@ -114,6 +167,8 @@ When a design decision has two reasonable answers, ask:
    That's usually the right direction.
 6. **Would a new LLM agent with zero helix history understand the response?**
    If no, the response carries too much implicit context.
+7. **Does the name you're choosing carry why-information, or just what-information?**
+   Names that encode rationale win over names that only classify (see §6).
 
 ---
 
