@@ -76,6 +76,18 @@ class TestHealthEndpoint:
         assert "genes" in data
         assert "upstream" in data
 
+    def test_health_exposes_cost_class(self, client):
+        """W2-B: /health surfaces backend cost classification so MCP
+        clients can warn users when they're on a paid backend."""
+        resp = client.get("/health")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "ribosome_backend" in data
+        assert "ribosome_cost_class" in data
+        # Test fixture uses RibosomeConfig defaults (backend=ollama),
+        # which classifies as local.
+        assert data["ribosome_cost_class"] in ("local", "api+free", "api+paid")
+
 
 class TestStatsEndpoint:
     def test_stats_returns_genome_info(self, client):

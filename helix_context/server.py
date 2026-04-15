@@ -205,7 +205,43 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
     if config is None:
         config = load_config()
 
+    # ── Cost-visibility startup warning (W2-B) ─────────────────────
+    # Surface paid-API ribosome backends loudly so operators are
+    # never surprised by metered cost. Local-first is the helix
+    # promise; making a paid backend silent broke that promise
+    # for hours of bench work in the 2026-04-14 session.
+    _cost_class = config.ribosome.cost_class
+    if _cost_class == "api+paid":
+        log.warning(
+            "RIBOSOME PAID-API ACTIVE: backend=%s model=%s. Every "
+            "ingest/replicate/rerank call hits a metered API. Flip "
+            "[ribosome] backend=ollama in helix.toml for local-only "
+            "operation.",
+            config.ribosome.backend,
+            config.ribosome.active_model,
+        )
+    else:
+        log.info(
+            "Ribosome cost_class=%s backend=%s model=%s",
+            _cost_class, config.ribosome.backend, config.ribosome.active_model,
+        )
+
     helix = HelixContextManager(config)
+
+    # W2-B: emit the ribosome info-metric for dashboard visibility.
+    # No-op if OTel is disabled.
+    try:
+        from .telemetry import ribosome_info_gauge
+        ribosome_info_gauge().set(
+            1,
+            attributes={
+                "backend": config.ribosome.backend,
+                "model": config.ribosome.active_model,
+                "cost_class": _cost_class,
+            },
+        )
+    except Exception:  # pragma: no cover - telemetry must not break startup
+        pass
 
     # Bridge instantiated up here so the lifespan closure can capture it.
     # The /bridge/* endpoints below close over this same instance.
@@ -308,7 +344,22 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
 
         # Step 1-5: Expression pipeline
         downstream_model = body.get("model")
-        context_window = await helix.build_context_async(user_query, downstream_model=downstream_model)
+        # Budget-zone signal: sum all message content tokens so the
+        # pipeline can see how full the caller's window already is.
+        # Computed here (not in context_manager) because messages[] is
+        # a proxy-layer concept. No-op unless HELIX_BUDGET_ZONE=1.
+        try:
+            from .metrics import estimate_tokens as _est_tokens
+            _prompt_tokens = sum(
+                _est_tokens(m.get("content", "") or "") for m in messages
+            )
+        except Exception:
+            _prompt_tokens = None
+        context_window = await helix.build_context_async(
+            user_query,
+            downstream_model=downstream_model,
+            prompt_tokens_hint=_prompt_tokens,
+        )
 
         # Delta-epsilon health signal
         health = context_window.context_health
@@ -546,6 +597,16 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             helix._decoder_mode = decoder_override
             helix._decoder_prompt = DECODER_MODES[decoder_override]
 
+        # Budget-zone signal: the /context endpoint has no messages[] so
+        # callers must supply prompt_tokens explicitly if they want the
+        # zone cap to kick in. Missing => treated as clean/no-cap.
+        _prompt_tokens_hint = data.get("prompt_tokens")
+        if _prompt_tokens_hint is not None:
+            try:
+                _prompt_tokens_hint = int(_prompt_tokens_hint)
+            except (TypeError, ValueError):
+                _prompt_tokens_hint = None
+
         # Sprint 2 session working-set: thread session_id into the
         # pipeline so _assemble can elide already-delivered genes.
         # ignore_delivered=true bypasses elision (benches, smoke tests).
@@ -556,6 +617,7 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             include_cold=include_cold,
             session_context=session_context,
             party_id=cwola_party_id,
+            prompt_tokens_hint=_prompt_tokens_hint,
             session_id=cwola_session_id,
             ignore_delivered=_ignore_delivered,
         )
@@ -1408,6 +1470,11 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
         return {
             "status": "ok",
             "ribosome": ribosome_model,
+            # W2-B: cost classification surfaces local vs paid-API backends
+            # without operators having to read helix.toml. Pair with the
+            # startup WARNING (above in create_app) for visibility.
+            "ribosome_backend": config.ribosome.backend,
+            "ribosome_cost_class": config.ribosome.cost_class,
             "genes": helix.genome.stats()["total_genes"],
             "upstream": config.server.upstream,
         }

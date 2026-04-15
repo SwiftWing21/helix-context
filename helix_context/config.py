@@ -46,6 +46,48 @@ class RibosomeConfig:
     # _expand_query_intent.
     query_expansion_enabled: bool = True
 
+    # ── Cost classification (W2-B) ─────────────────────────────────
+    # Derived classification of the chosen backend's cost profile. Used
+    # by /health and by a server-startup WARNING so operators are never
+    # surprised by paid-API ribosome calls. Add new backends to the
+    # appropriate tuple.
+    _LOCAL_BACKENDS = ("ollama", "deberta")
+    _PAID_API_BACKENDS = ("claude",)
+    # litellm is paid OR local depending on the underlying model string;
+    # classified separately by ``cost_class`` (see below).
+
+    @property
+    def cost_class(self) -> str:
+        """Return one of ``local`` | ``api+free`` | ``api+paid``.
+
+        - ``local``   = runs on the operator's machine (Ollama / DeBERTa).
+        - ``api+free``= remote API with no metered cost (none today).
+        - ``api+paid``= remote API that bills per call (Claude direct, or
+                        LiteLLM routed to a paid model string).
+
+        litellm with a model that starts with ``ollama/`` is treated as
+        local (the call goes to the local Ollama). Any other litellm
+        model string is treated as paid.
+        """
+        b = self.backend.lower()
+        if b in self._LOCAL_BACKENDS:
+            return "local"
+        if b in self._PAID_API_BACKENDS:
+            return "api+paid"
+        if b == "litellm":
+            return "local" if self.litellm_model.startswith("ollama/") else "api+paid"
+        return "api+paid"  # unknown backend defaults to paid for safety
+
+    @property
+    def active_model(self) -> str:
+        """Return the model string actually in use, given the backend."""
+        b = self.backend.lower()
+        if b == "claude":
+            return self.claude_model
+        if b == "litellm":
+            return self.litellm_model
+        return self.model
+
 
 @dataclass
 class BudgetConfig:

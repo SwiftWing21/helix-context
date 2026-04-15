@@ -361,6 +361,29 @@ def budget_tier_counter():
     return _instruments["budget_tier"]
 
 
+def ribosome_info_gauge():
+    """Info-metric gauge for ribosome cost visibility (W2-B).
+
+    Set once at server startup with value=1 and labels
+    {backend, model, cost_class}. Standard Prometheus
+    info-metric pattern -- the value is meaningless; the
+    labels carry the data. Use in dashboards via:
+
+        helix_ribosome_info{cost_class="api+paid"}
+
+    A red stat panel keyed on cost_class="api+paid" surfaces
+    paid-backend operation in the dashboard view, complementing
+    the startup WARNING log line.
+    """
+    if "ribosome_info" not in _instruments:
+        _instruments["ribosome_info"] = meter.create_gauge(
+            "helix_ribosome_info",
+            description="Ribosome backend info; value=1, labels "
+                        "{backend, model, cost_class} carry the data.",
+        )
+    return _instruments["ribosome_info"]
+
+
 def emit_gauges_snapshot(genome) -> None:
     """Poll-driven gauges for chromatin + harmonic-edges + genome size.
 

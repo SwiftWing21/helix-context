@@ -185,6 +185,64 @@
         }
       ],
       "fieldConfig": {"defaults": {"unit": "short"}}
+    },
+    {
+      "type": "row",
+      "title": "Operations",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 45}
+    },
+    {
+      "type": "stat",
+      "title": "Ribosome backend — cost class",
+      "description": "Cost classification of the active ribosome backend. local = Ollama / DeBERTa on the operator machine. api+paid = metered remote API (Claude direct, or LiteLLM routed to a paid model). Pair with the startup WARNING log line. Red = paid; the local-first promise is broken until the operator flips backend in helix.toml.",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 46},
+      "targets": [
+        {
+          "expr": "helix_ribosome_info",
+          "legendFormat": "{{cost_class}} — {{backend}}/{{model}}",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "name",
+        "colorMode": "background",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {"type": "value", "value": "local",    "options": {"color": "green",  "index": 0}},
+            {"type": "value", "value": "api+free", "options": {"color": "blue",   "index": 1}},
+            {"type": "value", "value": "api+paid", "options": {"color": "red",    "index": 2}}
+          ],
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Active ribosome model",
+      "description": "Resolved model string for the active backend. ollama -> RibosomeConfig.model; claude -> claude_model; litellm -> litellm_model.",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 46},
+      "targets": [
+        {
+          "expr": "helix_ribosome_info",
+          "legendFormat": "{{model}}",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "name",
+        "colorMode": "value",
+        "graphMode": "none"
+      }
     }
   ]
 }
