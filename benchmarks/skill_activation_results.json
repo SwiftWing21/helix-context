@@ -1,0 +1,267 @@
+{
+  "timestamp": 1776228713.8507178,
+  "n_shapes": 10,
+  "results": [
+    {
+      "id": "bare_keyword",
+      "label": "bare keyword",
+      "query": "port",
+      "expected_strong": [
+        "fts5",
+        "splade"
+      ],
+      "rationale": "no context, just a single token \u2014 content match dominates",
+      "latency_s": 11.69,
+      "tier_totals": {
+        "tag_exact": 99.0,
+        "tag_prefix": 58.5,
+        "fts5": 60.0,
+        "lex_anchor": 60.0,
+        "harmonic": 36.0,
+        "splade": 2.365
+      },
+      "genes_expressed": 12,
+      "ellipticity": 0.5602,
+      "budget_tier": "broad",
+      "moe_mode": true,
+      "compression_ratio": 3.5,
+      "top_source": "__session__",
+      "top_score": 40.45
+    },
+    {
+      "id": "generic_question",
+      "label": "generic question",
+      "query": "what is the value of port?",
+      "expected_strong": [
+        "fts5"
+      ],
+      "rationale": "natural-language scaffolding, no project narrowing",
+      "latency_s": 11.05,
+      "tier_totals": {
+        "tag_exact": 99.0,
+        "tag_prefix": 55.5,
+        "fts5": 54.0,
+        "lex_anchor": 60.0,
+        "harmonic": 36.0,
+        "splade": 4.683
+      },
+      "genes_expressed": 12,
+      "ellipticity": 0.5693,
+      "budget_tier": "broad",
+      "moe_mode": true,
+      "compression_ratio": 3.12,
+      "top_source": "__session__",
+      "top_score": 40.36
+    },
+    {
+      "id": "project_plus_key",
+      "label": "project + key",
+      "query": "helix port",
+      "expected_strong": [
+        "pki",
+        "tag_exact",
+        "lex_anchor"
+      ],
+      "rationale": "compound (helix, port) hits PKI; both terms are tag-like",
+      "latency_s": 12.79,
+      "tier_totals": {
+        "tag_exact": 195.0,
+        "tag_prefix": 139.5,
+        "fts5": 72.0,
+        "splade": 33.685,
+        "lex_anchor": 360.0,
+        "harmonic": 36.0
+      },
+      "genes_expressed": 12,
+      "ellipticity": 0.5992,
+      "budget_tier": "broad",
+      "moe_mode": true,
+      "compression_ratio": 3.87,
+      "top_source": "Projects\\helix-context\\training\\export_training_data.py",
+      "top_score": 82.59
+    },
+    {
+      "id": "project_plus_entity",
+      "label": "project + entity",
+      "query": "helix ribosome",
+      "expected_strong": [
+        "tag_exact",
+        "pki",
+        "lex_anchor"
+      ],
+      "rationale": "two named entities, narrows hard",
+      "latency_s": 6.77,
+      "tier_totals": {
+        "sr": 0.007
+      },
+      "genes_expressed": 12,
+      "ellipticity": 0.5612,
+      "budget_tier": "broad",
+      "moe_mode": true,
+      "compression_ratio": 4.6,
+      "top_source": "Projects\\helix-context\\tests\\test_stress.py",
+      "top_score": 0.0
+    },
+    {
+      "id": "code_symbol",
+      "label": "code symbol",
+      "query": "def upsert_gene",
+      "expected_strong": [
+        "fts5",
+        "splade"
+      ],
+      "rationale": "code-shaped token, lives in raw content not tags",
+      "latency_s": 6.19,
+      "tier_totals": {
+        "tag_exact": 51.0,
+        "tag_prefix": 36.0,
+        "lex_anchor": 82.657,
+        "harmonic": 30.0,
+        "sr": 0.003
+      },
+      "genes_expressed": 12,
+      "ellipticity": 0.5955,
+      "budget_tier": "broad",
+      "moe_mode": true,
+      "compression_ratio": 3.32,
+      "top_source": "Projects\\helix-context\\tests\\test_density_gate.py",
+      "top_score": 36.43
+    },
+    {
+      "id": "path_lookup",
+      "label": "path lookup",
+      "query": "helix_context genome.py",
+      "expected_strong": [
+        "pki",
+        "tag_prefix",
+        "fts5"
+      ],
+      "rationale": "file path tokens \u2014 PKI loves these",
+      "latency_s": 5.42,
+      "tier_totals": {
+        "tag_exact": 33.0,
+        "tag_prefix": 33.0,
+        "fts5": 60.0,
+        "sema_boost": 10.964,
+        "lex_anchor": 66.0,
+        "harmonic": 13.0,
+        "splade": 2.862
+      },
+      "genes_expressed": 12,
+      "ellipticity": 0.4539,
+      "budget_tier": "broad",
+      "moe_mode": true,
+      "compression_ratio": 1.89,
+      "top_source": "",
+      "top_score": 32.13
+    },
+    {
+      "id": "natural_sentence",
+      "label": "natural sentence",
+      "query": "How does helix handle WAL checkpoints?",
+      "expected_strong": [
+        "fts5",
+        "splade",
+        "lex_anchor"
+      ],
+      "rationale": "long natural language; multiple weak signals stack",
+      "latency_s": 6.18,
+      "tier_totals": {
+        "tag_exact": 180.0,
+        "tag_prefix": 136.5,
+        "fts5": 72.0,
+        "splade": 32.406,
+        "lex_anchor": 298.412,
+        "harmonic": 36.0
+      },
+      "genes_expressed": 12,
+      "ellipticity": 0.4657,
+      "budget_tier": "broad",
+      "moe_mode": true,
+      "compression_ratio": 4.6,
+      "top_source": "Projects\\helix-context\\training\\export_training_data.py",
+      "top_score": 77.48
+    },
+    {
+      "id": "multi_key_compound",
+      "label": "multi-key compound",
+      "query": "helix port and ribosome model",
+      "expected_strong": [
+        "pki",
+        "tag_exact",
+        "lex_anchor"
+      ],
+      "rationale": "two PKI compound hits, two tag matches",
+      "latency_s": 18.15,
+      "tier_totals": {
+        "tag_exact": 156.0,
+        "tag_prefix": 108.0,
+        "fts5": 42.0,
+        "splade": 19.045,
+        "lex_anchor": 294.056,
+        "harmonic": 36.0
+      },
+      "genes_expressed": 12,
+      "ellipticity": 0.6217,
+      "budget_tier": "broad",
+      "moe_mode": true,
+      "compression_ratio": 6.49,
+      "top_source": "Projects\\helix-context\\training\\export_training_data.py",
+      "top_score": 80.62
+    },
+    {
+      "id": "documentation_phrase",
+      "label": "documentation phrase",
+      "query": "the four-layer attribution model",
+      "expected_strong": [
+        "fts5",
+        "splade"
+      ],
+      "rationale": "doc-shaped, no project anchor",
+      "latency_s": 9.73,
+      "tier_totals": {
+        "tag_exact": 15.0,
+        "tag_prefix": 7.5,
+        "lex_anchor": 10.229,
+        "harmonic": 15.0,
+        "splade": 2.141,
+        "sr": 0.005
+      },
+      "genes_expressed": 12,
+      "ellipticity": 0.4376,
+      "budget_tier": "broad",
+      "moe_mode": true,
+      "compression_ratio": 2.99,
+      "top_source": "Projects\\CosmicTasha\\.planning\\01-infrastructure-hosting.md",
+      "top_score": 11.69
+    },
+    {
+      "id": "vague_plea",
+      "label": "vague plea",
+      "query": "show me everything about caching",
+      "expected_strong": [
+        "splade",
+        "sema_cold",
+        "fts5"
+      ],
+      "rationale": "broad semantic \u2014 semantic tiers should carry it",
+      "latency_s": 4.12,
+      "tier_totals": {
+        "tag_exact": 30.0,
+        "tag_prefix": 15.0,
+        "lex_anchor": 60.0,
+        "harmonic": 28.0,
+        "sema_boost": 5.755,
+        "fts5": 24.0,
+        "splade": 2.318
+      },
+      "genes_expressed": 12,
+      "ellipticity": 0.3669,
+      "budget_tier": "broad",
+      "moe_mode": true,
+      "compression_ratio": 2.44,
+      "top_source": "",
+      "top_score": 22.63
+    }
+  ]
+}
