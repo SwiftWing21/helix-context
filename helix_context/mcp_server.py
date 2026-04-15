@@ -35,6 +35,13 @@ Tools exposed:
       helix_neighbors       — top-k SEMA neighbors for a query (light)
       helix_splice_preview  — dry-run retrieval pipeline (skip splice)
 
+    Software-vocabulary aliases (per docs/ROSETTA.md):
+      helix_document_get     — alias for helix_gene_get
+      helix_document_query   — alias for helix_context
+      helix_document_preview — alias for helix_splice_preview
+      All three are thin pass-throughs; callers should prefer the
+      ``document_*`` names in new code. Legacy names remain valid.
+
 Run (stdio transport — what MCP hosts spawn):
     python -m helix_context.mcp_server
 
@@ -506,6 +513,62 @@ def helix_splice_preview(query: str, max_genes: int = 12) -> Dict[str, Any]:
     Much cheaper than a full /context call -- no ribosome calls
     at all. Use for "why isn't query X surfacing gene Y?" debugging
     without burning model quota on splice.
+    """
+    path = (
+        f"/debug/preview?query={urllib.request.quote(query)}"
+        f"&max_genes={int(max_genes)}"
+    )
+    return _http("GET", path)
+
+
+# ── Software-vocabulary aliases (per docs/ROSETTA.md) ────────────────
+# Pass-through tools registered under canonical software names. Body
+# delegates to the legacy implementation -- same network call, same
+# response shape, same behavior. Adding aliases instead of renaming
+# keeps existing MCP clients working unchanged.
+#
+# Lexicon: see docs/ROSETTA.md for the full biology<->software map.
+
+@mcp.tool()
+def helix_document_get(document_id: str) -> Dict[str, Any]:
+    """Fetch a single document by ID. Canonical alias for ``helix_gene_get``.
+
+    Returns the full document model (content, tags, signals, fragments,
+    lifecycle tier, embedding). 404 if unknown.
+
+    Identical behavior to ``helix_gene_get`` -- prefer this name in
+    new code.
+    """
+    return _http("GET", f"/genes/{urllib.request.quote(document_id)}")
+
+
+@mcp.tool()
+def helix_document_query(
+    query: str,
+    decoder_mode: Optional[str] = None,
+    downstream_model: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Build a compressed context window for ``query``. Canonical alias
+    for ``helix_context``.
+
+    Identical behavior. Prefer this name in new code.
+    """
+    body: Dict[str, Any] = {"query": query}
+    if decoder_mode:
+        body["decoder_mode"] = decoder_mode
+    if downstream_model:
+        body["downstream_model"] = downstream_model
+    return _http("POST", "/context", body)
+
+
+@mcp.tool()
+def helix_document_preview(query: str, max_genes: int = 12) -> Dict[str, Any]:
+    """Preview which documents WOULD be selected for a query. Canonical
+    alias for ``helix_splice_preview``.
+
+    Runs the retrieval pipeline through candidate selection, skips the
+    final compression step. Cheap; no compressor calls. Prefer this
+    name in new code.
     """
     path = (
         f"/debug/preview?query={urllib.request.quote(query)}"
