@@ -1187,6 +1187,41 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             "count": len(genes),
         }
 
+    # -- AI-Consumer Sprint 3: 1-hop neighborhood expand --------------
+    #
+    # /context/expand?gene_id=X&direction=forward|backward|sideways&k=5
+    # Lets the consumer follow a thread from a known gene without a
+    # full /context round-trip. Uses the existing harmonic_links graph
+    # (or gene.epigenetics.co_activated_with for sideways). Filters
+    # already-delivered genes when session_id is supplied.
+
+    @app.get("/context/expand")
+    async def context_expand_endpoint(
+        gene_id: str,
+        direction: str = "forward",
+        k: int = 5,
+        session_id: Optional[str] = None,
+    ):
+        """1-hop expand from `gene_id`. See helix_context/expand.py."""
+        try:
+            from . import expand as _expand
+            result = _expand.expand_neighbors(
+                helix.genome,
+                gene_id=gene_id,
+                direction=direction,
+                k=max(1, min(100, int(k))),
+                session_id=session_id,
+            )
+        except ValueError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
+        except Exception as exc:
+            log.warning("context_expand failed: %s", exc, exc_info=True)
+            return JSONResponse(
+                {"error": f"Expand failed: {exc}"},
+                status_code=500,
+            )
+        return result
+
     # -- AI-Consumer Sprint 2: session working-set introspection -------
     #
     # /session/{id}/manifest — returns everything the genome has shipped
