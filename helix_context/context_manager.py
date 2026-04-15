@@ -736,6 +736,15 @@ class HelixContextManager:
                     budget_tier, ratio, top_score, mean_score, len(candidates), len(shadow_pool),
                 )
 
+                # Telemetry: budget-tier distribution over queries.
+                try:
+                    from .telemetry import budget_tier_counter
+                    budget_tier_counter().add(
+                        1, attributes={"tier": budget_tier},
+                    )
+                except Exception:  # pragma: no cover
+                    pass
+
                 # Lagrange point check: a gene in the shadow pool with HIGH
                 # standalone score but LOW co-activation with the winners is
                 # being deflected by cluster gravity, not rejected on merit.
@@ -1544,6 +1553,23 @@ class HelixContextManager:
             status = "sparse"
         else:
             status = "denatured"
+
+        # Telemetry: surface per-query health so dashboards can watch
+        # the retrieval-quality distribution over time. No-op if OTel
+        # is disabled.
+        try:
+            from .telemetry import (
+                context_ellipticity_histogram,
+                context_health_status_counter,
+            )
+            context_ellipticity_histogram().record(
+                float(ellipticity), attributes={"status": status},
+            )
+            context_health_status_counter().add(
+                1, attributes={"status": status},
+            )
+        except Exception:  # pragma: no cover - telemetry must not break retrieval
+            pass
 
         return ContextHealth(
             ellipticity=round(ellipticity, 4),

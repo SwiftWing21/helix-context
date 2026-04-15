@@ -310,6 +310,57 @@ def hub_inbound_degree_gauge():
     return _instruments["hub_inbound_degree"]
 
 
+def hitl_events_counter():
+    if "hitl_events" not in _instruments:
+        _instruments["hitl_events"] = meter.create_counter(
+            "helix_hitl_events_total",
+            description="Human-In-The-Loop pause events, labelled by pause_type "
+                        "(permission_request / uncertainty_check / rollback_confirm "
+                        "/ other) and party. Emitted on every successful "
+                        "registry.emit_hitl_event write. Pair with "
+                        "helix_context_ellipticity to correlate HITL spikes with "
+                        "degraded context windows.",
+        )
+    return _instruments["hitl_events"]
+
+
+def context_ellipticity_histogram():
+    if "context_ellipticity" not in _instruments:
+        _instruments["context_ellipticity"] = meter.create_histogram(
+            "helix_context_ellipticity",
+            description="Per-query ellipticity (geometric mean of coverage, density, "
+                        "freshness, and optional logical_coherence). Range 0-1. "
+                        ">=0.7 classified aligned; 0.3-0.7 sparse; <0.3 denatured. "
+                        "Low values across many queries = retrieval quality "
+                        "degrading — candidate for runbook action.",
+        )
+    return _instruments["context_ellipticity"]
+
+
+def context_health_status_counter():
+    if "context_health_status" not in _instruments:
+        _instruments["context_health_status"] = meter.create_counter(
+            "helix_context_health_status_total",
+            description="/context call outcomes labelled by status (aligned | "
+                        "sparse | stale | denatured). Watch the ratio: "
+                        "aligned-dominant genome is healthy, rising sparse or "
+                        "denatured = retrieval quality drift.",
+        )
+    return _instruments["context_health_status"]
+
+
+def budget_tier_counter():
+    if "budget_tier" not in _instruments:
+        _instruments["budget_tier"] = meter.create_counter(
+            "helix_budget_tier_total",
+            description="Dynamic budget tier selected per /context call, labelled "
+                        "by tier (tight | focused | broad). Tier reflects "
+                        "retrieval confidence: tight = single-gene dominance, "
+                        "focused = moderate, broad = weak signal / widen the net.",
+        )
+    return _instruments["budget_tier"]
+
+
 def emit_gauges_snapshot(genome) -> None:
     """Poll-driven gauges for chromatin + harmonic-edges + genome size.
 

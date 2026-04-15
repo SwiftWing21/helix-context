@@ -754,6 +754,22 @@ class Registry:
         if participant_id:
             self.touch_heartbeat(participant_id)
         self.genome.conn.commit()
+
+        # Telemetry: counter labelled by pause_type + party. Pair with
+        # helix_context_ellipticity to correlate HITL spikes with
+        # degraded context windows.
+        try:
+            from .telemetry import hitl_events_counter
+            hitl_events_counter().add(
+                1,
+                attributes={
+                    "pause_type": pause_enum.value,
+                    "party": resolved_party,
+                },
+            )
+        except Exception:  # pragma: no cover - telemetry must not break logging
+            pass
+
         return event_id
 
     def get_hitl_events(
