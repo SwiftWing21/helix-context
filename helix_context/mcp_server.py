@@ -6,12 +6,14 @@ proxies each call to helix's HTTP API. Lets Claude Code / Claude Desktop
 / Cursor consume helix without any HTTP client boilerplate in the host.
 
 Tools exposed:
-    helix_context    — main retrieval (the big one)
-    helix_stats      — genome health + size
-    helix_ingest     — add content to the genome
-    helix_resonance  — four-primitive introspection chart (ΣĒMA +
-                        cymatic + harmonic + neighbor set) — new in
-                        2026-04-14, see server.py:/debug/resonance
+    helix_context      — main retrieval (the big one)
+    helix_stats        — genome health + size
+    helix_ingest       — add content to the genome
+    helix_resonance    — four-primitive introspection chart (ΣĒMA +
+                          cymatic + harmonic + neighbor set) — new in
+                          2026-04-14, see server.py:/debug/resonance
+    helix_hitl_emit    — record a Human-In-The-Loop pause event
+    helix_hitl_recent  — query recent HITL events
 
 Run (stdio transport — what MCP hosts spawn):
     python -m helix_context.mcp_server
@@ -55,7 +57,7 @@ import logging
 import os
 import urllib.error
 import urllib.request
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from mcp.server.fastmcp import FastMCP
 
@@ -184,6 +186,112 @@ def helix_resonance(query: str, k: int = 10, downsample: int = 64) -> Dict[str, 
     """
     path = f"/debug/resonance?query={urllib.request.quote(query)}&k={k}&downsample={downsample}"
     return _http("GET", path)
+
+
+# ── Tool: helix_hitl_emit ────────────────────────────────────────────
+# Record a Human-In-The-Loop pause event from an MCP host. Storage and
+# DAL shipped earlier (hitl_events table + registry.emit_hitl_event);
+# this surface lets Claude Code / Desktop / Antigravity emit events
+# without HTTP client boilerplate on their side.
+
+@mcp.tool()
+def helix_hitl_emit(
+    pause_type: str,
+    task_context: Optional[str] = None,
+    resolved_without_operator: bool = False,
+    tone_uncertainty: Optional[float] = None,
+    risk_keywords: Optional[List[str]] = None,
+    recoverability: Optional[str] = None,
+    participant_id: Optional[str] = None,
+    party_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Record a HITL (Human-In-The-Loop) pause event in the session registry.
+
+    pause_type: one of "permission_request", "uncertainty_check",
+        "rollback_confirm", "other". Unknown values coerce to "other".
+
+    Chat-channel signals (optional — populate when the client's scorer
+    infrastructure can compute them):
+        tone_uncertainty: 0-1 proxy score of operator tone
+        risk_keywords: list of trigger keywords spotted in the session
+        recoverability: "recoverable" | "uncertain" | "lost"
+
+    Participant resolution (pick the most specific you have):
+        participant_id: explicit participant UUID (from /sessions/register)
+        party_id: explicit party (if no participant)
+        If neither is given, HELIX_PARTY_ID env var is used, or the
+        default "swift_wing21" — this ensures events always land
+        somewhere rather than dropping silently.
+
+    Returns {event_id, ok: true} on success, {error: str} on failure.
+    Does not mutate genome state; only writes to hitl_events.
+    """
+    body: Dict[str, Any] = {"pause_type": pause_type}
+
+    if task_context:
+        body["task_context"] = task_context
+    if resolved_without_operator:
+        body["resolved_without_operator"] = True
+
+    chat_signals: Dict[str, Any] = {}
+    if tone_uncertainty is not None:
+        chat_signals["tone_uncertainty"] = tone_uncertainty
+    if risk_keywords:
+        chat_signals["risk_keywords"] = list(risk_keywords)
+    if recoverability:
+        chat_signals["recoverability"] = recoverability
+    if chat_signals:
+        body["chat_signals"] = chat_signals
+
+    if participant_id:
+        body["participant_id"] = participant_id
+
+    # Default party from env so events don't drop when no participant
+    # registration happened (e.g., MCP host didn't run _register_with_registry
+    # or the registration failed silently).
+    if not participant_id and not party_id:
+        party_id = os.environ.get("HELIX_PARTY_ID", "swift_wing21")
+    if party_id:
+        body["party_id"] = party_id
+
+    return _http("POST", "/hitl/emit", body)
+
+
+# ── Tool: helix_hitl_recent ──────────────────────────────────────────
+# Query recent HITL events -- the inverse of helix_hitl_emit. Lets
+# clients ask "has this operator been flagging events recently?"
+# without a separate HTTP client.
+
+@mcp.tool()
+def helix_hitl_recent(
+    party_id: Optional[str] = None,
+    pause_type: Optional[str] = None,
+    since_ts: Optional[float] = None,
+    limit: int = 20,
+) -> Dict[str, Any]:
+    """List recent HITL pause events, newest first.
+
+    party_id: defaults to the HELIX_PARTY_ID env var (typically
+        "swift_wing21") so calls without args scope to this session's
+        party. Pass an explicit party_id to override.
+    pause_type: filter to one of "permission_request", "uncertainty_check",
+        "rollback_confirm", "other".
+    since_ts: Unix timestamp lower-bound filter.
+    limit: max events to return (server caps at 500).
+
+    Returns {events: [...], count: int}.
+    """
+    if party_id is None:
+        party_id = os.environ.get("HELIX_PARTY_ID", "swift_wing21")
+
+    qs_parts = [f"party_id={urllib.request.quote(party_id)}"]
+    if pause_type:
+        qs_parts.append(f"pause_type={urllib.request.quote(pause_type)}")
+    if since_ts is not None:
+        qs_parts.append(f"since={since_ts}")
+    qs_parts.append(f"limit={int(limit)}")
+
+    return _http("GET", f"/hitl/recent?{'&'.join(qs_parts)}")
 
 
 # ── Future: codebase-memory-mcp composition ──────────────────────────

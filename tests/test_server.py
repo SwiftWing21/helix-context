@@ -317,3 +317,183 @@ class TestProxyEndpoint:
         })
         # If upstream is running, we get 200 (passthrough); if not, 500
         assert resp.status_code in (200, 500, 502, 503)
+
+
+class TestHITLEndpoints:
+    """POST /hitl/emit + GET /hitl/recent — MCP tool surface for HITL events.
+
+    The underlying DAL is covered exhaustively in test_registry.py; these
+    tests verify the HTTP adapter layer: argument validation, JSON shape,
+    error paths. Each test uses a unique party_id so ordering and leakage
+    across tests is harmless.
+    """
+
+    def _register(self, client, handle: str, party_id: str) -> str:
+        """Register a participant and return its id. Creates party on TOFU."""
+        resp = client.post(
+            "/sessions/register",
+            json={"party_id": party_id, "handle": handle},
+        )
+        assert resp.status_code == 200, resp.text
+        return resp.json()["participant_id"]
+
+    def test_emit_requires_pause_type(self, client):
+        resp = client.post("/hitl/emit", json={})
+        assert resp.status_code == 400
+        assert "pause_type" in resp.json()["error"]
+
+    def test_emit_requires_participant_or_party(self, client):
+        """Without participant_id and without party_id the event cannot be
+        attributed to anyone; registry.emit_hitl_event returns None and
+        the endpoint should surface that as a 400."""
+        resp = client.post("/hitl/emit", json={"pause_type": "other"})
+        assert resp.status_code == 400
+
+    def test_emit_with_participant_id_succeeds(self, client):
+        pid = self._register(client, "laude", "party_emit_pid")
+        resp = client.post(
+            "/hitl/emit",
+            json={
+                "pause_type": "permission_request",
+                "participant_id": pid,
+                "task_context": "about to delete session log",
+                "chat_signals": {
+                    "tone_uncertainty": 0.72,
+                    "risk_keywords": ["delete", "force"],
+                    "recoverability": "uncertain",
+                },
+            },
+        )
+        assert resp.status_code == 200, resp.text
+        data = resp.json()
+        assert data["ok"] is True
+        assert isinstance(data["event_id"], str)
+        assert len(data["event_id"]) > 0
+
+    def test_emit_with_party_only_succeeds(self, client):
+        """party_id alone (no participant) should work for server-side
+        emit flows that know the party but not a specific participant."""
+        # Create the party via a register call, then emit with party_id only.
+        self._register(client, "ghost", "party_emit_party_only")
+        resp = client.post(
+            "/hitl/emit",
+            json={
+                "pause_type": "uncertainty_check",
+                "party_id": "party_emit_party_only",
+            },
+        )
+        assert resp.status_code == 200
+        assert resp.json()["ok"] is True
+
+    def test_emit_unknown_participant_rejected(self, client):
+        resp = client.post(
+            "/hitl/emit",
+            json={
+                "pause_type": "other",
+                "participant_id": "nonexistent-participant-uuid",
+            },
+        )
+        assert resp.status_code == 400
+
+    def test_emit_unknown_pause_type_coerces_to_other(self, client):
+        """Unknown pause_type should coerce to 'other' per the DAL
+        contract — instrumentation must not fail on schema gaps."""
+        pid = self._register(client, "laude2", "party_emit_unknown_pt")
+        resp = client.post(
+            "/hitl/emit",
+            json={"pause_type": "pineapple", "participant_id": pid},
+        )
+        assert resp.status_code == 200
+        event_id = resp.json()["event_id"]
+
+        recent = client.get("/hitl/recent?party_id=party_emit_unknown_pt")
+        assert recent.status_code == 200
+        rows = recent.json()["events"]
+        matching = [e for e in rows if e["event_id"] == event_id]
+        assert len(matching) == 1
+        assert matching[0]["pause_type"] == "other"
+
+    def test_recent_returns_events_newest_first(self, client):
+        pid = self._register(client, "laude3", "party_recent_order")
+        # Emit two events in sequence
+        client.post(
+            "/hitl/emit",
+            json={
+                "pause_type": "other",
+                "participant_id": pid,
+                "task_context": "first",
+            },
+        )
+        client.post(
+            "/hitl/emit",
+            json={
+                "pause_type": "other",
+                "participant_id": pid,
+                "task_context": "second",
+            },
+        )
+
+        resp = client.get("/hitl/recent?party_id=party_recent_order")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["count"] >= 2
+        # Newest first — "second" should lead.
+        assert data["events"][0]["task_context"] == "second"
+        assert data["events"][1]["task_context"] == "first"
+
+    def test_recent_filters_by_pause_type(self, client):
+        pid = self._register(client, "laude4", "party_recent_filter")
+        client.post(
+            "/hitl/emit",
+            json={"pause_type": "permission_request", "participant_id": pid},
+        )
+        client.post(
+            "/hitl/emit",
+            json={"pause_type": "rollback_confirm", "participant_id": pid},
+        )
+
+        resp = client.get(
+            "/hitl/recent?party_id=party_recent_filter&pause_type=permission_request"
+        )
+        assert resp.status_code == 200
+        events = resp.json()["events"]
+        assert len(events) >= 1
+        for e in events:
+            assert e["pause_type"] == "permission_request"
+
+    def test_recent_limit_capped(self, client):
+        """limit > 500 should be silently capped rather than returning 500."""
+        resp = client.get("/hitl/recent?limit=99999")
+        assert resp.status_code == 200
+        # We don't have 500 events; just check no error.
+        assert "events" in resp.json()
+
+    def test_recent_empty_is_empty_list_not_null(self, client):
+        resp = client.get("/hitl/recent?party_id=party_never_emitted")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["events"] == []
+        assert data["count"] == 0
+
+    def test_emit_then_round_trip_preserves_chat_signals(self, client):
+        """Chat signals supplied on emit must show up in the recent query."""
+        pid = self._register(client, "laude5", "party_roundtrip")
+        client.post(
+            "/hitl/emit",
+            json={
+                "pause_type": "uncertainty_check",
+                "participant_id": pid,
+                "chat_signals": {
+                    "tone_uncertainty": 0.42,
+                    "risk_keywords": ["force-push", "drop"],
+                    "recoverability": "recoverable",
+                },
+            },
+        )
+        resp = client.get("/hitl/recent?party_id=party_roundtrip&limit=5")
+        events = resp.json()["events"]
+        assert len(events) == 1
+        e = events[0]
+        assert e["operator_tone_uncertainty"] == pytest.approx(0.42)
+        assert e["operator_risk_keywords"] == ["force-push", "drop"]
+        assert e["recoverability_signal"] == "recoverable"

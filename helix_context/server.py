@@ -1027,6 +1027,121 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             "count": len(genes),
         }
 
+    # -- HITL event endpoints ------------------------------------------
+    #
+    # Human-In-The-Loop pause events. Storage + DAL + pydantic models
+    # landed earlier (hitl_events table, registry.emit_hitl_event, etc).
+    # These HTTP endpoints expose them to remote callers (in particular
+    # the MCP tool surface -- helix_hitl_emit / helix_hitl_recent -- so
+    # MCP hosts like Claude Code / Desktop / Antigravity can record
+    # operator signals without HTTP boilerplate of their own).
+    #
+    # Consumer-before-producer rationale: wire the surface first. Scorer
+    # modules (tone-uncertainty classifier, risk-keyword vocab) land
+    # later and populate the optional chat_signals fields. Clients that
+    # detect HITL events manually can emit today.
+
+    @app.post("/hitl/emit")
+    async def hitl_emit_endpoint(request: Request):
+        """Record a HITL pause event.
+
+        Required body:
+          - ``pause_type``: one of ``permission_request``, ``uncertainty_check``,
+            ``rollback_confirm``, ``other``
+
+        Participant resolution (at least one required):
+          - ``participant_id``: explicit participant UUID
+          - ``party_id``: explicit party (used when caller knows the party
+            but not a specific participant)
+
+        Optional:
+          - ``task_context`` (str): free-form task description at pause time
+          - ``resolved_without_operator`` (bool): true if session self-resolved
+          - ``chat_signals`` (dict): any of ``tone_uncertainty`` (0-1 float),
+            ``risk_keywords`` (list[str]), ``time_since_last_risk`` (float),
+            ``recoverability`` (``recoverable`` | ``uncertain`` | ``lost``)
+          - ``genome_snapshot`` (dict): any of ``total_genes``,
+            ``hetero_count``, ``cold_cache_size`` (all int)
+          - ``metadata`` (dict): free-form JSON, stamped onto the event
+
+        Returns ``{event_id}`` on success, ``{error}`` on failure.
+        Never mutates genome state; only writes to the ``hitl_events`` table.
+        """
+        try:
+            data = await request.json()
+        except Exception:
+            return JSONResponse({"error": "Invalid JSON body"}, status_code=400)
+
+        pause_type = data.get("pause_type")
+        if not pause_type:
+            return JSONResponse(
+                {"error": "pause_type is required"}, status_code=400,
+            )
+
+        try:
+            event_id = registry.emit_hitl_event(
+                participant_id=data.get("participant_id"),
+                pause_type=pause_type,
+                task_context=data.get("task_context"),
+                resolved_without_operator=bool(
+                    data.get("resolved_without_operator", False)
+                ),
+                chat_signals=data.get("chat_signals"),
+                genome_snapshot=data.get("genome_snapshot"),
+                metadata=data.get("metadata"),
+                party_id=data.get("party_id"),
+            )
+        except Exception as exc:
+            log.warning("HITL emit failed: %s", exc, exc_info=True)
+            return JSONResponse(
+                {"error": f"Emit failed: {exc}"}, status_code=500,
+            )
+
+        if event_id is None:
+            return JSONResponse(
+                {
+                    "error": (
+                        "Event not written -- unknown participant_id and no "
+                        "party_id provided, or participant_id not registered."
+                    )
+                },
+                status_code=400,
+            )
+        return {"event_id": event_id, "ok": True}
+
+    @app.get("/hitl/recent")
+    async def hitl_recent_endpoint(
+        party_id: Optional[str] = None,
+        participant_id: Optional[str] = None,
+        pause_type: Optional[str] = None,
+        since: Optional[float] = None,
+        until: Optional[float] = None,
+        limit: int = 50,
+    ):
+        """List recent HITL events, newest first.
+
+        All filters are optional. With none, returns the most recent
+        ``limit`` events globally (default 50, capped at 500 server-side).
+        """
+        # Sanity cap on limit — protects against accidental "return
+        # everything" calls that could return millions of rows.
+        safe_limit = max(1, min(int(limit), 500))
+        try:
+            events = registry.get_hitl_events(
+                party_id=party_id,
+                participant_id=participant_id,
+                pause_type=pause_type,
+                since=since,
+                until=until,
+                limit=safe_limit,
+            )
+        except Exception as exc:
+            log.warning("HITL recent failed: %s", exc, exc_info=True)
+            return JSONResponse(
+                {"error": f"Recent lookup failed: {exc}"}, status_code=500,
+            )
+        return {"events": events, "count": len(events)}
+
     # -- Consolidate endpoint (session memory) ----------------------------
 
     @app.post("/consolidate")
