@@ -29,6 +29,7 @@ from .codons import CodonChunker, CodonEncoder
 from .config import HelixConfig
 from .exceptions import PromoterMismatch
 from .genome import Genome
+from .budget_zone import is_enabled as _budget_zone_is_enabled, zone_cap as _budget_zone_cap
 from .headroom_bridge import compress_text
 from . import legibility
 from . import session_delivery as _session_delivery
@@ -466,6 +467,7 @@ class HelixContextManager:
         include_cold: Optional[bool] = None,
         session_context: Optional[Dict] = None,
         party_id: Optional[str] = None,
+        prompt_tokens_hint: Optional[int] = None,
         session_id: Optional[str] = None,
         ignore_delivered: bool = False,
     ) -> ContextWindow:
@@ -499,6 +501,18 @@ class HelixContextManager:
         self._last_cold_tier_count = 0
 
         max_genes = self.config.budget.max_genes_per_turn
+
+        # Budget-zone cap (spike) — clamp max_genes down when the caller's
+        # incoming prompt already fills a large share of their window.
+        # Returns None when the feature flag is off or the signal is
+        # absent, so this is a no-op by default. See budget_zone.py.
+        _zone_cap = _budget_zone_cap(prompt_tokens_hint)
+        if _zone_cap is not None and _zone_cap < max_genes:
+            log.debug(
+                "Budget-zone cap: max_genes %d -> %d (prompt_tokens=%s)",
+                max_genes, _zone_cap, prompt_tokens_hint,
+            )
+            max_genes = _zone_cap
 
         # Step 0: Query intent expansion (LLM-based, cached)
         # Restates the query with expanded keywords BEFORE promoter lookup.
@@ -905,6 +919,7 @@ class HelixContextManager:
         include_cold: Optional[bool] = None,
         session_context: Optional[Dict] = None,
         party_id: Optional[str] = None,
+        prompt_tokens_hint: Optional[int] = None,
         session_id: Optional[str] = None,
         ignore_delivered: bool = False,
     ) -> ContextWindow:
@@ -918,6 +933,7 @@ class HelixContextManager:
             include_cold,
             session_context,
             party_id,
+            prompt_tokens_hint,
             session_id,
             ignore_delivered,
         )
@@ -1170,6 +1186,10 @@ class HelixContextManager:
                 "splice_aggressiveness": self.config.budget.splice_aggressiveness,
                 "decoder_mode": self._decoder_mode,
                 "decoder_tokens": len(self._decoder_prompt) // 4,
+                # Budget-zone spike: report server-side flag state so
+                # benches can verify the env var actually reached this
+                # process before running a sweep. Pure boolean, no cost.
+                "budget_zone_enabled": _budget_zone_is_enabled(),
             },
         }
 
