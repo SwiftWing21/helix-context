@@ -6,14 +6,29 @@ proxies each call to helix's HTTP API. Lets Claude Code / Claude Desktop
 / Cursor consume helix without any HTTP client boilerplate in the host.
 
 Tools exposed:
-    helix_context      — main retrieval (the big one)
-    helix_stats        — genome health + size
-    helix_ingest       — add content to the genome
-    helix_resonance    — four-primitive introspection chart (ΣĒMA +
-                          cymatic + harmonic + neighbor set) — new in
-                          2026-04-14, see server.py:/debug/resonance
-    helix_hitl_emit    — record a Human-In-The-Loop pause event
-    helix_hitl_recent  — query recent HITL events
+    Retrieval / genome:
+      helix_context         — main retrieval (the big one)
+      helix_stats           — genome health + size
+      helix_ingest          — add content to the genome
+      helix_resonance       — four-primitive introspection chart (ΣĒMA +
+                               cymatic + harmonic + neighbor set) — new in
+                               2026-04-14, see server.py:/debug/resonance
+      helix_consolidate     — distill the session buffer into
+                               consolidated knowledge genes
+
+    Session registry:
+      helix_sessions_list   — list active participants (filter by party,
+                               status, workspace)
+      helix_session_recent  — genes authored by a handle, chronological
+
+    HITL events:
+      helix_hitl_emit       — record a Human-In-The-Loop pause event
+      helix_hitl_recent     — query recent HITL events
+
+    Operational:
+      helix_health          — ribosome / genes / upstream readiness probe
+      helix_metrics_tokens  — session + lifetime token counters
+      helix_bridge_status   — federation/bridge inbox + signal state
 
 Run (stdio transport — what MCP hosts spawn):
     python -m helix_context.mcp_server
@@ -292,6 +307,136 @@ def helix_hitl_recent(
     qs_parts.append(f"limit={int(limit)}")
 
     return _http("GET", f"/hitl/recent?{'&'.join(qs_parts)}")
+
+
+# ── Tool: helix_sessions_list ────────────────────────────────────────
+# List active participants in the session registry. Lets MCP clients
+# see peers -- "who else is working under this party right now?"
+
+@mcp.tool()
+def helix_sessions_list(
+    party_id: Optional[str] = None,
+    status: str = "active",
+    workspace: Optional[str] = None,
+) -> Dict[str, Any]:
+    """List participants from the session registry.
+
+    party_id: scope to one party (default: all parties)
+    status: "active" (default) | "stale" | "all" -- filters by last_heartbeat
+    workspace: prefix match on participant workspace path
+
+    Returns {participants: [...], count: int}. Useful for discovering
+    other sibling sessions under the same party (laude, raude, gemini,
+    batman, etc) without the caller needing the /sessions HTTP path.
+    """
+    qs_parts = []
+    if party_id:
+        qs_parts.append(f"party_id={urllib.request.quote(party_id)}")
+    if status:
+        qs_parts.append(f"status={urllib.request.quote(status)}")
+    if workspace:
+        qs_parts.append(f"workspace={urllib.request.quote(workspace)}")
+    path = "/sessions" + (f"?{'&'.join(qs_parts)}" if qs_parts else "")
+    return _http("GET", path)
+
+
+# ── Tool: helix_session_recent ───────────────────────────────────────
+# Genes authored by a specific handle, chronological. This is the
+# reliable broadcast channel -- short notes surface here regardless of
+# how much code/spec material lives in the genome.
+
+@mcp.tool()
+def helix_session_recent(
+    handle: str,
+    limit: int = 10,
+    party_id: Optional[str] = None,
+    since_ts: Optional[float] = None,
+) -> Dict[str, Any]:
+    """Recent genes authored by `handle`, newest first. No BM25 scoring.
+
+    handle: session handle (e.g. "laude", "raude", "gemini", "batman")
+    limit: max genes to return (default 10)
+    party_id: optional scope -- narrows to a single party if a handle
+        is reused across parties (uncommon).
+    since_ts: optional Unix timestamp lower bound.
+
+    Ideal for "what did raude just check in?" style peer awareness.
+    """
+    qs_parts = [f"limit={int(limit)}"]
+    if party_id:
+        qs_parts.append(f"party_id={urllib.request.quote(party_id)}")
+    if since_ts is not None:
+        qs_parts.append(f"since={since_ts}")
+    path = f"/sessions/{urllib.request.quote(handle)}/recent?{'&'.join(qs_parts)}"
+    return _http("GET", path)
+
+
+# ── Tool: helix_consolidate ──────────────────────────────────────────
+# Trigger session memory consolidation. Distills the session buffer
+# into consolidated knowledge genes.
+
+@mcp.tool()
+def helix_consolidate() -> Dict[str, Any]:
+    """Consolidate the current session buffer into long-term knowledge genes.
+
+    Extracts only new facts, decisions, and discoveries from the
+    buffered exchange stream, packing them as genes in the genome.
+    Cheap but non-idempotent -- call at natural checkpoints (end of
+    task, before handoff) not on every turn.
+
+    Returns {facts_extracted: int, gene_ids: [...]}.
+    """
+    return _http("POST", "/consolidate")
+
+
+# ── Tool: helix_health ───────────────────────────────────────────────
+# Lightweight readiness probe. Separate from helix_stats (which is
+# heavier) -- useful for "is the server reachable / ribosome configured?"
+# checks without pulling full genome aggregates.
+
+@mcp.tool()
+def helix_health() -> Dict[str, Any]:
+    """Ribosome model, gene count, upstream URL, and overall status.
+
+    Cheaper than helix_stats -- returns just the readiness signals
+    (status, ribosome backend, total genes, upstream). Use this for
+    connectivity probes; use helix_stats for detailed genome health.
+    """
+    return _http("GET", "/health")
+
+
+# ── Tool: helix_metrics_tokens ───────────────────────────────────────
+# Session + lifetime token counters, exact-from-upstream when possible,
+# char-estimate fallback. Surfaces helix's cost/savings story.
+
+@mcp.tool()
+def helix_metrics_tokens() -> Dict[str, Any]:
+    """Token counters for the current session and lifetime.
+
+    Returns exact counts from upstream `usage` fields when available
+    and char-count estimates otherwise, split into exact vs estimated
+    buckets. Useful for answering "how much budget am I burning
+    through /v1/chat/completions right now?".
+    """
+    return _http("GET", "/metrics/tokens")
+
+
+# ── Tool: helix_bridge_status ────────────────────────────────────────
+# Federation bridge state -- shared-dir location, signal list, inbox
+# count. Pairs with the /bridge/collect + /bridge/signal endpoints
+# which remain server-side only (writes are better done via helix_ingest
+# or direct HTTP from a privileged client).
+
+@mcp.tool()
+def helix_bridge_status() -> Dict[str, Any]:
+    """Federation bridge status: shared_dir, inbox count, signal list.
+
+    The bridge is helix's multi-instance handoff channel (laude ↔ raude
+    ↔ batman etc). This tool is read-only; use it to check whether
+    inbox items are waiting to be collected, or which signals are in
+    flight between instances.
+    """
+    return _http("GET", "/bridge/status")
 
 
 # ── Future: codebase-memory-mcp composition ──────────────────────────
