@@ -1,0 +1,415 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Per-query retrieval quality signals (ellipticity, health status, budget tier) paired with operator HITL events. Companion to helix-overview.json; covers the 4 meters added 2026-04-14.",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "panels": [],
+      "title": "Retrieval Quality",
+      "type": "row"
+    },
+    {
+      "type": "heatmap",
+      "title": "Context ellipticity — distribution over time",
+      "description": "Per-query ellipticity (geometric mean of coverage, density, freshness, optional logical_coherence). Range 0-1. Healthy genome should concentrate density at >=0.7. Drift downward = retrieval quality regressing.",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
+      "id": 2,
+      "targets": [
+        {
+          "expr": "sum by (le) (increase(helix_context_ellipticity_bucket{party=~\"$party_id\"}[$__rate_interval]))",
+          "format": "heatmap",
+          "legendFormat": "{{le}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "calculate": false,
+        "yAxis": { "axisPlacement": "left", "reverse": false, "unit": "short" },
+        "color": { "scheme": "Spectral", "mode": "scheme" },
+        "cellGap": 1,
+        "legend": { "show": true },
+        "tooltip": { "show": true, "yHistogram": true }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "scaleDistribution": { "type": "linear" } }
+        }
+      }
+    },
+    {
+      "type": "piechart",
+      "title": "Health status distribution (last 1h)",
+      "description": "Share of /context outcomes by classified status. aligned = ellipticity >= 0.7; sparse = 0.3-0.7; denatured = < 0.3; stale = freshness < 0.4 with genes expressed. Aligned should dominate.",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 1 },
+      "id": 3,
+      "targets": [
+        {
+          "expr": "sum by (status) (increase(helix_context_health_status_total{party=~\"$party_id\"}[1h]))",
+          "legendFormat": "{{status}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "pieType": "donut",
+        "tooltip": { "mode": "single" },
+        "legend": { "displayMode": "list", "placement": "right", "values": ["percent", "value"] }
+      },
+      "fieldConfig": {
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "aligned" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "sparse" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "yellow", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "stale" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "denatured" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }] }
+        ]
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Denatured rate (alert if > 5%)",
+      "description": "Rolling fraction of queries classified denatured over the last 10 minutes. Exceeding 5% is the recommended alert threshold.",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 1 },
+      "id": 4,
+      "targets": [
+        {
+          "expr": "sum(rate(helix_context_health_status_total{status=\"denatured\",party=~\"$party_id\"}[10m])) / sum(rate(helix_context_health_status_total{party=~\"$party_id\"}[10m]))",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.02 },
+              { "color": "red", "value": 0.05 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Budget tier mix — stacked",
+      "description": "Which budget tier was selected per /context call. tight = single-gene dominance (ratio >= 3.0 AND top_score >= 5.0), focused = moderate confidence, broad = weak signal. broad-dominant over time = retrieval landscape is flat.",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 9 },
+      "id": 5,
+      "targets": [
+        {
+          "expr": "sum by (tier) (rate(helix_budget_tier_total[$__rate_interval]))",
+          "legendFormat": "{{tier}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "desc" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 40,
+            "stacking": { "mode": "normal", "group": "A" },
+            "lineWidth": 1
+          }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "tight" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "focused" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "broad" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "purple", "mode": "fixed" } }] }
+        ]
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Ellipticity percentiles p50 / p95",
+      "description": "Median and 95th-percentile ellipticity over time. Flat line at ~0.7 = healthy. Downward drift = retrieval quality regressing and dashboard should flag it before users notice.",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 9 },
+      "id": 6,
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(helix_context_ellipticity_bucket{party=~\"$party_id\"}[5m])))",
+          "legendFormat": "p50",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(helix_context_ellipticity_bucket{party=~\"$party_id\"}[5m])))",
+          "legendFormat": "p95",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0.3 },
+              { "color": "green", "value": 0.7 }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "thresholdsStyle": { "mode": "area" }
+          }
+        }
+      }
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 17 },
+      "id": 7,
+      "panels": [],
+      "title": "HITL Signals",
+      "type": "row"
+    },
+    {
+      "type": "timeseries",
+      "title": "HITL events / min — by pause_type",
+      "description": "Rate of Human-In-The-Loop pause events per minute, labelled by pause_type. Spikes worth investigating: rollback_confirm (operator undoing agent work), uncertainty_check (agent hesitating), permission_request (scope pressure).",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 18 },
+      "id": 8,
+      "targets": [
+        {
+          "expr": "sum by (pause_type) (rate(helix_hitl_events_total{party=~\"$party_id\"}[1m])) * 60",
+          "legendFormat": "{{pause_type}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60,
+            "lineWidth": 0,
+            "stacking": { "mode": "normal", "group": "A" }
+          }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "rollback_confirm" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "uncertainty_check" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "yellow", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "permission_request" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "other" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "gray", "mode": "fixed" } }] }
+        ]
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "HITL × Ellipticity — correlation overlay",
+      "description": "HITL events (left Y, events/min) overlaid on ellipticity p50 (right Y, 0-1). If the red bars precede downward ellipticity drift the operator is sensing quality drops before the metric catches up. Coincident = real-time correlation. Lagging = operator reacting to already-visible drops.",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 18 },
+      "id": 9,
+      "targets": [
+        {
+          "expr": "sum(rate(helix_hitl_events_total{party=~\"$party_id\"}[1m])) * 60",
+          "legendFormat": "HITL events/min",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(helix_context_ellipticity_bucket{party=~\"$party_id\"}[5m])))",
+          "legendFormat": "Ellipticity p50",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0
+          }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "HITL events/min" },
+            "properties": [
+              { "id": "custom.drawStyle", "value": "bars" },
+              { "id": "custom.fillOpacity", "value": 70 },
+              { "id": "custom.axisPlacement", "value": "left" },
+              { "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }
+            ] },
+          { "matcher": { "id": "byName", "options": "Ellipticity p50" },
+            "properties": [
+              { "id": "custom.axisPlacement", "value": "right" },
+              { "id": "custom.axisSoftMin", "value": 0 },
+              { "id": "custom.axisSoftMax", "value": 1 },
+              { "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }
+            ] }
+        ]
+      }
+    },
+    {
+      "type": "table",
+      "title": "HITL events — breakdown by party + pause_type (last 24h)",
+      "description": "Cross-party HITL tally. High counts on a given (party, pause_type) pair point at whose workflow is under pressure and why.",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 26 },
+      "id": 10,
+      "targets": [
+        {
+          "expr": "sum by (party, pause_type) (increase(helix_hitl_events_total[24h]))",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true, "__name__": true, "job": true, "instance": true },
+            "renameByName": { "Value": "events (24h)" }
+          }
+        },
+        { "id": "sortBy", "options": { "fields": {}, "sort": [{ "field": "events (24h)", "desc": true }] } }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "align": "left", "displayMode": "auto" }
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "HITL events — 24h total",
+      "description": "Total HITL events across all parties in the last 24h. Useful baseline to compare bench-run days against quiet days.",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 26 },
+      "id": 11,
+      "targets": [
+        {
+          "expr": "sum(increase(helix_hitl_events_total[24h]))",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": { "unit": "short" }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Aligned rate — 1h",
+      "description": "Share of queries classified aligned (ellipticity >= 0.7) over the last hour. Target: > 70%.",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 26 },
+      "id": 12,
+      "targets": [
+        {
+          "expr": "sum(rate(helix_context_health_status_total{status=\"aligned\",party=~\"$party_id\"}[1h])) / sum(rate(helix_context_health_status_total{party=~\"$party_id\"}[1h]))",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0.5 },
+              { "color": "green", "value": 0.7 }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["helix", "retrieval", "hitl"],
+  "templating": {
+    "list": [
+      {
+        "current": { "selected": false, "text": "All", "value": "$__all" },
+        "datasource": "Prometheus",
+        "definition": "label_values(helix_context_health_status_total, party)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Party",
+        "multi": true,
+        "name": "party_id",
+        "options": [],
+        "query": { "query": "label_values(helix_context_health_status_total, party)", "refId": "PrometheusVariableQueryEditor-VariableQuery" },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      }
+    ]
+  },
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Helix — Retrieval Quality + HITL",
+  "uid": "helix-retrieval-hitl",
+  "version": 1,
+  "weekStart": ""
+}
