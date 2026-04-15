@@ -201,6 +201,12 @@ class RetrievalConfig:
     # with Laplace-smoothed co_count vs miss_count per edge.
     seeded_edges_enabled: bool = False  # Dark ship — flip to start evidence accumulation
     seeded_edge_weight: float = 1.0     # Base weight written on seed insertion
+    # Tier 0.5 filename-anchor (2026-04-15 Dewey-pivot spike).
+    # Dewey bench showed filename alone outperforms the full
+    # project+module+filename bag by 24pp. Boosts genes whose
+    # filename_stem matches a query term.
+    filename_anchor_enabled: bool = False   # Dark ship — flip for A/B
+    filename_anchor_weight: float = 4.0     # Per-match boost (higher than Tier 1's 3.0)
 
 
 @dataclass
@@ -340,6 +346,8 @@ def load_config(path: Optional[str] = None) -> HelixConfig:
             theta_weight=float(r.get("theta_weight", cfg.retrieval.theta_weight)),
             seeded_edges_enabled=bool(r.get("seeded_edges_enabled", cfg.retrieval.seeded_edges_enabled)),
             seeded_edge_weight=float(r.get("seeded_edge_weight", cfg.retrieval.seeded_edge_weight)),
+            filename_anchor_enabled=bool(r.get("filename_anchor_enabled", cfg.retrieval.filename_anchor_enabled)),
+            filename_anchor_weight=float(r.get("filename_anchor_weight", cfg.retrieval.filename_anchor_weight)),
         )
 
     # Session (CWoLa session/party fallback — 2026-04-13 fix for always-A bucket bug)

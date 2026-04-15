@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -196,6 +197,12 @@ class HelixContextManager:
             sr_weight=config.retrieval.sr_weight,
             sr_cap=config.retrieval.sr_cap,
             seeded_edges_enabled=config.retrieval.seeded_edges_enabled,
+            filename_anchor_enabled=(
+                config.retrieval.filename_anchor_enabled
+                or os.environ.get("HELIX_FILENAME_ANCHOR_ENABLED", "").lower()
+                in {"1", "true", "yes", "on"}
+            ),
+            filename_anchor_weight=config.retrieval.filename_anchor_weight,
         )
 
         # Replication manager (distributed genome clones)

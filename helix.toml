@@ -106,6 +106,12 @@ theta_weight = 1.0                      # Softmax temperature on v·gene_input_v
 # Sprint 4 — Seeded co-activation edges (Hebbian evidence decay, dense-rank miss weighting).
 seeded_edges_enabled = false            # Dark ship — flip to start accumulating co_count / miss_count
 seeded_edge_weight = 1.0                # Base weight stamped at seed insertion
+# Tier 0.5 filename-anchor (2026-04-15 Dewey-pivot spike).
+# Dewey bench 2026-04-14: filename-as-primary-anchor gave +24pp
+# retrieval over full path-token bag. Boosts genes whose filename
+# stem matches a query term. Env override: HELIX_FILENAME_ANCHOR_ENABLED=1.
+filename_anchor_enabled = false         # Dark ship — spike 2026-04-15 showed +12pp on axis-2 Dewey; flip to A/B in your genome
+filename_anchor_weight = 4.0            # Per-match boost (Tier 1 exact-tag = 3.0 for reference)
 
 [mem_sync]
 # Auto-memory → helix sync. Every .md file in a watched dir becomes a

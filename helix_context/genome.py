@@ -270,6 +270,8 @@ class Genome:
         sr_weight: float = 1.5,
         sr_cap: float = 3.0,
         seeded_edges_enabled: bool = False,
+        filename_anchor_enabled: bool = False,
+        filename_anchor_weight: float = 4.0,
     ):
         self.path = path
         self.synonym_map = synonym_map or {}
@@ -285,6 +287,9 @@ class Genome:
         self._sr_cap = sr_cap
         # Sprint 4 — Hebbian seeded-edge evidence accumulation.
         self._seeded_edges_enabled = seeded_edges_enabled
+        # Tier 0.5 filename-anchor (2026-04-15 Dewey-pivot spike).
+        self._filename_anchor_enabled = filename_anchor_enabled
+        self._filename_anchor_weight = filename_anchor_weight
 
         # Checkpoint WAL BEFORE opening our long-lived connection
         # so we see the latest state from any external writers
@@ -445,6 +450,15 @@ class Genome:
             "CREATE INDEX IF NOT EXISTS idx_pki_gene "
             "ON path_key_index(gene_id)"
         )
+
+        # filename_index: single-stem reverse index for the
+        # filename-anchor retrieval tier (flag-gated). See
+        # helix_context/filename_anchor.py.
+        try:
+            from . import filename_anchor as _fa
+            _fa.ensure_schema(cur.connection)
+        except Exception:
+            log.debug("filename_index schema init skipped", exc_info=True)
 
         cur.execute(
             "CREATE INDEX IF NOT EXISTS idx_promoter_value "
@@ -1317,6 +1331,17 @@ class Genome:
                             (pt, kk, gene_id),
                         )
 
+        # filename_index — single-stem reverse index used by the
+        # filename-anchor retrieval tier (Tier 0.5, flag-gated). Updated
+        # unconditionally at upsert time so the index is ready the moment
+        # the flag flips on; no backfill stage required for new genes.
+        cur.execute("DELETE FROM filename_index WHERE gene_id = ?", (gene_id,))
+        try:
+            from . import filename_anchor as _fa
+            _fa.index_gene(cur.connection, gene_id, gene.source_id)
+        except Exception:
+            log.debug("filename_index upsert skipped for gene=%s", gene_id, exc_info=True)
+
         # SPLADE sparse index (if enabled, non-blocking)
         if self._splade_enabled:
             try:
@@ -1601,6 +1626,26 @@ class Genome:
                         tier_contrib.setdefault(gid, {})["pki"] = capped
             except Exception as exc:
                 log.debug("path_key_index tier skipped: %s", exc)
+
+        # ── Tier 0.5: filename-anchor boost (flag-gated spike) ─────
+        # Dewey bench 2026-04-14: filename alone drives retrieval lift;
+        # project/module over-constrain once filename pins location.
+        # Boosts genes whose filename_stem matches a query term.
+        # Flag-off is a no-op. See helix_context/filename_anchor.py.
+        if getattr(self, "_filename_anchor_enabled", False):
+            try:
+                from . import filename_anchor as _fa
+                _fa.boost_scores(
+                    cur.connection,
+                    query_terms,
+                    gene_scores,
+                    tier_contrib,
+                    weight=getattr(self, "_filename_anchor_weight", 4.0),
+                    party_filter_sql=_party_filter,
+                    party_params=tuple(_party_params),
+                )
+            except Exception as exc:
+                log.debug("filename_anchor tier skipped: %s", exc)
 
         # ── Tier 1: exact promoter tag match (weight 3.0) ──────────
         placeholders = ",".join("?" * len(query_terms))
