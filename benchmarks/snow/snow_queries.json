@@ -1,0 +1,762 @@
+[
+  {
+    "idx": 0,
+    "query": "What is the queries path mentioned in the code?",
+    "expected_answer": "os.path.join",
+    "accept": [
+      "os.path.join"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 1,
+    "query": "What is the value of flexiblenavigationitem?",
+    "expected_answer": "flexibleNavigationItem",
+    "accept": [
+      "flexibleNavigationItem",
+      "flexiblenavigationitem"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 2,
+    "query": "What is the value of rbac?",
+    "expected_answer": "report",
+    "accept": [
+      "report"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 3,
+    "query": "What is the value of current?",
+    "expected_answer": "stat.S_IMODE",
+    "accept": [
+      "stat.S_IMODE",
+      "stat.s_imode"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 4,
+    "query": "What is the value of payload?",
+    "expected_answer": "days",
+    "accept": [
+      "days"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 5,
+    "query": "What is the value of priority?",
+    "expected_answer": "0.8",
+    "accept": [
+      "0.8"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 6,
+    "query": "What is the value of product?",
+    "expected_answer": "WiX",
+    "accept": [
+      "WiX",
+      "wix"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 7,
+    "query": "What is the value of stored?",
+    "expected_answer": "loadFromLocalStorage",
+    "accept": [
+      "loadFromLocalStorage",
+      "loadfromlocalstorage"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 8,
+    "query": "What is the value of days?",
+    "expected_answer": "Option",
+    "accept": [
+      "Option",
+      "option"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 9,
+    "query": "What is the dxpixelshaderfile mentioned in the code?",
+    "expected_answer": "shaders/common/lighting/basic/shadowFilterP.hlsl",
+    "accept": [
+      "shaders/common/lighting/basic/shadowFilterP.hlsl",
+      "shaders/common/lighting/basic/shadowfilterp.hlsl"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 10,
+    "query": "What is the value of model?",
+    "expected_answer": "SentenceTransformer",
+    "accept": [
+      "SentenceTransformer",
+      "sentencetransformer"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 11,
+    "query": "What is the peers urls mentioned in the code?",
+    "expected_answer": "return",
+    "accept": [
+      "return"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 12,
+    "query": "What is the value of manager?",
+    "expected_answer": "AgentomeManager",
+    "accept": [
+      "AgentomeManager",
+      "agentomemanager"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 13,
+    "query": "What is the value of args?",
+    "expected_answer": "engine",
+    "accept": [
+      "engine"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 14,
+    "query": "What is the value of linenumber?",
+    "expected_answer": "59",
+    "accept": [
+      "59"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 15,
+    "query": "What is the value of knowledge dir?",
+    "expected_answer": "knowledge_dir",
+    "accept": [
+      "knowledge_dir"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 16,
+    "query": "What is the value of dot?",
+    "expected_answer": "dot-red",
+    "accept": [
+      "dot-red"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 17,
+    "query": "What is the value of response?",
+    "expected_answer": "status",
+    "accept": [
+      "status"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 18,
+    "query": "What is the randomswapname?",
+    "expected_answer": "GetRandomValue",
+    "accept": [
+      "GetRandomValue",
+      "getrandomvalue"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 19,
+    "query": "What is the value of mgr?",
+    "expected_answer": "HelixContextManager",
+    "accept": [
+      "HelixContextManager",
+      "helixcontextmanager"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 20,
+    "query": "What is the value of logs?",
+    "expected_answer": "docker",
+    "accept": [
+      "docker"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 21,
+    "query": "What is the value of transmit?",
+    "expected_answer": "energy",
+    "accept": [
+      "energy"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 22,
+    "query": "What is the value of reranker?",
+    "expected_answer": "model_name",
+    "accept": [
+      "model_name"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 23,
+    "query": "What is the value of balloondirection?",
+    "expected_answer": "up",
+    "accept": [
+      "up"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 24,
+    "query": "What is the value of starttimestamp?",
+    "expected_answer": "enabled",
+    "accept": [
+      "enabled"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 25,
+    "query": "What is the value of default?",
+    "expected_answer": "sales",
+    "accept": [
+      "sales"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 26,
+    "query": "What is the value of description?",
+    "expected_answer": "missions.italy.rallyStage.norte.description",
+    "accept": [
+      "missions.italy.rallyStage.norte.description",
+      "missions.italy.rallystage.norte.description"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 27,
+    "query": "What is the value of framesperseconddividermap?",
+    "expected_answer": "new",
+    "accept": [
+      "new"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 28,
+    "query": "What is the value of summary?",
+    "expected_answer": "The file is empty and contains no executable code.",
+    "accept": [
+      "The file is empty and contains no executable code.",
+      "the file is empty and contains no executable code."
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 29,
+    "query": "What is the value of eventlistenerssectiongroup?",
+    "expected_answer": "new",
+    "accept": [
+      "new"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 30,
+    "query": "What is the value of vram needed?",
+    "expected_answer": "_PROFILE_VRAM.get",
+    "accept": [
+      "_PROFILE_VRAM.get",
+      "_profile_vram.get"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 31,
+    "query": "What is the value of asset 1000 id?",
+    "expected_answer": "accounts_map.get",
+    "accept": [
+      "accounts_map.get"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 32,
+    "query": "What is the value of xero client id?",
+    "expected_answer": "your-client-id",
+    "accept": [
+      "your-client-id"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 33,
+    "query": "What is the value of timingelement?",
+    "expected_answer": "this._timingContainer.createChild",
+    "accept": [
+      "this._timingContainer.createChild",
+      "this._timingcontainer.createchild"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 34,
+    "query": "What is the value of collection?",
+    "expected_answer": "new",
+    "accept": [
+      "new"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 35,
+    "query": "What is the value of left?",
+    "expected_answer": "Navigation",
+    "accept": [
+      "Navigation",
+      "navigation"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 36,
+    "query": "What is the value of skill?",
+    "expected_answer": "skill_lifecycle_suite",
+    "accept": [
+      "skill_lifecycle_suite"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 37,
+    "query": "What is the value of linenumber?",
+    "expected_answer": "47",
+    "accept": [
+      "47"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 38,
+    "query": "What is the databasename?",
+    "expected_answer": "objectStore.parentDatabase.name",
+    "accept": [
+      "objectStore.parentDatabase.name",
+      "objectstore.parentdatabase.name"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 39,
+    "query": "What is the value of qualitative keywords?",
+    "expected_answer": "frozenset",
+    "accept": [
+      "frozenset"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 40,
+    "query": "What is the value of encoder?",
+    "expected_answer": "Optional",
+    "accept": [
+      "Optional",
+      "optional"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 41,
+    "query": "What is the url mentioned in the code?",
+    "expected_answer": "http://localhost:{port}/data.json",
+    "accept": [
+      "http://localhost:{port}/data.json"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 42,
+    "query": "What is the value of results?",
+    "expected_answer": "read-only",
+    "accept": [
+      "read-only"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 43,
+    "query": "What is the value of context preparation?",
+    "expected_answer": "** Compiling the full context package.",
+    "accept": [
+      "** Compiling the full context package.",
+      "** compiling the full context package."
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 44,
+    "query": "What is the value of pooled?",
+    "expected_answer": "activated.max",
+    "accept": [
+      "activated.max"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 45,
+    "query": "What is the value of row?",
+    "expected_answer": "db.get_task_result",
+    "accept": [
+      "db.get_task_result"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 46,
+    "query": "What is the value of summary?",
+    "expected_answer": "get_dashboard_summary",
+    "accept": [
+      "get_dashboard_summary"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 47,
+    "query": "What is the value of modulehub?",
+    "expected_answer": "def",
+    "accept": [
+      "def"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 48,
+    "query": "What is the value of triggerobjecttype?",
+    "expected_answer": "WeaponShop",
+    "accept": [
+      "WeaponShop",
+      "weaponshop"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 49,
+    "query": "What is the value of include heterochromatin?",
+    "expected_answer": "Include",
+    "accept": [
+      "Include",
+      "include"
+    ],
+    "source": "needles_50",
+    "oracle_tier": null,
+    "oracle_gene_id": null
+  },
+  {
+    "idx": 50,
+    "query": "Which project names appear as entities in the gene that covers helix ellipticity and security across BigEd and BookKeeper?",
+    "expected_answer": "BigEd",
+    "accept": [
+      "BigEd",
+      "biged"
+    ],
+    "source": "tier_stress",
+    "oracle_tier": null,
+    "oracle_gene_id": null,
+    "target_tier": 0
+  },
+  {
+    "idx": 51,
+    "query": "What game project entity is referenced in the gene covering Ollama supervisor and fleet configuration alongside Dr. Ders?",
+    "expected_answer": "OpenClaw",
+    "accept": [
+      "OpenClaw",
+      "openclaw"
+    ],
+    "source": "tier_stress",
+    "oracle_tier": null,
+    "oracle_gene_id": null,
+    "target_tier": 0
+  },
+  {
+    "idx": 52,
+    "query": "What skill entity appears in the gene covering fleet config, ModuleHub, and dashboard.html?",
+    "expected_answer": "Recommendation Skill",
+    "accept": [
+      "Recommendation Skill",
+      "recommendation skill"
+    ],
+    "source": "tier_stress",
+    "oracle_tier": null,
+    "oracle_gene_id": null,
+    "target_tier": 0
+  },
+  {
+    "idx": 53,
+    "query": "What timeout value (in seconds) is configured in the backup manager key-value pairs?",
+    "expected_answer": "5",
+    "accept": [
+      "5",
+      "timeout=5"
+    ],
+    "source": "tier_stress",
+    "oracle_tier": null,
+    "oracle_gene_id": null,
+    "target_tier": 1
+  },
+  {
+    "idx": 54,
+    "query": "What key-value pair involving a proxy is stored in the gene about ISO 27001, HIPAA, and GDPR compliance checks?",
+    "expected_answer": "proxy=check",
+    "accept": [
+      "proxy=check",
+      "check"
+    ],
+    "source": "tier_stress",
+    "oracle_tier": null,
+    "oracle_gene_id": null,
+    "target_tier": 1
+  },
+  {
+    "idx": 55,
+    "query": "What URL template is stored as a key-value in the gene about tenant deletion and BookKeeper tenancy management?",
+    "expected_answer": "http://{host}:{port}",
+    "accept": [
+      "http://{host}:{port}",
+      "url=http://{host}:{port}"
+    ],
+    "source": "tier_stress",
+    "oracle_tier": null,
+    "oracle_gene_id": null,
+    "target_tier": 1
+  },
+  {
+    "idx": 56,
+    "query": "What jbeam vehicle type is specified in the BeamNGVehicle complement data that includes a square part config?",
+    "expected_answer": "haybale",
+    "accept": [
+      "haybale"
+    ],
+    "source": "tier_stress",
+    "oracle_tier": null,
+    "oracle_gene_id": null,
+    "target_tier": 2
+  },
+  {
+    "idx": 57,
+    "query": "What career skill identifier is set for the high-difficulty drag racing scenario with dial-based star keys?",
+    "expected_answer": "apm-motorsport-dragracing",
+    "accept": [
+      "apm-motorsport-dragracing"
+    ],
+    "source": "tier_stress",
+    "oracle_tier": null,
+    "oracle_gene_id": null,
+    "target_tier": 2
+  },
+  {
+    "idx": 58,
+    "query": "What Wwise data category header appears in the complement of the gene containing elite anti-heal audio IDs?",
+    "expected_answer": "In Memory Audio",
+    "accept": [
+      "In Memory Audio",
+      "in memory audio"
+    ],
+    "source": "tier_stress",
+    "oracle_tier": null,
+    "oracle_gene_id": null,
+    "target_tier": 2
+  },
+  {
+    "idx": 59,
+    "query": "What Lua function is called to teleport a vehicle when the Tow to Nearest Road action is triggered?",
+    "expected_answer": "spawn.teleportToLastRoad",
+    "accept": [
+      "spawn.teleportToLastRoad",
+      "spawn.teleporttolastroad"
+    ],
+    "source": "tier_stress",
+    "oracle_tier": null,
+    "oracle_gene_id": null,
+    "target_tier": 3
+  },
+  {
+    "idx": 60,
+    "query": "What surface parameter name controls the energy boost applied when a ray reflects off a surface?",
+    "expected_answer": "bounce_reflect_boost",
+    "accept": [
+      "bounce_reflect_boost"
+    ],
+    "source": "tier_stress",
+    "oracle_tier": null,
+    "oracle_gene_id": null,
+    "target_tier": 3
+  },
+  {
+    "idx": 61,
+    "query": "What object name prefix is used when registering a new dynamic sound effects emitter in the Lua audio system?",
+    "expected_answer": "DynamicSFXEmitter_",
+    "accept": [
+      "DynamicSFXEmitter_",
+      "DynamicSFXEmitter",
+      "dynamicsfxemitter"
+    ],
+    "source": "tier_stress",
+    "oracle_tier": null,
+    "oracle_gene_id": null,
+    "target_tier": 3
+  },
+  {
+    "idx": 62,
+    "query": "How many endpoints were reported in the Doc Freshness Audit linked to the 2026-03-23 audit gene via harmonic links?",
+    "expected_answer": "353",
+    "accept": [
+      "353"
+    ],
+    "source": "tier_stress",
+    "oracle_tier": null,
+    "oracle_gene_id": null,
+    "target_tier": 4
+  },
+  {
+    "idx": 63,
+    "query": "How many tasks were processed in the Outcome Tracker harmonically linked to the 2026-03-26 tracker showing 50% success rate?",
+    "expected_answer": "317",
+    "accept": [
+      "317"
+    ],
+    "source": "tier_stress",
+    "oracle_tier": null,
+    "oracle_gene_id": null,
+    "target_tier": 4
+  },
+  {
+    "idx": 64,
+    "query": "How many endpoints were tracked in the Doc Freshness Audit neighbor linked to the 2026-03-25 audit with 242 endpoints?",
+    "expected_answer": "271",
+    "accept": [
+      "271"
+    ],
+    "source": "tier_stress",
+    "oracle_tier": null,
+    "oracle_gene_id": null,
+    "target_tier": 4
+  }
+]
