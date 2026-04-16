@@ -1976,6 +1976,15 @@ class Genome:
             except Exception:
                 log.debug("Access-rate tiebreaker failed", exc_info=True)
 
+        # Layered fingerprints: inject parent-gene aggregate scores when
+        # ≥ 2 chunks of the same file surface in candidates. Opt-in via
+        # HELIX_LAYERED_FINGERPRINTS=1. See docs/FUTURE/LAYERED_FINGERPRINTS.md.
+        if os.environ.get("HELIX_LAYERED_FINGERPRINTS", "0") == "1":
+            try:
+                self._aggregate_parent_fingerprints(gene_scores, tier_contrib)
+            except Exception:
+                log.warning("parent fingerprint aggregation failed", exc_info=True)
+
         # Expose scores + per-tier breakdown for score-gated expression in
         # context_manager + the activation profiler bench.
         self.last_query_scores = dict(gene_scores)
@@ -2412,6 +2421,178 @@ class Genome:
             (gene_id, gene_id),
         ).fetchall()
         return [(r["other"], r["relation"], r["confidence"]) for r in rows]
+
+    # ── Layered fingerprints: query-time parent aggregation ──────────
+
+    def _aggregate_parent_fingerprints(
+        self,
+        gene_scores: Dict[str, float],
+        tier_contrib: Dict[str, Dict[str, float]],
+    ) -> None:
+        """Inject parent-gene aggregate scores into gene_scores + tier_contrib
+        when ≥ 2 chunks of the same file hit current candidates.
+
+        Mutates the two dicts in place. Called only when
+        HELIX_LAYERED_FINGERPRINTS=1. Errors are swallowed by the caller.
+
+        Rules:
+          - Candidates with a CHUNK_OF edge to parent P that has N≥2
+            distinct children in gene_scores: parent P gets an
+            aggregated score = sum(child_scores) * (1 + 0.1 * log1p(N)).
+          - Parent tier_contributions = per-tier sum of child contributions.
+          - If parent already in gene_scores (because it fired via its
+            own content matching), add the aggregated bonus on top
+            instead of replacing.
+        """
+        from math import log1p
+        from .schemas import StructuralRelation as _SR
+
+        if not gene_scores:
+            return
+
+        cand_ids = list(gene_scores.keys())
+        # Batched edge lookup. SQLite IN clause capped at ~999 params;
+        # chunk candidates if larger. Normal top-k is < 100 so a single
+        # query is fine in practice.
+        placeholders = ",".join("?" * len(cand_ids))
+        rows = self.conn.execute(
+            f"SELECT gene_id_a AS child, gene_id_b AS parent "
+            f"FROM gene_relations "
+            f"WHERE gene_id_a IN ({placeholders}) AND relation = ?",
+            (*cand_ids, int(_SR.CHUNK_OF)),
+        ).fetchall()
+        if not rows:
+            return
+
+        # parent -> set of children hit
+        from collections import defaultdict
+        parent_children: Dict[str, set] = defaultdict(set)
+        for r in rows:
+            parent_children[r["parent"]].add(r["child"])
+
+        for parent_gid, children in parent_children.items():
+            n_hits = len(children)
+            if n_hits < 2:
+                continue  # co-activation requires ≥ 2 children
+
+            child_score_sum = sum(gene_scores.get(c, 0.0) for c in children)
+            co_activation_bonus = 1.0 + 0.1 * log1p(n_hits)
+            aggregated = child_score_sum * co_activation_bonus
+
+            if parent_gid in gene_scores:
+                # Parent fired on its own; add aggregated bonus instead of replacing.
+                gene_scores[parent_gid] += aggregated
+            else:
+                gene_scores[parent_gid] = aggregated
+
+            # Aggregate per-tier contributions from children.
+            agg_tiers: Dict[str, float] = {}
+            for child_gid in children:
+                for tier, val in tier_contrib.get(child_gid, {}).items():
+                    agg_tiers[tier] = agg_tiers.get(tier, 0.0) + val
+            agg_tiers["parent_coactivation"] = round(aggregated, 3)
+            agg_tiers["chunks_hit"] = n_hits
+
+            existing = tier_contrib.get(parent_gid, {})
+            for tier, val in agg_tiers.items():
+                existing[tier] = existing.get(tier, 0.0) + val if tier not in ("chunks_hit",) else val
+            tier_contrib[parent_gid] = existing
+
+    # ── Layered fingerprints: parent-pull reassembly ──────────────────
+
+    def reassemble(self, parent_gene_id: str, separator: str = "\n\n") -> dict:
+        """Reassemble a file-level parent gene into its full content.
+
+        Reads the parent's ``codons`` field (ordered list of child gene_ids),
+        fetches each child's content from the genes table, sorts by
+        ``promoter.sequence_index`` for deterministic ordering, and joins
+        with the given separator.
+
+        See docs/FUTURE/LAYERED_FINGERPRINTS.md for the design.
+
+        Returns:
+            {
+                "content":          <stitched text>,
+                "source_id":        <original file path>,
+                "chunk_count":      <N>,
+                "reassembled_from": [<child gene_ids in sequence order>],
+                "missing_children": [<child gene_ids that no longer exist>],
+            }
+
+        Raises:
+            ValueError: gene_id does not exist, or is not a parent gene.
+        """
+        from .schemas import StructuralRelation as _SR  # local import, cycle-safe
+
+        cur = self.conn.cursor()
+        row = cur.execute(
+            "SELECT gene_id, content, codons, source_id, key_values "
+            "FROM genes WHERE gene_id = ?",
+            (parent_gene_id,),
+        ).fetchone()
+        if row is None:
+            raise ValueError(f"gene_id {parent_gene_id!r} not found")
+
+        # Parent detection: key_values contains "is_parent=true"
+        kv_raw = row["key_values"] or "[]"
+        try:
+            kv = json_loads(kv_raw) if isinstance(kv_raw, str) else kv_raw
+        except Exception:
+            kv = []
+        is_parent = any(
+            isinstance(k, str) and k.lower() == "is_parent=true" for k in kv
+        )
+        if not is_parent:
+            raise ValueError(
+                f"gene_id {parent_gene_id!r} is not a parent gene "
+                f"(missing is_parent=true marker in key_values)"
+            )
+
+        codons_raw = row["codons"] or "[]"
+        try:
+            child_ids = json_loads(codons_raw) if isinstance(codons_raw, str) else codons_raw
+        except Exception:
+            child_ids = []
+        if not child_ids:
+            raise ValueError(f"parent {parent_gene_id!r} has empty codons list")
+
+        # Batched fetch of children.
+        placeholders = ",".join("?" * len(child_ids))
+        child_rows = cur.execute(
+            f"SELECT gene_id, content, promoter FROM genes "
+            f"WHERE gene_id IN ({placeholders})",
+            tuple(child_ids),
+        ).fetchall()
+
+        found = {r["gene_id"]: r for r in child_rows}
+        missing = [cid for cid in child_ids if cid not in found]
+        if missing:
+            log.warning(
+                "reassemble(%s): %d missing children — stitched output will skip them",
+                parent_gene_id, len(missing),
+            )
+
+        def _seq_index(r) -> int:
+            try:
+                p = json_loads(r["promoter"]) if r["promoter"] else {}
+            except Exception:
+                p = {}
+            idx = p.get("sequence_index") if isinstance(p, dict) else None
+            return idx if isinstance(idx, int) else 0
+
+        ordered = sorted(
+            (found[cid] for cid in child_ids if cid in found),
+            key=_seq_index,
+        )
+
+        stitched = separator.join(r["content"] or "" for r in ordered)
+        return {
+            "content": stitched,
+            "source_id": row["source_id"],
+            "chunk_count": len(child_ids),
+            "reassembled_from": [r["gene_id"] for r in ordered],
+            "missing_children": missing,
+        }
 
     # ── Compaction (decay stale genes) ──────────────────────────────
 

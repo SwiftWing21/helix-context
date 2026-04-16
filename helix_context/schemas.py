@@ -25,6 +25,16 @@ class NLRelation(IntEnum):
     INDEPENDENCE = 6        # no reliable relation
 
 
+class StructuralRelation(IntEnum):
+    """Structural hierarchy relations stored in gene_relations.relation.
+
+    Values ≥ 100 to avoid collision with NLRelation (0-6). The
+    gene_relations table is a discriminated union on relation code:
+    0-6 are NL semantic links, 100+ are structural hierarchy edges.
+    """
+    CHUNK_OF = 100          # gene_id_a is a chunk of gene_id_b (parent file gene)
+
+
 class ChromatinState(IntEnum):
     """Gene accessibility state — mirrors biological chromatin compaction."""
     OPEN = 0            # Recently accessed, hot

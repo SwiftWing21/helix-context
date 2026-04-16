@@ -18,6 +18,7 @@ Token budget:
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import os
 import threading
@@ -35,7 +36,15 @@ from .headroom_bridge import compress_text
 from . import legibility
 from . import session_delivery as _session_delivery
 from .ribosome import ClaudeBackend, LiteLLMBackend, Ribosome, OllamaBackend
-from .schemas import ChromatinState, ContextHealth, ContextWindow, Gene
+from .schemas import (
+    ChromatinState,
+    ContextHealth,
+    ContextWindow,
+    EpigeneticMarkers,
+    Gene,
+    PromoterTags,
+    StructuralRelation,
+)
 
 log = logging.getLogger("helix.context_manager")
 
@@ -439,9 +448,87 @@ class HelixContextManager:
             elif gene.chromatin == ChromatinState.EUCHROMATIN:
                 self.genome.compress_to_euchromatin(gid)
 
+        # Layered fingerprints: create a parent gene when a file chunks
+        # into N >= 2 strands. Parent aggregates child fingerprints at
+        # query time so multi-chunk hits surface the whole file.
+        # See docs/FUTURE/LAYERED_FINGERPRINTS.md.
+        if len(gene_ids) >= 2 and source_path:
+            try:
+                parent_gid = self._upsert_parent_gene(
+                    source_path=source_path,
+                    child_gene_ids=gene_ids,
+                    original_content=content,
+                )
+                if parent_gid:
+                    log.debug("Created parent gene %s for %d chunks of %s",
+                              parent_gid, len(gene_ids), source_path)
+            except Exception:
+                log.warning("Parent gene creation failed for %s — chunks still ingested",
+                            source_path, exc_info=True)
+
         log.info("Ingested %d strands from %s content (%d chars)",
                  len(gene_ids), content_type, len(content))
         return gene_ids
+
+    @staticmethod
+    def _make_parent_gene_id(source_path: str) -> str:
+        """Deterministic parent gene_id from source path.
+
+        Uses a distinct hash input (suffix "::parent") so parent IDs
+        can't collide with content-hashed child gene_ids.
+        """
+        return hashlib.sha256(
+            (source_path + "::parent").encode("utf-8")
+        ).hexdigest()[:16]
+
+    def _upsert_parent_gene(
+        self,
+        source_path: str,
+        child_gene_ids: List[str],
+        original_content: str,
+    ) -> Optional[str]:
+        """Create or refresh a parent gene for a multi-chunk file.
+
+        Parent shape:
+            gene_id      — deterministic from source_path
+            content      — first 1024 chars of original file
+            codons       — ordered list of child gene_ids (reassembly key)
+            key_values   — [chunk_count=N, total_size_bytes=B, is_parent=true]
+            is_fragment  — False
+            sequence_index = -1 (file-level sentinel)
+
+        Also inserts CHUNK_OF edges from each child to the parent.
+        """
+        parent_gid = self._make_parent_gene_id(source_path)
+        n_chunks = len(child_gene_ids)
+        total_bytes = len(original_content)
+
+        parent = Gene(
+            gene_id=parent_gid,
+            content=original_content[:1024],
+            complement=f"File-level parent aggregating {n_chunks} chunks of {source_path}",
+            codons=list(child_gene_ids),
+            key_values=[
+                f"chunk_count={n_chunks}",
+                f"total_size_bytes={total_bytes}",
+                "is_parent=true",
+            ],
+            promoter=PromoterTags(sequence_index=-1),
+            epigenetics=EpigeneticMarkers(),
+            chromatin=ChromatinState.OPEN,
+            is_fragment=False,
+            source_id=source_path,
+        )
+        # apply_gate=False: parents are metadata aggregators, not content —
+        # they should not be density-gated into heterochromatin.
+        self.genome.upsert_gene(parent, apply_gate=False)
+
+        edges = [
+            (child_gid, parent_gid, int(StructuralRelation.CHUNK_OF), 1.0)
+            for child_gid in child_gene_ids
+        ]
+        self.genome.store_relations_batch(edges)
+        return parent_gid
 
     async def ingest_async(self, content: str, content_type: str = "text", metadata: Optional[Dict] = None) -> List[str]:
         """Async wrapper for ingest -- runs ribosome calls in thread pool."""
