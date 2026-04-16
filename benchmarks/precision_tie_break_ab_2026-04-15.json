@@ -1,0 +1,3633 @@
+{
+  "summary": {
+    "genome_db": "genome-bench-2026-04-14.db",
+    "n_queries": 25,
+    "top_k": 12,
+    "n_queries_any_reorder": 12,
+    "n_queries_head_reorder": 8,
+    "rule_usage": {
+      "strong_edge_freshness": 11,
+      "neighborhood_size": 54,
+      "nli_entailment": 0,
+      "freshness_fallback": 0,
+      "lexical_gene_id": 1
+    }
+  },
+  "results": [
+    {
+      "idx": 0,
+      "query": "What is the queries path mentioned in the code?",
+      "status": "TAIL_CHANGED (0h/2t)",
+      "baseline_ids": [
+        "ade070a94a3a118c",
+        "3d1072d659bc091b",
+        "6aabf8366c1cc3cd",
+        "7b0a7740122880e8",
+        "124ccfe4b6c557bc",
+        "cfce2fd973816008",
+        "1d6cc4e6374f691e",
+        "57b8411d6f50f0c7",
+        "1e638a9551d3e975",
+        "d60a5c291ea0ced1",
+        "b949575574cc5dff",
+        "0238874e8fbaa2c1",
+        "8236419fede44273",
+        "a5954cc5466e447e",
+        "94673b8993345f05",
+        "b0ffeae6009eec50",
+        "e7ac390bf888b46b",
+        "4a5d818b78b6340f",
+        "0e016eff6eb742e0",
+        "fab70117ef376e55",
+        "ff14dea81d36e1a6",
+        "74c9ce9c5d5ad916",
+        "101a8854408ada15",
+        "3d4d6a3cc32b3fc0"
+      ],
+      "walking_ids": [
+        "ade070a94a3a118c",
+        "3d1072d659bc091b",
+        "6aabf8366c1cc3cd",
+        "7b0a7740122880e8",
+        "124ccfe4b6c557bc",
+        "cfce2fd973816008",
+        "1d6cc4e6374f691e",
+        "57b8411d6f50f0c7",
+        "d60a5c291ea0ced1",
+        "1e638a9551d3e975",
+        "b949575574cc5dff",
+        "0238874e8fbaa2c1",
+        "8236419fede44273",
+        "a5954cc5466e447e",
+        "94673b8993345f05",
+        "b0ffeae6009eec50",
+        "e7ac390bf888b46b",
+        "4a5d818b78b6340f",
+        "0e016eff6eb742e0",
+        "fab70117ef376e55",
+        "ff14dea81d36e1a6",
+        "74c9ce9c5d5ad916",
+        "101a8854408ada15",
+        "3d4d6a3cc32b3fc0"
+      ],
+      "swaps": [
+        {
+          "rank": 8,
+          "baseline_id": "1e638a9551d3e975",
+          "walking_id": "d60a5c291ea0ced1"
+        },
+        {
+          "rank": 9,
+          "baseline_id": "d60a5c291ea0ced1",
+          "walking_id": "1e638a9551d3e975"
+        }
+      ],
+      "head_swaps": [],
+      "score_mismatch": false,
+      "swap_explanations": [
+        {
+          "rank": 8,
+          "baseline_id": "1e638a9551d3e975",
+          "walking_id": "d60a5c291ea0ced1",
+          "decisive_rule": "strong_edge_freshness",
+          "trace": {
+            "strong_edge_freshness": "b",
+            "neighborhood_size": "a",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "b",
+            "lexical_gene_id": "a",
+            "attrs_a": {
+              "neighbors": 33,
+              "freshness": 4471
+            },
+            "attrs_b": {
+              "neighbors": 32,
+              "freshness": 4508
+            },
+            "edge_weight": 1.0,
+            "nli_ab": null,
+            "nli_ba": [
+              5,
+              0.8
+            ]
+          }
+        },
+        {
+          "rank": 9,
+          "baseline_id": "d60a5c291ea0ced1",
+          "walking_id": "1e638a9551d3e975",
+          "decisive_rule": "strong_edge_freshness",
+          "trace": {
+            "strong_edge_freshness": "a",
+            "neighborhood_size": "b",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "a",
+            "lexical_gene_id": "b",
+            "attrs_a": {
+              "neighbors": 32,
+              "freshness": 4508
+            },
+            "attrs_b": {
+              "neighbors": 33,
+              "freshness": 4471
+            },
+            "edge_weight": 1.0,
+            "nli_ab": [
+              5,
+              0.8
+            ],
+            "nli_ba": null
+          }
+        }
+      ]
+    },
+    {
+      "idx": 1,
+      "query": "What is the value of flexiblenavigationitem?",
+      "status": "UNCHANGED",
+      "baseline_ids": [
+        "efe4b957eab1bfad",
+        "4df4b7525b8a3826",
+        "8b630a8a0e3f0079",
+        "8e6e4b4728727a5d",
+        "a6f6359c1422bdab",
+        "51a50f0a4f2adc8c",
+        "f92e4236ed97df91",
+        "ff68b7a09a9f5aa5",
+        "a7e81ed0c4a90b8d",
+        "713fc38fb642989f",
+        "d493de665f1e6201",
+        "34c9b7a2711c29ff",
+        "91657587c111b2c3",
+        "aecd593be0779e68",
+        "ed926c456f33703b",
+        "029a880282586e7c",
+        "df656b6ef58d0d62",
+        "f834368853c04486",
+        "7089d61fa567ea82",
+        "cae214f4dfbc4610",
+        "c7b6651af9544bef",
+        "1066a56d3c16f2aa",
+        "64f9abfc7e100eba",
+        "2c3afc0c6507d1d7"
+      ],
+      "walking_ids": [
+        "efe4b957eab1bfad",
+        "4df4b7525b8a3826",
+        "8b630a8a0e3f0079",
+        "8e6e4b4728727a5d",
+        "a6f6359c1422bdab",
+        "51a50f0a4f2adc8c",
+        "f92e4236ed97df91",
+        "ff68b7a09a9f5aa5",
+        "a7e81ed0c4a90b8d",
+        "713fc38fb642989f",
+        "d493de665f1e6201",
+        "34c9b7a2711c29ff",
+        "91657587c111b2c3",
+        "aecd593be0779e68",
+        "ed926c456f33703b",
+        "029a880282586e7c",
+        "df656b6ef58d0d62",
+        "f834368853c04486",
+        "7089d61fa567ea82",
+        "cae214f4dfbc4610",
+        "c7b6651af9544bef",
+        "1066a56d3c16f2aa",
+        "64f9abfc7e100eba",
+        "2c3afc0c6507d1d7"
+      ],
+      "swaps": [],
+      "head_swaps": [],
+      "score_mismatch": false,
+      "swap_explanations": []
+    },
+    {
+      "idx": 2,
+      "query": "What is the value of rbac?",
+      "status": "UNCHANGED",
+      "baseline_ids": [
+        "a00785cb2a73cbf7",
+        "0aeb4d6440b8d0b9",
+        "1f96be1307be7595",
+        "3e237ba9d987f6eb",
+        "c738039158577c9f",
+        "75f0bdfd4e94c31c",
+        "fc885e6c9603feb3",
+        "eb6491918c649e4a",
+        "0ad07e005654c190",
+        "c0590771efe3205e",
+        "a5644bfb8b11dcff",
+        "70243269c543a301",
+        "2b14f67831414235",
+        "39171170dbd1567e",
+        "a3800d317e718ef3",
+        "ed0e9602052b2f7a",
+        "8fd683c342f29d52",
+        "08d88d73edde2426",
+        "0114bd638757ac71",
+        "b7d20ff0c55ca490",
+        "7e7369ec5ef18dc6",
+        "c47b07bc5823a7fe",
+        "2aff6de2e23484f9",
+        "2c27fa44e2793240"
+      ],
+      "walking_ids": [
+        "a00785cb2a73cbf7",
+        "0aeb4d6440b8d0b9",
+        "1f96be1307be7595",
+        "3e237ba9d987f6eb",
+        "c738039158577c9f",
+        "75f0bdfd4e94c31c",
+        "fc885e6c9603feb3",
+        "eb6491918c649e4a",
+        "0ad07e005654c190",
+        "c0590771efe3205e",
+        "a5644bfb8b11dcff",
+        "70243269c543a301",
+        "2b14f67831414235",
+        "39171170dbd1567e",
+        "a3800d317e718ef3",
+        "ed0e9602052b2f7a",
+        "8fd683c342f29d52",
+        "08d88d73edde2426",
+        "0114bd638757ac71",
+        "b7d20ff0c55ca490",
+        "7e7369ec5ef18dc6",
+        "c47b07bc5823a7fe",
+        "2aff6de2e23484f9",
+        "2c27fa44e2793240"
+      ],
+      "swaps": [],
+      "head_swaps": [],
+      "score_mismatch": false,
+      "swap_explanations": []
+    },
+    {
+      "idx": 3,
+      "query": "What is the value of current?",
+      "status": "HEAD_CHANGED (3h/15t)",
+      "baseline_ids": [
+        "4df4b7525b8a3826",
+        "8b630a8a0e3f0079",
+        "8e6e4b4728727a5d",
+        "a6f6359c1422bdab",
+        "d493de665f1e6201",
+        "51a50f0a4f2adc8c",
+        "ff68b7a09a9f5aa5",
+        "713fc38fb642989f",
+        "c697cab801dcaa12",
+        "1cc9a6b24ada79f9",
+        "9e2049448fd87cfd",
+        "a7e81ed0c4a90b8d",
+        "f92e4236ed97df91",
+        "34c9b7a2711c29ff",
+        "029a880282586e7c",
+        "038f2b9a168cf10b",
+        "0728dd28dfd4d33a",
+        "0ecc34ef2722191d",
+        "1066a56d3c16f2aa",
+        "2171948ab765a82c",
+        "2c3afc0c6507d1d7",
+        "2e68c6baddd57195",
+        "4e3c6a508d2ba146",
+        "59fe9292aee1cdd0"
+      ],
+      "walking_ids": [
+        "4df4b7525b8a3826",
+        "8e6e4b4728727a5d",
+        "a6f6359c1422bdab",
+        "8b630a8a0e3f0079",
+        "d493de665f1e6201",
+        "51a50f0a4f2adc8c",
+        "ff68b7a09a9f5aa5",
+        "713fc38fb642989f",
+        "c697cab801dcaa12",
+        "1cc9a6b24ada79f9",
+        "a7e81ed0c4a90b8d",
+        "9e2049448fd87cfd",
+        "f92e4236ed97df91",
+        "34c9b7a2711c29ff",
+        "0ecc34ef2722191d",
+        "2171948ab765a82c",
+        "4e3c6a508d2ba146",
+        "029a880282586e7c",
+        "2e68c6baddd57195",
+        "2c3afc0c6507d1d7",
+        "1066a56d3c16f2aa",
+        "038f2b9a168cf10b",
+        "59fe9292aee1cdd0",
+        "0728dd28dfd4d33a"
+      ],
+      "swaps": [
+        {
+          "rank": 1,
+          "baseline_id": "8b630a8a0e3f0079",
+          "walking_id": "8e6e4b4728727a5d"
+        },
+        {
+          "rank": 2,
+          "baseline_id": "8e6e4b4728727a5d",
+          "walking_id": "a6f6359c1422bdab"
+        },
+        {
+          "rank": 3,
+          "baseline_id": "a6f6359c1422bdab",
+          "walking_id": "8b630a8a0e3f0079"
+        },
+        {
+          "rank": 10,
+          "baseline_id": "9e2049448fd87cfd",
+          "walking_id": "a7e81ed0c4a90b8d"
+        },
+        {
+          "rank": 11,
+          "baseline_id": "a7e81ed0c4a90b8d",
+          "walking_id": "9e2049448fd87cfd"
+        },
+        {
+          "rank": 14,
+          "baseline_id": "029a880282586e7c",
+          "walking_id": "0ecc34ef2722191d"
+        },
+        {
+          "rank": 15,
+          "baseline_id": "038f2b9a168cf10b",
+          "walking_id": "2171948ab765a82c"
+        },
+        {
+          "rank": 16,
+          "baseline_id": "0728dd28dfd4d33a",
+          "walking_id": "4e3c6a508d2ba146"
+        },
+        {
+          "rank": 17,
+          "baseline_id": "0ecc34ef2722191d",
+          "walking_id": "029a880282586e7c"
+        },
+        {
+          "rank": 18,
+          "baseline_id": "1066a56d3c16f2aa",
+          "walking_id": "2e68c6baddd57195"
+        },
+        {
+          "rank": 19,
+          "baseline_id": "2171948ab765a82c",
+          "walking_id": "2c3afc0c6507d1d7"
+        },
+        {
+          "rank": 20,
+          "baseline_id": "2c3afc0c6507d1d7",
+          "walking_id": "1066a56d3c16f2aa"
+        },
+        {
+          "rank": 21,
+          "baseline_id": "2e68c6baddd57195",
+          "walking_id": "038f2b9a168cf10b"
+        },
+        {
+          "rank": 22,
+          "baseline_id": "4e3c6a508d2ba146",
+          "walking_id": "59fe9292aee1cdd0"
+        },
+        {
+          "rank": 23,
+          "baseline_id": "59fe9292aee1cdd0",
+          "walking_id": "0728dd28dfd4d33a"
+        }
+      ],
+      "head_swaps": [
+        {
+          "rank": 1,
+          "baseline_id": "8b630a8a0e3f0079",
+          "walking_id": "8e6e4b4728727a5d"
+        },
+        {
+          "rank": 2,
+          "baseline_id": "8e6e4b4728727a5d",
+          "walking_id": "a6f6359c1422bdab"
+        },
+        {
+          "rank": 3,
+          "baseline_id": "a6f6359c1422bdab",
+          "walking_id": "8b630a8a0e3f0079"
+        }
+      ],
+      "score_mismatch": false,
+      "swap_explanations": [
+        {
+          "rank": 1,
+          "baseline_id": "8b630a8a0e3f0079",
+          "walking_id": "8e6e4b4728727a5d",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "b",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "b",
+            "lexical_gene_id": "a",
+            "attrs_a": {
+              "neighbors": 27,
+              "freshness": 2347
+            },
+            "attrs_b": {
+              "neighbors": 112,
+              "freshness": 18726
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 2,
+          "baseline_id": "8e6e4b4728727a5d",
+          "walking_id": "a6f6359c1422bdab",
+          "decisive_rule": "strong_edge_freshness",
+          "trace": {
+            "strong_edge_freshness": "a",
+            "neighborhood_size": "a",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "a",
+            "lexical_gene_id": "a",
+            "attrs_a": {
+              "neighbors": 112,
+              "freshness": 18726
+            },
+            "attrs_b": {
+              "neighbors": 110,
+              "freshness": 18716
+            },
+            "edge_weight": 0.948360983705851,
+            "nli_ab": [
+              5,
+              0.9333333333333333
+            ],
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 3,
+          "baseline_id": "a6f6359c1422bdab",
+          "walking_id": "8b630a8a0e3f0079",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "a",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "a",
+            "lexical_gene_id": "b",
+            "attrs_a": {
+              "neighbors": 110,
+              "freshness": 18716
+            },
+            "attrs_b": {
+              "neighbors": 27,
+              "freshness": 2347
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 10,
+          "baseline_id": "9e2049448fd87cfd",
+          "walking_id": "a7e81ed0c4a90b8d",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "b",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "b",
+            "lexical_gene_id": "a",
+            "attrs_a": {
+              "neighbors": 0,
+              "freshness": 0
+            },
+            "attrs_b": {
+              "neighbors": 137,
+              "freshness": 19529
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 11,
+          "baseline_id": "a7e81ed0c4a90b8d",
+          "walking_id": "9e2049448fd87cfd",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "a",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "a",
+            "lexical_gene_id": "b",
+            "attrs_a": {
+              "neighbors": 137,
+              "freshness": 19529
+            },
+            "attrs_b": {
+              "neighbors": 0,
+              "freshness": 0
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 14,
+          "baseline_id": "029a880282586e7c",
+          "walking_id": "0ecc34ef2722191d",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "b",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "a",
+            "lexical_gene_id": "a",
+            "attrs_a": {
+              "neighbors": 115,
+              "freshness": 13731
+            },
+            "attrs_b": {
+              "neighbors": 179,
+              "freshness": 5653
+            },
+            "edge_weight": 0.30935959055984674,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 15,
+          "baseline_id": "038f2b9a168cf10b",
+          "walking_id": "2171948ab765a82c",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "b",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "a",
+            "lexical_gene_id": "a",
+            "attrs_a": {
+              "neighbors": 42,
+              "freshness": 18719
+            },
+            "attrs_b": {
+              "neighbors": 171,
+              "freshness": 2233
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 16,
+          "baseline_id": "0728dd28dfd4d33a",
+          "walking_id": "4e3c6a508d2ba146",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "b",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "a",
+            "lexical_gene_id": "a",
+            "attrs_a": {
+              "neighbors": 0,
+              "freshness": 13770
+            },
+            "attrs_b": {
+              "neighbors": 155,
+              "freshness": 4368
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 17,
+          "baseline_id": "0ecc34ef2722191d",
+          "walking_id": "029a880282586e7c",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "a",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "b",
+            "lexical_gene_id": "b",
+            "attrs_a": {
+              "neighbors": 179,
+              "freshness": 5653
+            },
+            "attrs_b": {
+              "neighbors": 115,
+              "freshness": 13731
+            },
+            "edge_weight": 0.30935959055984674,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 18,
+          "baseline_id": "1066a56d3c16f2aa",
+          "walking_id": "2e68c6baddd57195",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "a",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "b",
+            "lexical_gene_id": "a",
+            "attrs_a": {
+              "neighbors": 74,
+              "freshness": 3129
+            },
+            "attrs_b": {
+              "neighbors": 69,
+              "freshness": 17346
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 19,
+          "baseline_id": "2171948ab765a82c",
+          "walking_id": "2c3afc0c6507d1d7",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "a",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "b",
+            "lexical_gene_id": "a",
+            "attrs_a": {
+              "neighbors": 171,
+              "freshness": 2233
+            },
+            "attrs_b": {
+              "neighbors": 106,
+              "freshness": 13739
+            },
+            "edge_weight": 0.2998604335779198,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 20,
+          "baseline_id": "2c3afc0c6507d1d7",
+          "walking_id": "1066a56d3c16f2aa",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "a",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "a",
+            "lexical_gene_id": "b",
+            "attrs_a": {
+              "neighbors": 106,
+              "freshness": 13739
+            },
+            "attrs_b": {
+              "neighbors": 74,
+              "freshness": 3129
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 21,
+          "baseline_id": "2e68c6baddd57195",
+          "walking_id": "038f2b9a168cf10b",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "a",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "b",
+            "lexical_gene_id": "b",
+            "attrs_a": {
+              "neighbors": 69,
+              "freshness": 17346
+            },
+            "attrs_b": {
+              "neighbors": 42,
+              "freshness": 18719
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 22,
+          "baseline_id": "4e3c6a508d2ba146",
+          "walking_id": "59fe9292aee1cdd0",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "a",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "a",
+            "lexical_gene_id": "a",
+            "attrs_a": {
+              "neighbors": 155,
+              "freshness": 4368
+            },
+            "attrs_b": {
+              "neighbors": 22,
+              "freshness": 3130
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 23,
+          "baseline_id": "59fe9292aee1cdd0",
+          "walking_id": "0728dd28dfd4d33a",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "a",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "b",
+            "lexical_gene_id": "b",
+            "attrs_a": {
+              "neighbors": 22,
+              "freshness": 3130
+            },
+            "attrs_b": {
+              "neighbors": 0,
+              "freshness": 13770
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        }
+      ]
+    },
+    {
+      "idx": 4,
+      "query": "What is the value of payload?",
+      "status": "UNCHANGED",
+      "baseline_ids": [
+        "a0376e7217e8b624",
+        "4df4b7525b8a3826",
+        "8e6e4b4728727a5d",
+        "a6f6359c1422bdab",
+        "8b630a8a0e3f0079",
+        "ff68b7a09a9f5aa5",
+        "713fc38fb642989f",
+        "d493de665f1e6201",
+        "9e2049448fd87cfd",
+        "a7e81ed0c4a90b8d",
+        "51a50f0a4f2adc8c",
+        "f92e4236ed97df91",
+        "1cc9a6b24ada79f9",
+        "69bf3883899ea88a",
+        "c697cab801dcaa12",
+        "c7b6651af9544bef",
+        "938912ea6b79beaa",
+        "2171948ab765a82c",
+        "ed926c456f33703b",
+        "038f2b9a168cf10b",
+        "0728dd28dfd4d33a",
+        "34c9b7a2711c29ff",
+        "e645e17347f85c14",
+        "0ecc34ef2722191d"
+      ],
+      "walking_ids": [
+        "a0376e7217e8b624",
+        "4df4b7525b8a3826",
+        "8e6e4b4728727a5d",
+        "a6f6359c1422bdab",
+        "8b630a8a0e3f0079",
+        "ff68b7a09a9f5aa5",
+        "713fc38fb642989f",
+        "d493de665f1e6201",
+        "9e2049448fd87cfd",
+        "a7e81ed0c4a90b8d",
+        "51a50f0a4f2adc8c",
+        "f92e4236ed97df91",
+        "1cc9a6b24ada79f9",
+        "69bf3883899ea88a",
+        "c697cab801dcaa12",
+        "c7b6651af9544bef",
+        "938912ea6b79beaa",
+        "2171948ab765a82c",
+        "ed926c456f33703b",
+        "038f2b9a168cf10b",
+        "0728dd28dfd4d33a",
+        "34c9b7a2711c29ff",
+        "e645e17347f85c14",
+        "0ecc34ef2722191d"
+      ],
+      "swaps": [],
+      "head_swaps": [],
+      "score_mismatch": false,
+      "swap_explanations": []
+    },
+    {
+      "idx": 5,
+      "query": "What is the value of priority?",
+      "status": "UNCHANGED",
+      "baseline_ids": [
+        "124ccfe4b6c557bc",
+        "4df4b7525b8a3826",
+        "318d90e118b825b8",
+        "8b630a8a0e3f0079",
+        "8e6e4b4728727a5d",
+        "a6f6359c1422bdab",
+        "f92e4236ed97df91",
+        "d493de665f1e6201",
+        "51a50f0a4f2adc8c",
+        "713fc38fb642989f",
+        "a7e81ed0c4a90b8d",
+        "ff68b7a09a9f5aa5",
+        "34c9b7a2711c29ff",
+        "9e2049448fd87cfd",
+        "ed926c456f33703b",
+        "1066a56d3c16f2aa",
+        "aecd593be0779e68",
+        "f834368853c04486",
+        "2171948ab765a82c",
+        "df656b6ef58d0d62",
+        "029a880282586e7c",
+        "c697cab801dcaa12",
+        "91657587c111b2c3",
+        "7089d61fa567ea82"
+      ],
+      "walking_ids": [
+        "124ccfe4b6c557bc",
+        "4df4b7525b8a3826",
+        "318d90e118b825b8",
+        "8b630a8a0e3f0079",
+        "8e6e4b4728727a5d",
+        "a6f6359c1422bdab",
+        "f92e4236ed97df91",
+        "d493de665f1e6201",
+        "51a50f0a4f2adc8c",
+        "713fc38fb642989f",
+        "a7e81ed0c4a90b8d",
+        "ff68b7a09a9f5aa5",
+        "34c9b7a2711c29ff",
+        "9e2049448fd87cfd",
+        "ed926c456f33703b",
+        "1066a56d3c16f2aa",
+        "aecd593be0779e68",
+        "f834368853c04486",
+        "2171948ab765a82c",
+        "df656b6ef58d0d62",
+        "029a880282586e7c",
+        "c697cab801dcaa12",
+        "91657587c111b2c3",
+        "7089d61fa567ea82"
+      ],
+      "swaps": [],
+      "head_swaps": [],
+      "score_mismatch": false,
+      "swap_explanations": []
+    },
+    {
+      "idx": 6,
+      "query": "What is the value of product?",
+      "status": "HEAD_CHANGED (2h/3t)",
+      "baseline_ids": [
+        "bcfafefcc7780266",
+        "4df4b7525b8a3826",
+        "8b630a8a0e3f0079",
+        "8e6e4b4728727a5d",
+        "a6f6359c1422bdab",
+        "d493de665f1e6201",
+        "713fc38fb642989f",
+        "51a50f0a4f2adc8c",
+        "ff68b7a09a9f5aa5",
+        "f92e4236ed97df91",
+        "eed050167b564073",
+        "a7e81ed0c4a90b8d",
+        "9e2049448fd87cfd",
+        "c697cab801dcaa12",
+        "34c9b7a2711c29ff",
+        "1cc9a6b24ada79f9",
+        "b23c024bb845091e",
+        "69bf3883899ea88a",
+        "ed926c456f33703b",
+        "c7b6651af9544bef",
+        "f834368853c04486",
+        "64f9abfc7e100eba",
+        "1066a56d3c16f2aa",
+        "4e3c6a508d2ba146"
+      ],
+      "walking_ids": [
+        "bcfafefcc7780266",
+        "4df4b7525b8a3826",
+        "8e6e4b4728727a5d",
+        "a6f6359c1422bdab",
+        "8b630a8a0e3f0079",
+        "d493de665f1e6201",
+        "713fc38fb642989f",
+        "51a50f0a4f2adc8c",
+        "ff68b7a09a9f5aa5",
+        "f92e4236ed97df91",
+        "eed050167b564073",
+        "a7e81ed0c4a90b8d",
+        "9e2049448fd87cfd",
+        "c697cab801dcaa12",
+        "34c9b7a2711c29ff",
+        "1cc9a6b24ada79f9",
+        "b23c024bb845091e",
+        "69bf3883899ea88a",
+        "ed926c456f33703b",
+        "c7b6651af9544bef",
+        "f834368853c04486",
+        "64f9abfc7e100eba",
+        "1066a56d3c16f2aa",
+        "4e3c6a508d2ba146"
+      ],
+      "swaps": [
+        {
+          "rank": 2,
+          "baseline_id": "8b630a8a0e3f0079",
+          "walking_id": "8e6e4b4728727a5d"
+        },
+        {
+          "rank": 3,
+          "baseline_id": "8e6e4b4728727a5d",
+          "walking_id": "a6f6359c1422bdab"
+        },
+        {
+          "rank": 4,
+          "baseline_id": "a6f6359c1422bdab",
+          "walking_id": "8b630a8a0e3f0079"
+        }
+      ],
+      "head_swaps": [
+        {
+          "rank": 2,
+          "baseline_id": "8b630a8a0e3f0079",
+          "walking_id": "8e6e4b4728727a5d"
+        },
+        {
+          "rank": 3,
+          "baseline_id": "8e6e4b4728727a5d",
+          "walking_id": "a6f6359c1422bdab"
+        }
+      ],
+      "score_mismatch": false,
+      "swap_explanations": [
+        {
+          "rank": 2,
+          "baseline_id": "8b630a8a0e3f0079",
+          "walking_id": "8e6e4b4728727a5d",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "b",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "b",
+            "lexical_gene_id": "a",
+            "attrs_a": {
+              "neighbors": 27,
+              "freshness": 2347
+            },
+            "attrs_b": {
+              "neighbors": 112,
+              "freshness": 18726
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 3,
+          "baseline_id": "8e6e4b4728727a5d",
+          "walking_id": "a6f6359c1422bdab",
+          "decisive_rule": "strong_edge_freshness",
+          "trace": {
+            "strong_edge_freshness": "a",
+            "neighborhood_size": "a",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "a",
+            "lexical_gene_id": "a",
+            "attrs_a": {
+              "neighbors": 112,
+              "freshness": 18726
+            },
+            "attrs_b": {
+              "neighbors": 110,
+              "freshness": 18716
+            },
+            "edge_weight": 0.948360983705851,
+            "nli_ab": [
+              5,
+              0.9333333333333333
+            ],
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 4,
+          "baseline_id": "a6f6359c1422bdab",
+          "walking_id": "8b630a8a0e3f0079",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "a",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "a",
+            "lexical_gene_id": "b",
+            "attrs_a": {
+              "neighbors": 110,
+              "freshness": 18716
+            },
+            "attrs_b": {
+              "neighbors": 27,
+              "freshness": 2347
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        }
+      ]
+    },
+    {
+      "idx": 7,
+      "query": "What is the value of stored?",
+      "status": "HEAD_CHANGED (3h/3t)",
+      "baseline_ids": [
+        "4df4b7525b8a3826",
+        "8b630a8a0e3f0079",
+        "8e6e4b4728727a5d",
+        "a6f6359c1422bdab",
+        "d493de665f1e6201",
+        "713fc38fb642989f",
+        "ff68b7a09a9f5aa5",
+        "9e2049448fd87cfd",
+        "51a50f0a4f2adc8c",
+        "a7e81ed0c4a90b8d",
+        "f92e4236ed97df91",
+        "c5980ab87eac9c15",
+        "1cc9a6b24ada79f9",
+        "c8d2d623f037d980",
+        "c697cab801dcaa12",
+        "69bf3883899ea88a",
+        "b23c024bb845091e",
+        "34c9b7a2711c29ff",
+        "c7b6651af9544bef",
+        "2171948ab765a82c",
+        "ed926c456f33703b",
+        "1066a56d3c16f2aa",
+        "029a880282586e7c",
+        "038f2b9a168cf10b"
+      ],
+      "walking_ids": [
+        "4df4b7525b8a3826",
+        "8e6e4b4728727a5d",
+        "a6f6359c1422bdab",
+        "8b630a8a0e3f0079",
+        "d493de665f1e6201",
+        "713fc38fb642989f",
+        "ff68b7a09a9f5aa5",
+        "9e2049448fd87cfd",
+        "51a50f0a4f2adc8c",
+        "a7e81ed0c4a90b8d",
+        "f92e4236ed97df91",
+        "c5980ab87eac9c15",
+        "1cc9a6b24ada79f9",
+        "c8d2d623f037d980",
+        "c697cab801dcaa12",
+        "69bf3883899ea88a",
+        "b23c024bb845091e",
+        "34c9b7a2711c29ff",
+        "c7b6651af9544bef",
+        "2171948ab765a82c",
+        "ed926c456f33703b",
+        "1066a56d3c16f2aa",
+        "029a880282586e7c",
+        "038f2b9a168cf10b"
+      ],
+      "swaps": [
+        {
+          "rank": 1,
+          "baseline_id": "8b630a8a0e3f0079",
+          "walking_id": "8e6e4b4728727a5d"
+        },
+        {
+          "rank": 2,
+          "baseline_id": "8e6e4b4728727a5d",
+          "walking_id": "a6f6359c1422bdab"
+        },
+        {
+          "rank": 3,
+          "baseline_id": "a6f6359c1422bdab",
+          "walking_id": "8b630a8a0e3f0079"
+        }
+      ],
+      "head_swaps": [
+        {
+          "rank": 1,
+          "baseline_id": "8b630a8a0e3f0079",
+          "walking_id": "8e6e4b4728727a5d"
+        },
+        {
+          "rank": 2,
+          "baseline_id": "8e6e4b4728727a5d",
+          "walking_id": "a6f6359c1422bdab"
+        },
+        {
+          "rank": 3,
+          "baseline_id": "a6f6359c1422bdab",
+          "walking_id": "8b630a8a0e3f0079"
+        }
+      ],
+      "score_mismatch": false,
+      "swap_explanations": [
+        {
+          "rank": 1,
+          "baseline_id": "8b630a8a0e3f0079",
+          "walking_id": "8e6e4b4728727a5d",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "b",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "b",
+            "lexical_gene_id": "a",
+            "attrs_a": {
+              "neighbors": 27,
+              "freshness": 2347
+            },
+            "attrs_b": {
+              "neighbors": 112,
+              "freshness": 18726
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 2,
+          "baseline_id": "8e6e4b4728727a5d",
+          "walking_id": "a6f6359c1422bdab",
+          "decisive_rule": "strong_edge_freshness",
+          "trace": {
+            "strong_edge_freshness": "a",
+            "neighborhood_size": "a",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "a",
+            "lexical_gene_id": "a",
+            "attrs_a": {
+              "neighbors": 112,
+              "freshness": 18726
+            },
+            "attrs_b": {
+              "neighbors": 110,
+              "freshness": 18716
+            },
+            "edge_weight": 0.948360983705851,
+            "nli_ab": [
+              5,
+              0.9333333333333333
+            ],
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 3,
+          "baseline_id": "a6f6359c1422bdab",
+          "walking_id": "8b630a8a0e3f0079",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "a",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "a",
+            "lexical_gene_id": "b",
+            "attrs_a": {
+              "neighbors": 110,
+              "freshness": 18716
+            },
+            "attrs_b": {
+              "neighbors": 27,
+              "freshness": 2347
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        }
+      ]
+    },
+    {
+      "idx": 8,
+      "query": "What is the value of days?",
+      "status": "TAIL_CHANGED (0h/7t)",
+      "baseline_ids": [
+        "bd7482b99b881472",
+        "9c2df6dd2fc7b4f4",
+        "afea2d3e46d91ade",
+        "39ad4b58784b197e",
+        "0b218d546f1634f6",
+        "82a5f322beaa1341",
+        "86b50ccc6f7fa545",
+        "284a25bef50eb1d9",
+        "5ba86a647a622503",
+        "8a515b69a948398a",
+        "4df4b7525b8a3826",
+        "8b630a8a0e3f0079",
+        "8e6e4b4728727a5d",
+        "a6f6359c1422bdab",
+        "318d90e118b825b8",
+        "51a50f0a4f2adc8c",
+        "713fc38fb642989f",
+        "9e2049448fd87cfd",
+        "a7e81ed0c4a90b8d",
+        "d493de665f1e6201",
+        "f92e4236ed97df91",
+        "ff68b7a09a9f5aa5",
+        "029a880282586e7c",
+        "038f2b9a168cf10b"
+      ],
+      "walking_ids": [
+        "bd7482b99b881472",
+        "9c2df6dd2fc7b4f4",
+        "afea2d3e46d91ade",
+        "39ad4b58784b197e",
+        "0b218d546f1634f6",
+        "82a5f322beaa1341",
+        "86b50ccc6f7fa545",
+        "284a25bef50eb1d9",
+        "5ba86a647a622503",
+        "8a515b69a948398a",
+        "4df4b7525b8a3826",
+        "8e6e4b4728727a5d",
+        "a6f6359c1422bdab",
+        "318d90e118b825b8",
+        "8b630a8a0e3f0079",
+        "51a50f0a4f2adc8c",
+        "a7e81ed0c4a90b8d",
+        "713fc38fb642989f",
+        "9e2049448fd87cfd",
+        "d493de665f1e6201",
+        "f92e4236ed97df91",
+        "ff68b7a09a9f5aa5",
+        "029a880282586e7c",
+        "038f2b9a168cf10b"
+      ],
+      "swaps": [
+        {
+          "rank": 11,
+          "baseline_id": "8b630a8a0e3f0079",
+          "walking_id": "8e6e4b4728727a5d"
+        },
+        {
+          "rank": 12,
+          "baseline_id": "8e6e4b4728727a5d",
+          "walking_id": "a6f6359c1422bdab"
+        },
+        {
+          "rank": 13,
+          "baseline_id": "a6f6359c1422bdab",
+          "walking_id": "318d90e118b825b8"
+        },
+        {
+          "rank": 14,
+          "baseline_id": "318d90e118b825b8",
+          "walking_id": "8b630a8a0e3f0079"
+        },
+        {
+          "rank": 16,
+          "baseline_id": "713fc38fb642989f",
+          "walking_id": "a7e81ed0c4a90b8d"
+        },
+        {
+          "rank": 17,
+          "baseline_id": "9e2049448fd87cfd",
+          "walking_id": "713fc38fb642989f"
+        },
+        {
+          "rank": 18,
+          "baseline_id": "a7e81ed0c4a90b8d",
+          "walking_id": "9e2049448fd87cfd"
+        }
+      ],
+      "head_swaps": [],
+      "score_mismatch": false,
+      "swap_explanations": [
+        {
+          "rank": 11,
+          "baseline_id": "8b630a8a0e3f0079",
+          "walking_id": "8e6e4b4728727a5d",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "b",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "b",
+            "lexical_gene_id": "a",
+            "attrs_a": {
+              "neighbors": 27,
+              "freshness": 2347
+            },
+            "attrs_b": {
+              "neighbors": 112,
+              "freshness": 18726
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 12,
+          "baseline_id": "8e6e4b4728727a5d",
+          "walking_id": "a6f6359c1422bdab",
+          "decisive_rule": "strong_edge_freshness",
+          "trace": {
+            "strong_edge_freshness": "a",
+            "neighborhood_size": "a",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "a",
+            "lexical_gene_id": "a",
+            "attrs_a": {
+              "neighbors": 112,
+              "freshness": 18726
+            },
+            "attrs_b": {
+              "neighbors": 110,
+              "freshness": 18716
+            },
+            "edge_weight": 0.948360983705851,
+            "nli_ab": [
+              5,
+              0.9333333333333333
+            ],
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 13,
+          "baseline_id": "a6f6359c1422bdab",
+          "walking_id": "318d90e118b825b8",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "a",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "a",
+            "lexical_gene_id": "b",
+            "attrs_a": {
+              "neighbors": 110,
+              "freshness": 18716
+            },
+            "attrs_b": {
+              "neighbors": 84,
+              "freshness": 6881
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 14,
+          "baseline_id": "318d90e118b825b8",
+          "walking_id": "8b630a8a0e3f0079",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "a",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "a",
+            "lexical_gene_id": "a",
+            "attrs_a": {
+              "neighbors": 84,
+              "freshness": 6881
+            },
+            "attrs_b": {
+              "neighbors": 27,
+              "freshness": 2347
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 16,
+          "baseline_id": "713fc38fb642989f",
+          "walking_id": "a7e81ed0c4a90b8d",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "b",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "b",
+            "lexical_gene_id": "a",
+            "attrs_a": {
+              "neighbors": 0,
+              "freshness": 0
+            },
+            "attrs_b": {
+              "neighbors": 137,
+              "freshness": 19529
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 17,
+          "baseline_id": "9e2049448fd87cfd",
+          "walking_id": "713fc38fb642989f",
+          "decisive_rule": "lexical_gene_id",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "abstain",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "abstain",
+            "lexical_gene_id": "b",
+            "attrs_a": {
+              "neighbors": 0,
+              "freshness": 0
+            },
+            "attrs_b": {
+              "neighbors": 0,
+              "freshness": 0
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 18,
+          "baseline_id": "a7e81ed0c4a90b8d",
+          "walking_id": "9e2049448fd87cfd",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "a",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "a",
+            "lexical_gene_id": "b",
+            "attrs_a": {
+              "neighbors": 137,
+              "freshness": 19529
+            },
+            "attrs_b": {
+              "neighbors": 0,
+              "freshness": 0
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        }
+      ]
+    },
+    {
+      "idx": 9,
+      "query": "What is the dxpixelshaderfile mentioned in the code?",
+      "status": "UNCHANGED",
+      "baseline_ids": [
+        "6aabf8366c1cc3cd",
+        "9a72dc8a8cd9f093",
+        "7dbe6829eaa97d8d",
+        "0e016eff6eb742e0",
+        "ed1db5dff9864391",
+        "b18bd46e024ed5a2",
+        "74c9ce9c5d5ad916",
+        "566b6a7c7a944196",
+        "6da530380f6c317a",
+        "aff00d5b3a193262",
+        "cfce2fd973816008",
+        "124ccfe4b6c557bc",
+        "242a0c4129ff474d",
+        "7b0a7740122880e8",
+        "b776bd351f14f286",
+        "def81eee7523f7ed",
+        "73ff952827eb36f1",
+        "5feb2c555464279f",
+        "6aec43a6fda5082d",
+        "32c9da331b5639e9",
+        "ef34671a1e6869f2",
+        "c4c5323144d8ab98",
+        "cac1f4c9bc353788",
+        "a8654987a989c415"
+      ],
+      "walking_ids": [
+        "6aabf8366c1cc3cd",
+        "9a72dc8a8cd9f093",
+        "7dbe6829eaa97d8d",
+        "0e016eff6eb742e0",
+        "ed1db5dff9864391",
+        "b18bd46e024ed5a2",
+        "74c9ce9c5d5ad916",
+        "566b6a7c7a944196",
+        "6da530380f6c317a",
+        "aff00d5b3a193262",
+        "cfce2fd973816008",
+        "124ccfe4b6c557bc",
+        "242a0c4129ff474d",
+        "7b0a7740122880e8",
+        "b776bd351f14f286",
+        "def81eee7523f7ed",
+        "73ff952827eb36f1",
+        "5feb2c555464279f",
+        "6aec43a6fda5082d",
+        "32c9da331b5639e9",
+        "ef34671a1e6869f2",
+        "c4c5323144d8ab98",
+        "cac1f4c9bc353788",
+        "a8654987a989c415"
+      ],
+      "swaps": [],
+      "head_swaps": [],
+      "score_mismatch": false,
+      "swap_explanations": []
+    },
+    {
+      "idx": 10,
+      "query": "What is the value of model?",
+      "status": "TAIL_CHANGED (0h/6t)",
+      "baseline_ids": [
+        "89acbe4243341070",
+        "86c533bdd1b15f81",
+        "857ccc985852917d",
+        "bc4ed82bc671c716",
+        "e51ef180e163285a",
+        "f262ec6e44d7b168",
+        "1902b60a776c8ed7",
+        "75e197546f36446c",
+        "cdd44480377549e1",
+        "f1098d40d2637ab1",
+        "feff09e8e7c0d568",
+        "930e27e1241a8b80",
+        "0352ff4beed17619",
+        "4ac96967752cc2df",
+        "bc09edbfc60ed21e",
+        "e42b33f189401646",
+        "5b127aa3a5651a02",
+        "1390710b1ccaaa75",
+        "04a3556d0f99a7ba",
+        "0aab5917511a93ff",
+        "f31527cedba04fe8",
+        "94a41270fac68f91",
+        "97322144ae8ec4cf",
+        "2b41e75483052dec"
+      ],
+      "walking_ids": [
+        "89acbe4243341070",
+        "86c533bdd1b15f81",
+        "857ccc985852917d",
+        "bc4ed82bc671c716",
+        "f262ec6e44d7b168",
+        "e51ef180e163285a",
+        "1902b60a776c8ed7",
+        "f1098d40d2637ab1",
+        "cdd44480377549e1",
+        "75e197546f36446c",
+        "feff09e8e7c0d568",
+        "930e27e1241a8b80",
+        "bc09edbfc60ed21e",
+        "4ac96967752cc2df",
+        "0352ff4beed17619",
+        "e42b33f189401646",
+        "5b127aa3a5651a02",
+        "1390710b1ccaaa75",
+        "04a3556d0f99a7ba",
+        "0aab5917511a93ff",
+        "f31527cedba04fe8",
+        "94a41270fac68f91",
+        "97322144ae8ec4cf",
+        "2b41e75483052dec"
+      ],
+      "swaps": [
+        {
+          "rank": 4,
+          "baseline_id": "e51ef180e163285a",
+          "walking_id": "f262ec6e44d7b168"
+        },
+        {
+          "rank": 5,
+          "baseline_id": "f262ec6e44d7b168",
+          "walking_id": "e51ef180e163285a"
+        },
+        {
+          "rank": 7,
+          "baseline_id": "75e197546f36446c",
+          "walking_id": "f1098d40d2637ab1"
+        },
+        {
+          "rank": 9,
+          "baseline_id": "f1098d40d2637ab1",
+          "walking_id": "75e197546f36446c"
+        },
+        {
+          "rank": 12,
+          "baseline_id": "0352ff4beed17619",
+          "walking_id": "bc09edbfc60ed21e"
+        },
+        {
+          "rank": 14,
+          "baseline_id": "bc09edbfc60ed21e",
+          "walking_id": "0352ff4beed17619"
+        }
+      ],
+      "head_swaps": [],
+      "score_mismatch": false,
+      "swap_explanations": [
+        {
+          "rank": 4,
+          "baseline_id": "e51ef180e163285a",
+          "walking_id": "f262ec6e44d7b168",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "b",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "a",
+            "lexical_gene_id": "a",
+            "attrs_a": {
+              "neighbors": 53,
+              "freshness": 6230
+            },
+            "attrs_b": {
+              "neighbors": 74,
+              "freshness": 2974
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 5,
+          "baseline_id": "f262ec6e44d7b168",
+          "walking_id": "e51ef180e163285a",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "a",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "b",
+            "lexical_gene_id": "b",
+            "attrs_a": {
+              "neighbors": 74,
+              "freshness": 2974
+            },
+            "attrs_b": {
+              "neighbors": 53,
+              "freshness": 6230
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 7,
+          "baseline_id": "75e197546f36446c",
+          "walking_id": "f1098d40d2637ab1",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "b",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "b",
+            "lexical_gene_id": "a",
+            "attrs_a": {
+              "neighbors": 52,
+              "freshness": 2827
+            },
+            "attrs_b": {
+              "neighbors": 82,
+              "freshness": 4408
+            },
+            "edge_weight": 0.3150093500096853,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 9,
+          "baseline_id": "f1098d40d2637ab1",
+          "walking_id": "75e197546f36446c",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "a",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "a",
+            "lexical_gene_id": "b",
+            "attrs_a": {
+              "neighbors": 82,
+              "freshness": 4408
+            },
+            "attrs_b": {
+              "neighbors": 52,
+              "freshness": 2827
+            },
+            "edge_weight": 0.3150093500096853,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 12,
+          "baseline_id": "0352ff4beed17619",
+          "walking_id": "bc09edbfc60ed21e",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "b",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "b",
+            "lexical_gene_id": "a",
+            "attrs_a": {
+              "neighbors": 57,
+              "freshness": 2610
+            },
+            "attrs_b": {
+              "neighbors": 69,
+              "freshness": 3418
+            },
+            "edge_weight": 0.5516578011155835,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 14,
+          "baseline_id": "bc09edbfc60ed21e",
+          "walking_id": "0352ff4beed17619",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "a",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "a",
+            "lexical_gene_id": "b",
+            "attrs_a": {
+              "neighbors": 69,
+              "freshness": 3418
+            },
+            "attrs_b": {
+              "neighbors": 57,
+              "freshness": 2610
+            },
+            "edge_weight": 0.5516578011155835,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        }
+      ]
+    },
+    {
+      "idx": 11,
+      "query": "What is the peers urls mentioned in the code?",
+      "status": "UNCHANGED",
+      "baseline_ids": [
+        "10051eccbb1d6f9e",
+        "8056d43c52607f61",
+        "6aabf8366c1cc3cd",
+        "3a7492832de35a75",
+        "93461cdedc7a731e",
+        "c5f901cdd1940ef7",
+        "74c9ce9c5d5ad916",
+        "0e016eff6eb742e0",
+        "b3376d8ae806f90b",
+        "450473366606d337",
+        "cfce2fd973816008",
+        "124ccfe4b6c557bc",
+        "242a0c4129ff474d",
+        "b776bd351f14f286",
+        "5feb2c555464279f",
+        "def81eee7523f7ed",
+        "73ff952827eb36f1",
+        "f36d5632f13853d2",
+        "6845b90b812d8fb8",
+        "e284779bd989c7f4",
+        "f96106317ddcc4fe",
+        "6b02ed3e9ace4eca",
+        "1950130b6eb80cae",
+        "e2a81c69aa23bab1"
+      ],
+      "walking_ids": [
+        "10051eccbb1d6f9e",
+        "8056d43c52607f61",
+        "6aabf8366c1cc3cd",
+        "3a7492832de35a75",
+        "93461cdedc7a731e",
+        "c5f901cdd1940ef7",
+        "74c9ce9c5d5ad916",
+        "0e016eff6eb742e0",
+        "b3376d8ae806f90b",
+        "450473366606d337",
+        "cfce2fd973816008",
+        "124ccfe4b6c557bc",
+        "242a0c4129ff474d",
+        "b776bd351f14f286",
+        "5feb2c555464279f",
+        "def81eee7523f7ed",
+        "73ff952827eb36f1",
+        "f36d5632f13853d2",
+        "6845b90b812d8fb8",
+        "e284779bd989c7f4",
+        "f96106317ddcc4fe",
+        "6b02ed3e9ace4eca",
+        "1950130b6eb80cae",
+        "e2a81c69aa23bab1"
+      ],
+      "swaps": [],
+      "head_swaps": [],
+      "score_mismatch": false,
+      "swap_explanations": []
+    },
+    {
+      "idx": 12,
+      "query": "What is the value of manager?",
+      "status": "UNCHANGED",
+      "baseline_ids": [
+        "8b630a8a0e3f0079",
+        "4df4b7525b8a3826",
+        "8e6e4b4728727a5d",
+        "a6f6359c1422bdab",
+        "f92e4236ed97df91",
+        "d493de665f1e6201",
+        "a7e81ed0c4a90b8d",
+        "51a50f0a4f2adc8c",
+        "713fc38fb642989f",
+        "9e2049448fd87cfd",
+        "ff68b7a09a9f5aa5",
+        "34c9b7a2711c29ff",
+        "f3b594c773398cf6",
+        "f834368853c04486",
+        "64f9abfc7e100eba",
+        "c7b6651af9544bef",
+        "1066a56d3c16f2aa",
+        "df656b6ef58d0d62",
+        "2171948ab765a82c",
+        "91657587c111b2c3",
+        "0ecc34ef2722191d",
+        "cae214f4dfbc4610",
+        "0728dd28dfd4d33a",
+        "aecd593be0779e68"
+      ],
+      "walking_ids": [
+        "8b630a8a0e3f0079",
+        "4df4b7525b8a3826",
+        "8e6e4b4728727a5d",
+        "a6f6359c1422bdab",
+        "f92e4236ed97df91",
+        "d493de665f1e6201",
+        "a7e81ed0c4a90b8d",
+        "51a50f0a4f2adc8c",
+        "713fc38fb642989f",
+        "9e2049448fd87cfd",
+        "ff68b7a09a9f5aa5",
+        "34c9b7a2711c29ff",
+        "f3b594c773398cf6",
+        "f834368853c04486",
+        "64f9abfc7e100eba",
+        "c7b6651af9544bef",
+        "1066a56d3c16f2aa",
+        "df656b6ef58d0d62",
+        "2171948ab765a82c",
+        "91657587c111b2c3",
+        "0ecc34ef2722191d",
+        "cae214f4dfbc4610",
+        "0728dd28dfd4d33a",
+        "aecd593be0779e68"
+      ],
+      "swaps": [],
+      "head_swaps": [],
+      "score_mismatch": false,
+      "swap_explanations": []
+    },
+    {
+      "idx": 13,
+      "query": "What is the value of args?",
+      "status": "HEAD_CHANGED (2h/5t)",
+      "baseline_ids": [
+        "32712d3538bcf027",
+        "4df4b7525b8a3826",
+        "d15b52a7975f764a",
+        "e7a32a83f55103cc",
+        "8b630a8a0e3f0079",
+        "8e6e4b4728727a5d",
+        "a6f6359c1422bdab",
+        "d493de665f1e6201",
+        "713fc38fb642989f",
+        "ff68b7a09a9f5aa5",
+        "9e2049448fd87cfd",
+        "f92e4236ed97df91",
+        "51a50f0a4f2adc8c",
+        "a7e81ed0c4a90b8d",
+        "c697cab801dcaa12",
+        "1cc9a6b24ada79f9",
+        "b23c024bb845091e",
+        "69bf3883899ea88a",
+        "34c9b7a2711c29ff",
+        "ed926c456f33703b",
+        "c7b6651af9544bef",
+        "1066a56d3c16f2aa",
+        "2171948ab765a82c",
+        "0728dd28dfd4d33a"
+      ],
+      "walking_ids": [
+        "32712d3538bcf027",
+        "4df4b7525b8a3826",
+        "e7a32a83f55103cc",
+        "d15b52a7975f764a",
+        "8e6e4b4728727a5d",
+        "a6f6359c1422bdab",
+        "8b630a8a0e3f0079",
+        "d493de665f1e6201",
+        "713fc38fb642989f",
+        "ff68b7a09a9f5aa5",
+        "9e2049448fd87cfd",
+        "f92e4236ed97df91",
+        "51a50f0a4f2adc8c",
+        "a7e81ed0c4a90b8d",
+        "c697cab801dcaa12",
+        "1cc9a6b24ada79f9",
+        "b23c024bb845091e",
+        "69bf3883899ea88a",
+        "34c9b7a2711c29ff",
+        "ed926c456f33703b",
+        "c7b6651af9544bef",
+        "1066a56d3c16f2aa",
+        "2171948ab765a82c",
+        "0728dd28dfd4d33a"
+      ],
+      "swaps": [
+        {
+          "rank": 2,
+          "baseline_id": "d15b52a7975f764a",
+          "walking_id": "e7a32a83f55103cc"
+        },
+        {
+          "rank": 3,
+          "baseline_id": "e7a32a83f55103cc",
+          "walking_id": "d15b52a7975f764a"
+        },
+        {
+          "rank": 4,
+          "baseline_id": "8b630a8a0e3f0079",
+          "walking_id": "8e6e4b4728727a5d"
+        },
+        {
+          "rank": 5,
+          "baseline_id": "8e6e4b4728727a5d",
+          "walking_id": "a6f6359c1422bdab"
+        },
+        {
+          "rank": 6,
+          "baseline_id": "a6f6359c1422bdab",
+          "walking_id": "8b630a8a0e3f0079"
+        }
+      ],
+      "head_swaps": [
+        {
+          "rank": 2,
+          "baseline_id": "d15b52a7975f764a",
+          "walking_id": "e7a32a83f55103cc"
+        },
+        {
+          "rank": 3,
+          "baseline_id": "e7a32a83f55103cc",
+          "walking_id": "d15b52a7975f764a"
+        }
+      ],
+      "score_mismatch": false,
+      "swap_explanations": [
+        {
+          "rank": 2,
+          "baseline_id": "d15b52a7975f764a",
+          "walking_id": "e7a32a83f55103cc",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "b",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "a",
+            "lexical_gene_id": "a",
+            "attrs_a": {
+              "neighbors": 22,
+              "freshness": 17642
+            },
+            "attrs_b": {
+              "neighbors": 26,
+              "freshness": 11957
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 3,
+          "baseline_id": "e7a32a83f55103cc",
+          "walking_id": "d15b52a7975f764a",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "a",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "b",
+            "lexical_gene_id": "b",
+            "attrs_a": {
+              "neighbors": 26,
+              "freshness": 11957
+            },
+            "attrs_b": {
+              "neighbors": 22,
+              "freshness": 17642
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 4,
+          "baseline_id": "8b630a8a0e3f0079",
+          "walking_id": "8e6e4b4728727a5d",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "b",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "b",
+            "lexical_gene_id": "a",
+            "attrs_a": {
+              "neighbors": 27,
+              "freshness": 2347
+            },
+            "attrs_b": {
+              "neighbors": 112,
+              "freshness": 18726
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 5,
+          "baseline_id": "8e6e4b4728727a5d",
+          "walking_id": "a6f6359c1422bdab",
+          "decisive_rule": "strong_edge_freshness",
+          "trace": {
+            "strong_edge_freshness": "a",
+            "neighborhood_size": "a",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "a",
+            "lexical_gene_id": "a",
+            "attrs_a": {
+              "neighbors": 112,
+              "freshness": 18726
+            },
+            "attrs_b": {
+              "neighbors": 110,
+              "freshness": 18716
+            },
+            "edge_weight": 0.948360983705851,
+            "nli_ab": [
+              5,
+              0.9333333333333333
+            ],
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 6,
+          "baseline_id": "a6f6359c1422bdab",
+          "walking_id": "8b630a8a0e3f0079",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "a",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "a",
+            "lexical_gene_id": "b",
+            "attrs_a": {
+              "neighbors": 110,
+              "freshness": 18716
+            },
+            "attrs_b": {
+              "neighbors": 27,
+              "freshness": 2347
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        }
+      ]
+    },
+    {
+      "idx": 14,
+      "query": "What is the value of linenumber?",
+      "status": "HEAD_CHANGED (3h/5t)",
+      "baseline_ids": [
+        "4c13acccbf0098ca",
+        "15f543656f5e9259",
+        "768d6e585a608db6",
+        "7bdbfa025e09b104",
+        "efed4e2fd13f667a",
+        "f56afe55cde257af",
+        "8b630a8a0e3f0079",
+        "4df4b7525b8a3826",
+        "8e6e4b4728727a5d",
+        "a6f6359c1422bdab",
+        "d493de665f1e6201",
+        "ff68b7a09a9f5aa5",
+        "713fc38fb642989f",
+        "51a50f0a4f2adc8c",
+        "f92e4236ed97df91",
+        "9e2049448fd87cfd",
+        "a7e81ed0c4a90b8d",
+        "c697cab801dcaa12",
+        "1cc9a6b24ada79f9",
+        "34c9b7a2711c29ff",
+        "b23c024bb845091e",
+        "1066a56d3c16f2aa",
+        "c7b6651af9544bef",
+        "69bf3883899ea88a"
+      ],
+      "walking_ids": [
+        "4c13acccbf0098ca",
+        "f56afe55cde257af",
+        "efed4e2fd13f667a",
+        "15f543656f5e9259",
+        "768d6e585a608db6",
+        "7bdbfa025e09b104",
+        "8b630a8a0e3f0079",
+        "4df4b7525b8a3826",
+        "8e6e4b4728727a5d",
+        "a6f6359c1422bdab",
+        "d493de665f1e6201",
+        "ff68b7a09a9f5aa5",
+        "713fc38fb642989f",
+        "51a50f0a4f2adc8c",
+        "f92e4236ed97df91",
+        "9e2049448fd87cfd",
+        "a7e81ed0c4a90b8d",
+        "c697cab801dcaa12",
+        "1cc9a6b24ada79f9",
+        "34c9b7a2711c29ff",
+        "b23c024bb845091e",
+        "1066a56d3c16f2aa",
+        "c7b6651af9544bef",
+        "69bf3883899ea88a"
+      ],
+      "swaps": [
+        {
+          "rank": 1,
+          "baseline_id": "15f543656f5e9259",
+          "walking_id": "f56afe55cde257af"
+        },
+        {
+          "rank": 2,
+          "baseline_id": "768d6e585a608db6",
+          "walking_id": "efed4e2fd13f667a"
+        },
+        {
+          "rank": 3,
+          "baseline_id": "7bdbfa025e09b104",
+          "walking_id": "15f543656f5e9259"
+        },
+        {
+          "rank": 4,
+          "baseline_id": "efed4e2fd13f667a",
+          "walking_id": "768d6e585a608db6"
+        },
+        {
+          "rank": 5,
+          "baseline_id": "f56afe55cde257af",
+          "walking_id": "7bdbfa025e09b104"
+        }
+      ],
+      "head_swaps": [
+        {
+          "rank": 1,
+          "baseline_id": "15f543656f5e9259",
+          "walking_id": "f56afe55cde257af"
+        },
+        {
+          "rank": 2,
+          "baseline_id": "768d6e585a608db6",
+          "walking_id": "efed4e2fd13f667a"
+        },
+        {
+          "rank": 3,
+          "baseline_id": "7bdbfa025e09b104",
+          "walking_id": "15f543656f5e9259"
+        }
+      ],
+      "score_mismatch": false,
+      "swap_explanations": [
+        {
+          "rank": 1,
+          "baseline_id": "15f543656f5e9259",
+          "walking_id": "f56afe55cde257af",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "b",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "a",
+            "lexical_gene_id": "a",
+            "attrs_a": {
+              "neighbors": 25,
+              "freshness": 12367
+            },
+            "attrs_b": {
+              "neighbors": 66,
+              "freshness": 12026
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 2,
+          "baseline_id": "768d6e585a608db6",
+          "walking_id": "efed4e2fd13f667a",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "b",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "b",
+            "lexical_gene_id": "a",
+            "attrs_a": {
+              "neighbors": 21,
+              "freshness": 12068
+            },
+            "attrs_b": {
+              "neighbors": 29,
+              "freshness": 12562
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": [
+              5,
+              0.6153846153846154
+            ]
+          }
+        },
+        {
+          "rank": 3,
+          "baseline_id": "7bdbfa025e09b104",
+          "walking_id": "15f543656f5e9259",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "b",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "a",
+            "lexical_gene_id": "b",
+            "attrs_a": {
+              "neighbors": 20,
+              "freshness": 12751
+            },
+            "attrs_b": {
+              "neighbors": 25,
+              "freshness": 12367
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 4,
+          "baseline_id": "efed4e2fd13f667a",
+          "walking_id": "768d6e585a608db6",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "a",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "a",
+            "lexical_gene_id": "b",
+            "attrs_a": {
+              "neighbors": 29,
+              "freshness": 12562
+            },
+            "attrs_b": {
+              "neighbors": 21,
+              "freshness": 12068
+            },
+            "edge_weight": null,
+            "nli_ab": [
+              5,
+              0.6153846153846154
+            ],
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 5,
+          "baseline_id": "f56afe55cde257af",
+          "walking_id": "7bdbfa025e09b104",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "a",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "b",
+            "lexical_gene_id": "b",
+            "attrs_a": {
+              "neighbors": 66,
+              "freshness": 12026
+            },
+            "attrs_b": {
+              "neighbors": 20,
+              "freshness": 12751
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        }
+      ]
+    },
+    {
+      "idx": 15,
+      "query": "What is the value of knowledge dir?",
+      "status": "UNCHANGED",
+      "baseline_ids": [
+        "369cdf228e2065e3",
+        "0ecc34ef2722191d",
+        "124ccfe4b6c557bc",
+        "c031f703e4ea7461",
+        "fdb7aed19b344d39",
+        "c0dfc3445a28344c",
+        "a63eed765445fb49",
+        "f834368853c04486",
+        "64f9abfc7e100eba",
+        "f3b594c773398cf6",
+        "4e3c6a508d2ba146",
+        "8fed24ee464f30d4",
+        "51a50f0a4f2adc8c",
+        "4df4b7525b8a3826",
+        "8b630a8a0e3f0079",
+        "e22c20d5fc5dd3a8",
+        "8e6e4b4728727a5d",
+        "a6f6359c1422bdab",
+        "01cff0cbe00d1a74",
+        "f92e4236ed97df91",
+        "d493de665f1e6201",
+        "713fc38fb642989f",
+        "a7e81ed0c4a90b8d",
+        "ff68b7a09a9f5aa5"
+      ],
+      "walking_ids": [
+        "369cdf228e2065e3",
+        "0ecc34ef2722191d",
+        "124ccfe4b6c557bc",
+        "c031f703e4ea7461",
+        "fdb7aed19b344d39",
+        "c0dfc3445a28344c",
+        "a63eed765445fb49",
+        "f834368853c04486",
+        "64f9abfc7e100eba",
+        "f3b594c773398cf6",
+        "4e3c6a508d2ba146",
+        "8fed24ee464f30d4",
+        "51a50f0a4f2adc8c",
+        "4df4b7525b8a3826",
+        "8b630a8a0e3f0079",
+        "e22c20d5fc5dd3a8",
+        "8e6e4b4728727a5d",
+        "a6f6359c1422bdab",
+        "01cff0cbe00d1a74",
+        "f92e4236ed97df91",
+        "d493de665f1e6201",
+        "713fc38fb642989f",
+        "a7e81ed0c4a90b8d",
+        "ff68b7a09a9f5aa5"
+      ],
+      "swaps": [],
+      "head_swaps": [],
+      "score_mismatch": false,
+      "swap_explanations": []
+    },
+    {
+      "idx": 16,
+      "query": "What is the value of dot?",
+      "status": "HEAD_CHANGED (2h/3t)",
+      "baseline_ids": [
+        "4df4b7525b8a3826",
+        "5765a1ef1da1a46b",
+        "8b630a8a0e3f0079",
+        "8e6e4b4728727a5d",
+        "a6f6359c1422bdab",
+        "d493de665f1e6201",
+        "713fc38fb642989f",
+        "ff68b7a09a9f5aa5",
+        "51a50f0a4f2adc8c",
+        "f92e4236ed97df91",
+        "9e2049448fd87cfd",
+        "a7e81ed0c4a90b8d",
+        "1cc9a6b24ada79f9",
+        "34c9b7a2711c29ff",
+        "c697cab801dcaa12",
+        "69bf3883899ea88a",
+        "c7b6651af9544bef",
+        "ed926c456f33703b",
+        "b23c024bb845091e",
+        "64f9abfc7e100eba",
+        "2171948ab765a82c",
+        "1066a56d3c16f2aa",
+        "f834368853c04486",
+        "0728dd28dfd4d33a"
+      ],
+      "walking_ids": [
+        "4df4b7525b8a3826",
+        "5765a1ef1da1a46b",
+        "8e6e4b4728727a5d",
+        "a6f6359c1422bdab",
+        "8b630a8a0e3f0079",
+        "d493de665f1e6201",
+        "713fc38fb642989f",
+        "ff68b7a09a9f5aa5",
+        "51a50f0a4f2adc8c",
+        "f92e4236ed97df91",
+        "9e2049448fd87cfd",
+        "a7e81ed0c4a90b8d",
+        "1cc9a6b24ada79f9",
+        "34c9b7a2711c29ff",
+        "c697cab801dcaa12",
+        "69bf3883899ea88a",
+        "c7b6651af9544bef",
+        "ed926c456f33703b",
+        "b23c024bb845091e",
+        "64f9abfc7e100eba",
+        "2171948ab765a82c",
+        "1066a56d3c16f2aa",
+        "f834368853c04486",
+        "0728dd28dfd4d33a"
+      ],
+      "swaps": [
+        {
+          "rank": 2,
+          "baseline_id": "8b630a8a0e3f0079",
+          "walking_id": "8e6e4b4728727a5d"
+        },
+        {
+          "rank": 3,
+          "baseline_id": "8e6e4b4728727a5d",
+          "walking_id": "a6f6359c1422bdab"
+        },
+        {
+          "rank": 4,
+          "baseline_id": "a6f6359c1422bdab",
+          "walking_id": "8b630a8a0e3f0079"
+        }
+      ],
+      "head_swaps": [
+        {
+          "rank": 2,
+          "baseline_id": "8b630a8a0e3f0079",
+          "walking_id": "8e6e4b4728727a5d"
+        },
+        {
+          "rank": 3,
+          "baseline_id": "8e6e4b4728727a5d",
+          "walking_id": "a6f6359c1422bdab"
+        }
+      ],
+      "score_mismatch": false,
+      "swap_explanations": [
+        {
+          "rank": 2,
+          "baseline_id": "8b630a8a0e3f0079",
+          "walking_id": "8e6e4b4728727a5d",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "b",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "b",
+            "lexical_gene_id": "a",
+            "attrs_a": {
+              "neighbors": 27,
+              "freshness": 2347
+            },
+            "attrs_b": {
+              "neighbors": 112,
+              "freshness": 18726
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 3,
+          "baseline_id": "8e6e4b4728727a5d",
+          "walking_id": "a6f6359c1422bdab",
+          "decisive_rule": "strong_edge_freshness",
+          "trace": {
+            "strong_edge_freshness": "a",
+            "neighborhood_size": "a",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "a",
+            "lexical_gene_id": "a",
+            "attrs_a": {
+              "neighbors": 112,
+              "freshness": 18726
+            },
+            "attrs_b": {
+              "neighbors": 110,
+              "freshness": 18716
+            },
+            "edge_weight": 0.948360983705851,
+            "nli_ab": [
+              5,
+              0.9333333333333333
+            ],
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 4,
+          "baseline_id": "a6f6359c1422bdab",
+          "walking_id": "8b630a8a0e3f0079",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "a",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "a",
+            "lexical_gene_id": "b",
+            "attrs_a": {
+              "neighbors": 110,
+              "freshness": 18716
+            },
+            "attrs_b": {
+              "neighbors": 27,
+              "freshness": 2347
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        }
+      ]
+    },
+    {
+      "idx": 17,
+      "query": "What is the value of response?",
+      "status": "UNCHANGED",
+      "baseline_ids": [
+        "a7e81ed0c4a90b8d",
+        "4df4b7525b8a3826",
+        "8e6e4b4728727a5d",
+        "a6f6359c1422bdab",
+        "ff68b7a09a9f5aa5",
+        "713fc38fb642989f",
+        "d493de665f1e6201",
+        "9e2049448fd87cfd",
+        "51a50f0a4f2adc8c",
+        "f92e4236ed97df91",
+        "8b630a8a0e3f0079",
+        "69bf3883899ea88a",
+        "1cc9a6b24ada79f9",
+        "c697cab801dcaa12",
+        "c7b6651af9544bef",
+        "7411028ad8abdabe",
+        "2171948ab765a82c",
+        "ed926c456f33703b",
+        "0728dd28dfd4d33a",
+        "038f2b9a168cf10b",
+        "e645e17347f85c14",
+        "34c9b7a2711c29ff",
+        "df656b6ef58d0d62",
+        "029a880282586e7c"
+      ],
+      "walking_ids": [
+        "a7e81ed0c4a90b8d",
+        "4df4b7525b8a3826",
+        "8e6e4b4728727a5d",
+        "a6f6359c1422bdab",
+        "ff68b7a09a9f5aa5",
+        "713fc38fb642989f",
+        "d493de665f1e6201",
+        "9e2049448fd87cfd",
+        "51a50f0a4f2adc8c",
+        "f92e4236ed97df91",
+        "8b630a8a0e3f0079",
+        "69bf3883899ea88a",
+        "1cc9a6b24ada79f9",
+        "c697cab801dcaa12",
+        "c7b6651af9544bef",
+        "7411028ad8abdabe",
+        "2171948ab765a82c",
+        "ed926c456f33703b",
+        "0728dd28dfd4d33a",
+        "038f2b9a168cf10b",
+        "e645e17347f85c14",
+        "34c9b7a2711c29ff",
+        "df656b6ef58d0d62",
+        "029a880282586e7c"
+      ],
+      "swaps": [],
+      "head_swaps": [],
+      "score_mismatch": false,
+      "swap_explanations": []
+    },
+    {
+      "idx": 18,
+      "query": "What is the randomswapname?",
+      "status": "UNCHANGED",
+      "baseline_ids": [
+        "bfab3d09f3d65978",
+        "0f9ae103fb5179cc",
+        "0238874e8fbaa2c1",
+        "4f0b599a76b537e2",
+        "c5ba69b5c3b2819c",
+        "80c3584f7c963b44",
+        "6424b2993a36bf1e",
+        "efc3e1b9e2083b35",
+        "29266f37732c3092",
+        "3f4af8d9abe2907d",
+        "bc91f56ca1331cd0",
+        "3cfc6fcc1a99eb67",
+        "88d9167989419a58",
+        "029a70bf5f64e2f2",
+        "19a120b742bd656d",
+        "72d83b700a72c373",
+        "2114221823906b36",
+        "b12806f87acb7b46",
+        "f43435d04f886faa",
+        "85123d4442831033",
+        "83feba010bed4603",
+        "af3b2b16ba60de9f",
+        "951a5de4fe89c275",
+        "2bf469aede219cd9"
+      ],
+      "walking_ids": [
+        "bfab3d09f3d65978",
+        "0f9ae103fb5179cc",
+        "0238874e8fbaa2c1",
+        "4f0b599a76b537e2",
+        "c5ba69b5c3b2819c",
+        "80c3584f7c963b44",
+        "6424b2993a36bf1e",
+        "efc3e1b9e2083b35",
+        "29266f37732c3092",
+        "3f4af8d9abe2907d",
+        "bc91f56ca1331cd0",
+        "3cfc6fcc1a99eb67",
+        "88d9167989419a58",
+        "029a70bf5f64e2f2",
+        "19a120b742bd656d",
+        "72d83b700a72c373",
+        "2114221823906b36",
+        "b12806f87acb7b46",
+        "f43435d04f886faa",
+        "85123d4442831033",
+        "83feba010bed4603",
+        "af3b2b16ba60de9f",
+        "951a5de4fe89c275",
+        "2bf469aede219cd9"
+      ],
+      "swaps": [],
+      "head_swaps": [],
+      "score_mismatch": false,
+      "swap_explanations": []
+    },
+    {
+      "idx": 19,
+      "query": "What is the value of mgr?",
+      "status": "HEAD_CHANGED (3h/7t)",
+      "baseline_ids": [
+        "4df4b7525b8a3826",
+        "8b630a8a0e3f0079",
+        "8e6e4b4728727a5d",
+        "a6f6359c1422bdab",
+        "ff68b7a09a9f5aa5",
+        "d493de665f1e6201",
+        "51a50f0a4f2adc8c",
+        "713fc38fb642989f",
+        "a7e81ed0c4a90b8d",
+        "9e2049448fd87cfd",
+        "f92e4236ed97df91",
+        "1cc9a6b24ada79f9",
+        "c697cab801dcaa12",
+        "69bf3883899ea88a",
+        "2171948ab765a82c",
+        "34c9b7a2711c29ff",
+        "b23c024bb845091e",
+        "ed926c456f33703b",
+        "1066a56d3c16f2aa",
+        "c7b6651af9544bef",
+        "029a880282586e7c",
+        "038f2b9a168cf10b",
+        "0728dd28dfd4d33a",
+        "0ecc34ef2722191d"
+      ],
+      "walking_ids": [
+        "4df4b7525b8a3826",
+        "8e6e4b4728727a5d",
+        "a6f6359c1422bdab",
+        "8b630a8a0e3f0079",
+        "ff68b7a09a9f5aa5",
+        "d493de665f1e6201",
+        "51a50f0a4f2adc8c",
+        "713fc38fb642989f",
+        "a7e81ed0c4a90b8d",
+        "9e2049448fd87cfd",
+        "f92e4236ed97df91",
+        "1cc9a6b24ada79f9",
+        "c697cab801dcaa12",
+        "69bf3883899ea88a",
+        "2171948ab765a82c",
+        "34c9b7a2711c29ff",
+        "b23c024bb845091e",
+        "ed926c456f33703b",
+        "1066a56d3c16f2aa",
+        "c7b6651af9544bef",
+        "0ecc34ef2722191d",
+        "029a880282586e7c",
+        "038f2b9a168cf10b",
+        "0728dd28dfd4d33a"
+      ],
+      "swaps": [
+        {
+          "rank": 1,
+          "baseline_id": "8b630a8a0e3f0079",
+          "walking_id": "8e6e4b4728727a5d"
+        },
+        {
+          "rank": 2,
+          "baseline_id": "8e6e4b4728727a5d",
+          "walking_id": "a6f6359c1422bdab"
+        },
+        {
+          "rank": 3,
+          "baseline_id": "a6f6359c1422bdab",
+          "walking_id": "8b630a8a0e3f0079"
+        },
+        {
+          "rank": 20,
+          "baseline_id": "029a880282586e7c",
+          "walking_id": "0ecc34ef2722191d"
+        },
+        {
+          "rank": 21,
+          "baseline_id": "038f2b9a168cf10b",
+          "walking_id": "029a880282586e7c"
+        },
+        {
+          "rank": 22,
+          "baseline_id": "0728dd28dfd4d33a",
+          "walking_id": "038f2b9a168cf10b"
+        },
+        {
+          "rank": 23,
+          "baseline_id": "0ecc34ef2722191d",
+          "walking_id": "0728dd28dfd4d33a"
+        }
+      ],
+      "head_swaps": [
+        {
+          "rank": 1,
+          "baseline_id": "8b630a8a0e3f0079",
+          "walking_id": "8e6e4b4728727a5d"
+        },
+        {
+          "rank": 2,
+          "baseline_id": "8e6e4b4728727a5d",
+          "walking_id": "a6f6359c1422bdab"
+        },
+        {
+          "rank": 3,
+          "baseline_id": "a6f6359c1422bdab",
+          "walking_id": "8b630a8a0e3f0079"
+        }
+      ],
+      "score_mismatch": false,
+      "swap_explanations": [
+        {
+          "rank": 1,
+          "baseline_id": "8b630a8a0e3f0079",
+          "walking_id": "8e6e4b4728727a5d",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "b",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "b",
+            "lexical_gene_id": "a",
+            "attrs_a": {
+              "neighbors": 27,
+              "freshness": 2347
+            },
+            "attrs_b": {
+              "neighbors": 112,
+              "freshness": 18726
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 2,
+          "baseline_id": "8e6e4b4728727a5d",
+          "walking_id": "a6f6359c1422bdab",
+          "decisive_rule": "strong_edge_freshness",
+          "trace": {
+            "strong_edge_freshness": "a",
+            "neighborhood_size": "a",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "a",
+            "lexical_gene_id": "a",
+            "attrs_a": {
+              "neighbors": 112,
+              "freshness": 18726
+            },
+            "attrs_b": {
+              "neighbors": 110,
+              "freshness": 18716
+            },
+            "edge_weight": 0.948360983705851,
+            "nli_ab": [
+              5,
+              0.9333333333333333
+            ],
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 3,
+          "baseline_id": "a6f6359c1422bdab",
+          "walking_id": "8b630a8a0e3f0079",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "a",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "a",
+            "lexical_gene_id": "b",
+            "attrs_a": {
+              "neighbors": 110,
+              "freshness": 18716
+            },
+            "attrs_b": {
+              "neighbors": 27,
+              "freshness": 2347
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 20,
+          "baseline_id": "029a880282586e7c",
+          "walking_id": "0ecc34ef2722191d",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "b",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "a",
+            "lexical_gene_id": "a",
+            "attrs_a": {
+              "neighbors": 115,
+              "freshness": 13731
+            },
+            "attrs_b": {
+              "neighbors": 179,
+              "freshness": 5653
+            },
+            "edge_weight": 0.30935959055984674,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 21,
+          "baseline_id": "038f2b9a168cf10b",
+          "walking_id": "029a880282586e7c",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "b",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "a",
+            "lexical_gene_id": "b",
+            "attrs_a": {
+              "neighbors": 42,
+              "freshness": 18719
+            },
+            "attrs_b": {
+              "neighbors": 115,
+              "freshness": 13731
+            },
+            "edge_weight": 0.19365618811635116,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 22,
+          "baseline_id": "0728dd28dfd4d33a",
+          "walking_id": "038f2b9a168cf10b",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "b",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "b",
+            "lexical_gene_id": "b",
+            "attrs_a": {
+              "neighbors": 0,
+              "freshness": 13770
+            },
+            "attrs_b": {
+              "neighbors": 42,
+              "freshness": 18719
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 23,
+          "baseline_id": "0ecc34ef2722191d",
+          "walking_id": "0728dd28dfd4d33a",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "a",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "b",
+            "lexical_gene_id": "b",
+            "attrs_a": {
+              "neighbors": 179,
+              "freshness": 5653
+            },
+            "attrs_b": {
+              "neighbors": 0,
+              "freshness": 13770
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        }
+      ]
+    },
+    {
+      "idx": 20,
+      "query": "What is the value of logs?",
+      "status": "TAIL_CHANGED (0h/3t)",
+      "baseline_ids": [
+        "318d90e118b825b8",
+        "2c3afc0c6507d1d7",
+        "75036c18a76d69f6",
+        "9171aa5cccf284d0",
+        "4df4b7525b8a3826",
+        "8b630a8a0e3f0079",
+        "8e6e4b4728727a5d",
+        "a6f6359c1422bdab",
+        "d493de665f1e6201",
+        "713fc38fb642989f",
+        "ff68b7a09a9f5aa5",
+        "51a50f0a4f2adc8c",
+        "f92e4236ed97df91",
+        "a7e81ed0c4a90b8d",
+        "9e2049448fd87cfd",
+        "274baeaa4c6dd39a",
+        "c697cab801dcaa12",
+        "1cc9a6b24ada79f9",
+        "34c9b7a2711c29ff",
+        "69bf3883899ea88a",
+        "ed926c456f33703b",
+        "c7b6651af9544bef",
+        "2171948ab765a82c",
+        "0728dd28dfd4d33a"
+      ],
+      "walking_ids": [
+        "318d90e118b825b8",
+        "2c3afc0c6507d1d7",
+        "75036c18a76d69f6",
+        "9171aa5cccf284d0",
+        "4df4b7525b8a3826",
+        "8e6e4b4728727a5d",
+        "a6f6359c1422bdab",
+        "8b630a8a0e3f0079",
+        "d493de665f1e6201",
+        "713fc38fb642989f",
+        "ff68b7a09a9f5aa5",
+        "51a50f0a4f2adc8c",
+        "f92e4236ed97df91",
+        "a7e81ed0c4a90b8d",
+        "9e2049448fd87cfd",
+        "274baeaa4c6dd39a",
+        "c697cab801dcaa12",
+        "1cc9a6b24ada79f9",
+        "34c9b7a2711c29ff",
+        "69bf3883899ea88a",
+        "ed926c456f33703b",
+        "c7b6651af9544bef",
+        "2171948ab765a82c",
+        "0728dd28dfd4d33a"
+      ],
+      "swaps": [
+        {
+          "rank": 5,
+          "baseline_id": "8b630a8a0e3f0079",
+          "walking_id": "8e6e4b4728727a5d"
+        },
+        {
+          "rank": 6,
+          "baseline_id": "8e6e4b4728727a5d",
+          "walking_id": "a6f6359c1422bdab"
+        },
+        {
+          "rank": 7,
+          "baseline_id": "a6f6359c1422bdab",
+          "walking_id": "8b630a8a0e3f0079"
+        }
+      ],
+      "head_swaps": [],
+      "score_mismatch": false,
+      "swap_explanations": [
+        {
+          "rank": 5,
+          "baseline_id": "8b630a8a0e3f0079",
+          "walking_id": "8e6e4b4728727a5d",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "b",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "b",
+            "lexical_gene_id": "a",
+            "attrs_a": {
+              "neighbors": 27,
+              "freshness": 2347
+            },
+            "attrs_b": {
+              "neighbors": 112,
+              "freshness": 18726
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 6,
+          "baseline_id": "8e6e4b4728727a5d",
+          "walking_id": "a6f6359c1422bdab",
+          "decisive_rule": "strong_edge_freshness",
+          "trace": {
+            "strong_edge_freshness": "a",
+            "neighborhood_size": "a",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "a",
+            "lexical_gene_id": "a",
+            "attrs_a": {
+              "neighbors": 112,
+              "freshness": 18726
+            },
+            "attrs_b": {
+              "neighbors": 110,
+              "freshness": 18716
+            },
+            "edge_weight": 0.948360983705851,
+            "nli_ab": [
+              5,
+              0.9333333333333333
+            ],
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 7,
+          "baseline_id": "a6f6359c1422bdab",
+          "walking_id": "8b630a8a0e3f0079",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "a",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "a",
+            "lexical_gene_id": "b",
+            "attrs_a": {
+              "neighbors": 110,
+              "freshness": 18716
+            },
+            "attrs_b": {
+              "neighbors": 27,
+              "freshness": 2347
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        }
+      ]
+    },
+    {
+      "idx": 21,
+      "query": "What is the value of transmit?",
+      "status": "HEAD_CHANGED (3h/7t)",
+      "baseline_ids": [
+        "4df4b7525b8a3826",
+        "8b630a8a0e3f0079",
+        "8e6e4b4728727a5d",
+        "a6f6359c1422bdab",
+        "ff68b7a09a9f5aa5",
+        "d493de665f1e6201",
+        "713fc38fb642989f",
+        "f92e4236ed97df91",
+        "51a50f0a4f2adc8c",
+        "a7e81ed0c4a90b8d",
+        "9e2049448fd87cfd",
+        "c697cab801dcaa12",
+        "1cc9a6b24ada79f9",
+        "69bf3883899ea88a",
+        "34c9b7a2711c29ff",
+        "ed926c456f33703b",
+        "b23c024bb845091e",
+        "2171948ab765a82c",
+        "c7b6651af9544bef",
+        "1066a56d3c16f2aa",
+        "029a880282586e7c",
+        "038f2b9a168cf10b",
+        "0728dd28dfd4d33a",
+        "0ecc34ef2722191d"
+      ],
+      "walking_ids": [
+        "4df4b7525b8a3826",
+        "8e6e4b4728727a5d",
+        "a6f6359c1422bdab",
+        "8b630a8a0e3f0079",
+        "ff68b7a09a9f5aa5",
+        "d493de665f1e6201",
+        "713fc38fb642989f",
+        "f92e4236ed97df91",
+        "51a50f0a4f2adc8c",
+        "a7e81ed0c4a90b8d",
+        "9e2049448fd87cfd",
+        "c697cab801dcaa12",
+        "1cc9a6b24ada79f9",
+        "69bf3883899ea88a",
+        "34c9b7a2711c29ff",
+        "ed926c456f33703b",
+        "b23c024bb845091e",
+        "2171948ab765a82c",
+        "c7b6651af9544bef",
+        "1066a56d3c16f2aa",
+        "0ecc34ef2722191d",
+        "029a880282586e7c",
+        "038f2b9a168cf10b",
+        "0728dd28dfd4d33a"
+      ],
+      "swaps": [
+        {
+          "rank": 1,
+          "baseline_id": "8b630a8a0e3f0079",
+          "walking_id": "8e6e4b4728727a5d"
+        },
+        {
+          "rank": 2,
+          "baseline_id": "8e6e4b4728727a5d",
+          "walking_id": "a6f6359c1422bdab"
+        },
+        {
+          "rank": 3,
+          "baseline_id": "a6f6359c1422bdab",
+          "walking_id": "8b630a8a0e3f0079"
+        },
+        {
+          "rank": 20,
+          "baseline_id": "029a880282586e7c",
+          "walking_id": "0ecc34ef2722191d"
+        },
+        {
+          "rank": 21,
+          "baseline_id": "038f2b9a168cf10b",
+          "walking_id": "029a880282586e7c"
+        },
+        {
+          "rank": 22,
+          "baseline_id": "0728dd28dfd4d33a",
+          "walking_id": "038f2b9a168cf10b"
+        },
+        {
+          "rank": 23,
+          "baseline_id": "0ecc34ef2722191d",
+          "walking_id": "0728dd28dfd4d33a"
+        }
+      ],
+      "head_swaps": [
+        {
+          "rank": 1,
+          "baseline_id": "8b630a8a0e3f0079",
+          "walking_id": "8e6e4b4728727a5d"
+        },
+        {
+          "rank": 2,
+          "baseline_id": "8e6e4b4728727a5d",
+          "walking_id": "a6f6359c1422bdab"
+        },
+        {
+          "rank": 3,
+          "baseline_id": "a6f6359c1422bdab",
+          "walking_id": "8b630a8a0e3f0079"
+        }
+      ],
+      "score_mismatch": false,
+      "swap_explanations": [
+        {
+          "rank": 1,
+          "baseline_id": "8b630a8a0e3f0079",
+          "walking_id": "8e6e4b4728727a5d",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "b",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "b",
+            "lexical_gene_id": "a",
+            "attrs_a": {
+              "neighbors": 27,
+              "freshness": 2347
+            },
+            "attrs_b": {
+              "neighbors": 112,
+              "freshness": 18726
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 2,
+          "baseline_id": "8e6e4b4728727a5d",
+          "walking_id": "a6f6359c1422bdab",
+          "decisive_rule": "strong_edge_freshness",
+          "trace": {
+            "strong_edge_freshness": "a",
+            "neighborhood_size": "a",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "a",
+            "lexical_gene_id": "a",
+            "attrs_a": {
+              "neighbors": 112,
+              "freshness": 18726
+            },
+            "attrs_b": {
+              "neighbors": 110,
+              "freshness": 18716
+            },
+            "edge_weight": 0.948360983705851,
+            "nli_ab": [
+              5,
+              0.9333333333333333
+            ],
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 3,
+          "baseline_id": "a6f6359c1422bdab",
+          "walking_id": "8b630a8a0e3f0079",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "a",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "a",
+            "lexical_gene_id": "b",
+            "attrs_a": {
+              "neighbors": 110,
+              "freshness": 18716
+            },
+            "attrs_b": {
+              "neighbors": 27,
+              "freshness": 2347
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 20,
+          "baseline_id": "029a880282586e7c",
+          "walking_id": "0ecc34ef2722191d",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "b",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "a",
+            "lexical_gene_id": "a",
+            "attrs_a": {
+              "neighbors": 115,
+              "freshness": 13731
+            },
+            "attrs_b": {
+              "neighbors": 179,
+              "freshness": 5653
+            },
+            "edge_weight": 0.30935959055984674,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 21,
+          "baseline_id": "038f2b9a168cf10b",
+          "walking_id": "029a880282586e7c",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "b",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "a",
+            "lexical_gene_id": "b",
+            "attrs_a": {
+              "neighbors": 42,
+              "freshness": 18719
+            },
+            "attrs_b": {
+              "neighbors": 115,
+              "freshness": 13731
+            },
+            "edge_weight": 0.19365618811635116,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 22,
+          "baseline_id": "0728dd28dfd4d33a",
+          "walking_id": "038f2b9a168cf10b",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "b",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "b",
+            "lexical_gene_id": "b",
+            "attrs_a": {
+              "neighbors": 0,
+              "freshness": 13770
+            },
+            "attrs_b": {
+              "neighbors": 42,
+              "freshness": 18719
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        },
+        {
+          "rank": 23,
+          "baseline_id": "0ecc34ef2722191d",
+          "walking_id": "0728dd28dfd4d33a",
+          "decisive_rule": "neighborhood_size",
+          "trace": {
+            "strong_edge_freshness": "abstain",
+            "neighborhood_size": "a",
+            "nli_entailment": "abstain",
+            "freshness_fallback": "b",
+            "lexical_gene_id": "b",
+            "attrs_a": {
+              "neighbors": 179,
+              "freshness": 5653
+            },
+            "attrs_b": {
+              "neighbors": 0,
+              "freshness": 13770
+            },
+            "edge_weight": null,
+            "nli_ab": null,
+            "nli_ba": null
+          }
+        }
+      ]
+    },
+    {
+      "idx": 22,
+      "query": "What is the value of reranker?",
+      "status": "UNCHANGED",
+      "baseline_ids": [
+        "0e55367154cf358b",
+        "f9dc498c4bb261c1",
+        "713fc38fb642989f",
+        "8b630a8a0e3f0079",
+        "4df4b7525b8a3826",
+        "8e6e4b4728727a5d",
+        "a6f6359c1422bdab",
+        "f92e4236ed97df91",
+        "d493de665f1e6201",
+        "34c9b7a2711c29ff",
+        "51a50f0a4f2adc8c",
+        "ff68b7a09a9f5aa5",
+        "a7e81ed0c4a90b8d",
+        "ed926c456f33703b",
+        "c697cab801dcaa12",
+        "f834368853c04486",
+        "aecd593be0779e68",
+        "b23c024bb845091e",
+        "1066a56d3c16f2aa",
+        "7089d61fa567ea82",
+        "64f9abfc7e100eba",
+        "91657587c111b2c3",
+        "c7b6651af9544bef",
+        "f3b594c773398cf6"
+      ],
+      "walking_ids": [
+        "0e55367154cf358b",
+        "f9dc498c4bb261c1",
+        "713fc38fb642989f",
+        "8b630a8a0e3f0079",
+        "4df4b7525b8a3826",
+        "8e6e4b4728727a5d",
+        "a6f6359c1422bdab",
+        "f92e4236ed97df91",
+        "d493de665f1e6201",
+        "34c9b7a2711c29ff",
+        "51a50f0a4f2adc8c",
+        "ff68b7a09a9f5aa5",
+        "a7e81ed0c4a90b8d",
+        "ed926c456f33703b",
+        "c697cab801dcaa12",
+        "f834368853c04486",
+        "aecd593be0779e68",
+        "b23c024bb845091e",
+        "1066a56d3c16f2aa",
+        "7089d61fa567ea82",
+        "64f9abfc7e100eba",
+        "91657587c111b2c3",
+        "c7b6651af9544bef",
+        "f3b594c773398cf6"
+      ],
+      "swaps": [],
+      "head_swaps": [],
+      "score_mismatch": false,
+      "swap_explanations": []
+    },
+    {
+      "idx": 23,
+      "query": "What is the value of balloondirection?",
+      "status": "UNCHANGED",
+      "baseline_ids": [
+        "1f9440647f89a9fb",
+        "4df4b7525b8a3826",
+        "8b630a8a0e3f0079",
+        "8e6e4b4728727a5d",
+        "a6f6359c1422bdab",
+        "d493de665f1e6201",
+        "713fc38fb642989f",
+        "ff68b7a09a9f5aa5",
+        "51a50f0a4f2adc8c",
+        "f92e4236ed97df91",
+        "c697cab801dcaa12",
+        "a7e81ed0c4a90b8d",
+        "9e2049448fd87cfd",
+        "34c9b7a2711c29ff",
+        "b23c024bb845091e",
+        "1cc9a6b24ada79f9",
+        "1066a56d3c16f2aa",
+        "ed926c456f33703b",
+        "59fe9292aee1cdd0",
+        "029a880282586e7c",
+        "69bf3883899ea88a",
+        "aecd593be0779e68",
+        "7089d61fa567ea82",
+        "df656b6ef58d0d62"
+      ],
+      "walking_ids": [
+        "1f9440647f89a9fb",
+        "4df4b7525b8a3826",
+        "8b630a8a0e3f0079",
+        "8e6e4b4728727a5d",
+        "a6f6359c1422bdab",
+        "d493de665f1e6201",
+        "713fc38fb642989f",
+        "ff68b7a09a9f5aa5",
+        "51a50f0a4f2adc8c",
+        "f92e4236ed97df91",
+        "c697cab801dcaa12",
+        "a7e81ed0c4a90b8d",
+        "9e2049448fd87cfd",
+        "34c9b7a2711c29ff",
+        "b23c024bb845091e",
+        "1cc9a6b24ada79f9",
+        "1066a56d3c16f2aa",
+        "ed926c456f33703b",
+        "59fe9292aee1cdd0",
+        "029a880282586e7c",
+        "69bf3883899ea88a",
+        "aecd593be0779e68",
+        "7089d61fa567ea82",
+        "df656b6ef58d0d62"
+      ],
+      "swaps": [],
+      "head_swaps": [],
+      "score_mismatch": false,
+      "swap_explanations": []
+    },
+    {
+      "idx": 24,
+      "query": "What is the value of starttimestamp?",
+      "status": "UNCHANGED",
+      "baseline_ids": [
+        "4df4b7525b8a3826",
+        "8b630a8a0e3f0079",
+        "8e6e4b4728727a5d",
+        "a6f6359c1422bdab",
+        "713fc38fb642989f",
+        "d493de665f1e6201",
+        "ff68b7a09a9f5aa5",
+        "9e2049448fd87cfd",
+        "51a50f0a4f2adc8c",
+        "a7e81ed0c4a90b8d",
+        "f92e4236ed97df91",
+        "0728dd28dfd4d33a",
+        "1cc9a6b24ada79f9",
+        "c697cab801dcaa12",
+        "34c9b7a2711c29ff",
+        "2171948ab765a82c",
+        "69bf3883899ea88a",
+        "0ecc34ef2722191d",
+        "c7b6651af9544bef",
+        "038f2b9a168cf10b",
+        "1066a56d3c16f2aa",
+        "e645e17347f85c14",
+        "aecd593be0779e68",
+        "ed926c456f33703b"
+      ],
+      "walking_ids": [
+        "4df4b7525b8a3826",
+        "8b630a8a0e3f0079",
+        "8e6e4b4728727a5d",
+        "a6f6359c1422bdab",
+        "713fc38fb642989f",
+        "d493de665f1e6201",
+        "ff68b7a09a9f5aa5",
+        "9e2049448fd87cfd",
+        "51a50f0a4f2adc8c",
+        "a7e81ed0c4a90b8d",
+        "f92e4236ed97df91",
+        "0728dd28dfd4d33a",
+        "1cc9a6b24ada79f9",
+        "c697cab801dcaa12",
+        "34c9b7a2711c29ff",
+        "2171948ab765a82c",
+        "69bf3883899ea88a",
+        "0ecc34ef2722191d",
+        "c7b6651af9544bef",
+        "038f2b9a168cf10b",
+        "1066a56d3c16f2aa",
+        "e645e17347f85c14",
+        "aecd593be0779e68",
+        "ed926c456f33703b"
+      ],
+      "swaps": [],
+      "head_swaps": [],
+      "score_mismatch": false,
+      "swap_explanations": []
+    }
+  ]
+}

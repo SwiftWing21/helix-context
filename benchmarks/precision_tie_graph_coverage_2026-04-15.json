@@ -1,0 +1,2481 @@
+{
+  "input": "precision_probe_2026-04-15.json",
+  "n_tied_pairs": 74,
+  "n_direct_edge": 34,
+  "n_neighborhood_asym": 70,
+  "n_query_affinity_asym": 0,
+  "n_nli_relation": 24,
+  "n_any_signal": 70,
+  "n_no_signal": 4,
+  "signal_frequency": {
+    "direct_edge": 34,
+    "neighborhood_size": 70,
+    "nli_relation": 24
+  },
+  "head_ties": 25,
+  "head_ties_with_signal": 25,
+  "verdict": "BUILD_ASSOC_TIE_BREAK - graph has signal on 80pct+ of ties; walking tie-break is implementable",
+  "pairs": [
+    {
+      "idx": 0,
+      "query": "What is the queries path mentioned in the code?",
+      "query_terms": [
+        "path",
+        "queries"
+      ],
+      "rank_a": 6,
+      "rank_b": 7,
+      "score": 12.53060787138717,
+      "gene_a": "1e638a9551d3e975",
+      "gene_b": "d60a5c291ea0ced1",
+      "direct_edge": {
+        "weight": 1.0,
+        "co_count": 0,
+        "miss_count": 0.0,
+        "source": "seeded"
+      },
+      "neighbors_a": 33,
+      "neighbors_b": 32,
+      "shared_neighbors": 31,
+      "nb_a_only": 2,
+      "nb_b_only": 1,
+      "query_match_a": 1,
+      "query_match_b": 1,
+      "entities_matched_by_a": [
+        "path"
+      ],
+      "entities_matched_by_b": [
+        "path"
+      ],
+      "nli_relation": {
+        "relation": 5,
+        "confidence": 0.8
+      },
+      "tie_break_signals_present": [
+        "direct_edge",
+        "neighborhood_size",
+        "nli_relation"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "a"
+      }
+    },
+    {
+      "idx": 1,
+      "query": "What is the value of flexiblenavigationitem?",
+      "query_terms": [
+        "flexiblenavigationitem"
+      ],
+      "rank_a": 4,
+      "rank_b": 5,
+      "score": 15.501769953966141,
+      "gene_a": "8e6e4b4728727a5d",
+      "gene_b": "a6f6359c1422bdab",
+      "direct_edge": {
+        "weight": 0.948360983705851,
+        "co_count": 68,
+        "miss_count": 4.468941584731058,
+        "source": "co_retrieved"
+      },
+      "neighbors_a": 93,
+      "neighbors_b": 95,
+      "shared_neighbors": 88,
+      "nb_a_only": 5,
+      "nb_b_only": 7,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": {
+        "relation": 5,
+        "confidence": 0.9333333333333333
+      },
+      "tie_break_signals_present": [
+        "direct_edge",
+        "neighborhood_size",
+        "nli_relation"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 2,
+      "query": "What is the value of rbac?",
+      "query_terms": [
+        "rbac"
+      ],
+      "rank_a": 5,
+      "rank_b": 6,
+      "score": 25.639423555670852,
+      "gene_a": "75f0bdfd4e94c31c",
+      "gene_b": "fc885e6c9603feb3",
+      "direct_edge": {
+        "weight": 0.9512935876846313,
+        "co_count": 0,
+        "miss_count": 0.0,
+        "source": "seeded"
+      },
+      "neighbors_a": 29,
+      "neighbors_b": 21,
+      "shared_neighbors": 7,
+      "nb_a_only": 22,
+      "nb_b_only": 14,
+      "query_match_a": 1,
+      "query_match_b": 1,
+      "entities_matched_by_a": [
+        "rbac"
+      ],
+      "entities_matched_by_b": [
+        "rbac"
+      ],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "direct_edge",
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "a"
+      }
+    },
+    {
+      "idx": 3,
+      "query": "What is the value of current?",
+      "query_terms": [
+        "current"
+      ],
+      "rank_a": 0,
+      "rank_b": 1,
+      "score": 15.0,
+      "gene_a": "4df4b7525b8a3826",
+      "gene_b": "8b630a8a0e3f0079",
+      "direct_edge": null,
+      "neighbors_a": 288,
+      "neighbors_b": 27,
+      "shared_neighbors": 0,
+      "nb_a_only": 288,
+      "nb_b_only": 27,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "a"
+      }
+    },
+    {
+      "idx": 3,
+      "query": "What is the value of current?",
+      "query_terms": [
+        "current"
+      ],
+      "rank_a": 1,
+      "rank_b": 2,
+      "score": 15.0,
+      "gene_a": "8b630a8a0e3f0079",
+      "gene_b": "8e6e4b4728727a5d",
+      "direct_edge": null,
+      "neighbors_a": 27,
+      "neighbors_b": 93,
+      "shared_neighbors": 0,
+      "nb_a_only": 27,
+      "nb_b_only": 93,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 3,
+      "query": "What is the value of current?",
+      "query_terms": [
+        "current"
+      ],
+      "rank_a": 2,
+      "rank_b": 3,
+      "score": 15.0,
+      "gene_a": "8e6e4b4728727a5d",
+      "gene_b": "a6f6359c1422bdab",
+      "direct_edge": {
+        "weight": 0.948360983705851,
+        "co_count": 68,
+        "miss_count": 4.468941584731058,
+        "source": "co_retrieved"
+      },
+      "neighbors_a": 93,
+      "neighbors_b": 95,
+      "shared_neighbors": 88,
+      "nb_a_only": 5,
+      "nb_b_only": 7,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": {
+        "relation": 5,
+        "confidence": 0.9333333333333333
+      },
+      "tie_break_signals_present": [
+        "direct_edge",
+        "neighborhood_size",
+        "nli_relation"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 3,
+      "query": "What is the value of current?",
+      "query_terms": [
+        "current"
+      ],
+      "rank_a": 10,
+      "rank_b": 11,
+      "score": 14.0,
+      "gene_a": "9e2049448fd87cfd",
+      "gene_b": "a7e81ed0c4a90b8d",
+      "direct_edge": null,
+      "neighbors_a": 0,
+      "neighbors_b": 110,
+      "shared_neighbors": 0,
+      "nb_a_only": 0,
+      "nb_b_only": 110,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 3,
+      "query": "What is the value of current?",
+      "query_terms": [
+        "current"
+      ],
+      "rank_a": 11,
+      "rank_b": 12,
+      "score": 14.0,
+      "gene_a": "a7e81ed0c4a90b8d",
+      "gene_b": "f92e4236ed97df91",
+      "direct_edge": null,
+      "neighbors_a": 110,
+      "neighbors_b": 0,
+      "shared_neighbors": 0,
+      "nb_a_only": 110,
+      "nb_b_only": 0,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "a"
+      }
+    },
+    {
+      "idx": 3,
+      "query": "What is the value of current?",
+      "query_terms": [
+        "current"
+      ],
+      "rank_a": 14,
+      "rank_b": 15,
+      "score": 13.5,
+      "gene_a": "029a880282586e7c",
+      "gene_b": "038f2b9a168cf10b",
+      "direct_edge": {
+        "weight": 0.19365618811635116,
+        "co_count": 6,
+        "miss_count": 6.417263067170188,
+        "source": "co_retrieved"
+      },
+      "neighbors_a": 94,
+      "neighbors_b": 35,
+      "shared_neighbors": 11,
+      "nb_a_only": 83,
+      "nb_b_only": 24,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "direct_edge",
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "a"
+      }
+    },
+    {
+      "idx": 3,
+      "query": "What is the value of current?",
+      "query_terms": [
+        "current"
+      ],
+      "rank_a": 15,
+      "rank_b": 16,
+      "score": 13.5,
+      "gene_a": "038f2b9a168cf10b",
+      "gene_b": "0728dd28dfd4d33a",
+      "direct_edge": null,
+      "neighbors_a": 35,
+      "neighbors_b": 0,
+      "shared_neighbors": 0,
+      "nb_a_only": 35,
+      "nb_b_only": 0,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "a"
+      }
+    },
+    {
+      "idx": 3,
+      "query": "What is the value of current?",
+      "query_terms": [
+        "current"
+      ],
+      "rank_a": 16,
+      "rank_b": 17,
+      "score": 13.5,
+      "gene_a": "0728dd28dfd4d33a",
+      "gene_b": "0ecc34ef2722191d",
+      "direct_edge": null,
+      "neighbors_a": 0,
+      "neighbors_b": 159,
+      "shared_neighbors": 0,
+      "nb_a_only": 0,
+      "nb_b_only": 159,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 3,
+      "query": "What is the value of current?",
+      "query_terms": [
+        "current"
+      ],
+      "rank_a": 17,
+      "rank_b": 18,
+      "score": 13.5,
+      "gene_a": "0ecc34ef2722191d",
+      "gene_b": "1066a56d3c16f2aa",
+      "direct_edge": null,
+      "neighbors_a": 159,
+      "neighbors_b": 73,
+      "shared_neighbors": 4,
+      "nb_a_only": 155,
+      "nb_b_only": 69,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "a"
+      }
+    },
+    {
+      "idx": 3,
+      "query": "What is the value of current?",
+      "query_terms": [
+        "current"
+      ],
+      "rank_a": 18,
+      "rank_b": 19,
+      "score": 13.5,
+      "gene_a": "1066a56d3c16f2aa",
+      "gene_b": "2171948ab765a82c",
+      "direct_edge": null,
+      "neighbors_a": 73,
+      "neighbors_b": 145,
+      "shared_neighbors": 5,
+      "nb_a_only": 68,
+      "nb_b_only": 140,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 3,
+      "query": "What is the value of current?",
+      "query_terms": [
+        "current"
+      ],
+      "rank_a": 19,
+      "rank_b": 20,
+      "score": 13.5,
+      "gene_a": "2171948ab765a82c",
+      "gene_b": "2c3afc0c6507d1d7",
+      "direct_edge": {
+        "weight": 0.2998604335779198,
+        "co_count": 31,
+        "miss_count": 13.187427674882947,
+        "source": "co_retrieved"
+      },
+      "neighbors_a": 145,
+      "neighbors_b": 85,
+      "shared_neighbors": 38,
+      "nb_a_only": 107,
+      "nb_b_only": 47,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "direct_edge",
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "a"
+      }
+    },
+    {
+      "idx": 3,
+      "query": "What is the value of current?",
+      "query_terms": [
+        "current"
+      ],
+      "rank_a": 20,
+      "rank_b": 21,
+      "score": 13.5,
+      "gene_a": "2c3afc0c6507d1d7",
+      "gene_b": "2e68c6baddd57195",
+      "direct_edge": {
+        "weight": 0.9255571126937866,
+        "co_count": 0,
+        "miss_count": 0.0,
+        "source": "seeded"
+      },
+      "neighbors_a": 85,
+      "neighbors_b": 69,
+      "shared_neighbors": 5,
+      "nb_a_only": 80,
+      "nb_b_only": 64,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "direct_edge",
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "a"
+      }
+    },
+    {
+      "idx": 3,
+      "query": "What is the value of current?",
+      "query_terms": [
+        "current"
+      ],
+      "rank_a": 21,
+      "rank_b": 22,
+      "score": 13.5,
+      "gene_a": "2e68c6baddd57195",
+      "gene_b": "4e3c6a508d2ba146",
+      "direct_edge": null,
+      "neighbors_a": 69,
+      "neighbors_b": 123,
+      "shared_neighbors": 4,
+      "nb_a_only": 65,
+      "nb_b_only": 119,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 3,
+      "query": "What is the value of current?",
+      "query_terms": [
+        "current"
+      ],
+      "rank_a": 22,
+      "rank_b": 23,
+      "score": 13.5,
+      "gene_a": "4e3c6a508d2ba146",
+      "gene_b": "59fe9292aee1cdd0",
+      "direct_edge": null,
+      "neighbors_a": 123,
+      "neighbors_b": 22,
+      "shared_neighbors": 2,
+      "nb_a_only": 121,
+      "nb_b_only": 20,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "a"
+      }
+    },
+    {
+      "idx": 4,
+      "query": "What is the value of payload?",
+      "query_terms": [
+        "payload"
+      ],
+      "rank_a": 2,
+      "rank_b": 3,
+      "score": 15.586940824985504,
+      "gene_a": "8e6e4b4728727a5d",
+      "gene_b": "a6f6359c1422bdab",
+      "direct_edge": {
+        "weight": 0.948360983705851,
+        "co_count": 68,
+        "miss_count": 4.468941584731058,
+        "source": "co_retrieved"
+      },
+      "neighbors_a": 93,
+      "neighbors_b": 95,
+      "shared_neighbors": 88,
+      "nb_a_only": 5,
+      "nb_b_only": 7,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": {
+        "relation": 5,
+        "confidence": 0.9333333333333333
+      },
+      "tie_break_signals_present": [
+        "direct_edge",
+        "neighborhood_size",
+        "nli_relation"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 5,
+      "query": "What is the value of priority?",
+      "query_terms": [
+        "priority"
+      ],
+      "rank_a": 4,
+      "rank_b": 5,
+      "score": 15.0,
+      "gene_a": "8e6e4b4728727a5d",
+      "gene_b": "a6f6359c1422bdab",
+      "direct_edge": {
+        "weight": 0.948360983705851,
+        "co_count": 68,
+        "miss_count": 4.468941584731058,
+        "source": "co_retrieved"
+      },
+      "neighbors_a": 93,
+      "neighbors_b": 95,
+      "shared_neighbors": 88,
+      "nb_a_only": 5,
+      "nb_b_only": 7,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": {
+        "relation": 5,
+        "confidence": 0.9333333333333333
+      },
+      "tie_break_signals_present": [
+        "direct_edge",
+        "neighborhood_size",
+        "nli_relation"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 6,
+      "query": "What is the value of product?",
+      "query_terms": [
+        "product"
+      ],
+      "rank_a": 2,
+      "rank_b": 3,
+      "score": 15.0,
+      "gene_a": "8b630a8a0e3f0079",
+      "gene_b": "8e6e4b4728727a5d",
+      "direct_edge": null,
+      "neighbors_a": 27,
+      "neighbors_b": 93,
+      "shared_neighbors": 0,
+      "nb_a_only": 27,
+      "nb_b_only": 93,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 6,
+      "query": "What is the value of product?",
+      "query_terms": [
+        "product"
+      ],
+      "rank_a": 3,
+      "rank_b": 4,
+      "score": 15.0,
+      "gene_a": "8e6e4b4728727a5d",
+      "gene_b": "a6f6359c1422bdab",
+      "direct_edge": {
+        "weight": 0.948360983705851,
+        "co_count": 68,
+        "miss_count": 4.468941584731058,
+        "source": "co_retrieved"
+      },
+      "neighbors_a": 93,
+      "neighbors_b": 95,
+      "shared_neighbors": 88,
+      "nb_a_only": 5,
+      "nb_b_only": 7,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": {
+        "relation": 5,
+        "confidence": 0.9333333333333333
+      },
+      "tie_break_signals_present": [
+        "direct_edge",
+        "neighborhood_size",
+        "nli_relation"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 7,
+      "query": "What is the value of stored?",
+      "query_terms": [
+        "stored"
+      ],
+      "rank_a": 1,
+      "rank_b": 2,
+      "score": 15.0,
+      "gene_a": "8b630a8a0e3f0079",
+      "gene_b": "8e6e4b4728727a5d",
+      "direct_edge": null,
+      "neighbors_a": 27,
+      "neighbors_b": 93,
+      "shared_neighbors": 0,
+      "nb_a_only": 27,
+      "nb_b_only": 93,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 7,
+      "query": "What is the value of stored?",
+      "query_terms": [
+        "stored"
+      ],
+      "rank_a": 2,
+      "rank_b": 3,
+      "score": 15.0,
+      "gene_a": "8e6e4b4728727a5d",
+      "gene_b": "a6f6359c1422bdab",
+      "direct_edge": {
+        "weight": 0.948360983705851,
+        "co_count": 68,
+        "miss_count": 4.468941584731058,
+        "source": "co_retrieved"
+      },
+      "neighbors_a": 93,
+      "neighbors_b": 95,
+      "shared_neighbors": 88,
+      "nb_a_only": 5,
+      "nb_b_only": 7,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": {
+        "relation": 5,
+        "confidence": 0.9333333333333333
+      },
+      "tie_break_signals_present": [
+        "direct_edge",
+        "neighborhood_size",
+        "nli_relation"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 8,
+      "query": "What is the value of days?",
+      "query_terms": [
+        "days"
+      ],
+      "rank_a": 8,
+      "rank_b": 9,
+      "score": 17.0,
+      "gene_a": "5ba86a647a622503",
+      "gene_b": "8a515b69a948398a",
+      "direct_edge": null,
+      "neighbors_a": 0,
+      "neighbors_b": 0,
+      "shared_neighbors": 0,
+      "nb_a_only": 0,
+      "nb_b_only": 0,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [],
+      "winner_by_signal": {}
+    },
+    {
+      "idx": 8,
+      "query": "What is the value of days?",
+      "query_terms": [
+        "days"
+      ],
+      "rank_a": 10,
+      "rank_b": 11,
+      "score": 15.0,
+      "gene_a": "4df4b7525b8a3826",
+      "gene_b": "8b630a8a0e3f0079",
+      "direct_edge": null,
+      "neighbors_a": 288,
+      "neighbors_b": 27,
+      "shared_neighbors": 0,
+      "nb_a_only": 288,
+      "nb_b_only": 27,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "a"
+      }
+    },
+    {
+      "idx": 8,
+      "query": "What is the value of days?",
+      "query_terms": [
+        "days"
+      ],
+      "rank_a": 11,
+      "rank_b": 12,
+      "score": 15.0,
+      "gene_a": "8b630a8a0e3f0079",
+      "gene_b": "8e6e4b4728727a5d",
+      "direct_edge": null,
+      "neighbors_a": 27,
+      "neighbors_b": 93,
+      "shared_neighbors": 0,
+      "nb_a_only": 27,
+      "nb_b_only": 93,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 8,
+      "query": "What is the value of days?",
+      "query_terms": [
+        "days"
+      ],
+      "rank_a": 12,
+      "rank_b": 13,
+      "score": 15.0,
+      "gene_a": "8e6e4b4728727a5d",
+      "gene_b": "a6f6359c1422bdab",
+      "direct_edge": {
+        "weight": 0.948360983705851,
+        "co_count": 68,
+        "miss_count": 4.468941584731058,
+        "source": "co_retrieved"
+      },
+      "neighbors_a": 93,
+      "neighbors_b": 95,
+      "shared_neighbors": 88,
+      "nb_a_only": 5,
+      "nb_b_only": 7,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": {
+        "relation": 5,
+        "confidence": 0.9333333333333333
+      },
+      "tie_break_signals_present": [
+        "direct_edge",
+        "neighborhood_size",
+        "nli_relation"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 8,
+      "query": "What is the value of days?",
+      "query_terms": [
+        "days"
+      ],
+      "rank_a": 13,
+      "rank_b": 14,
+      "score": 15.0,
+      "gene_a": "a6f6359c1422bdab",
+      "gene_b": "318d90e118b825b8",
+      "direct_edge": null,
+      "neighbors_a": 95,
+      "neighbors_b": 83,
+      "shared_neighbors": 1,
+      "nb_a_only": 94,
+      "nb_b_only": 82,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "a"
+      }
+    },
+    {
+      "idx": 8,
+      "query": "What is the value of days?",
+      "query_terms": [
+        "days"
+      ],
+      "rank_a": 15,
+      "rank_b": 16,
+      "score": 14.0,
+      "gene_a": "51a50f0a4f2adc8c",
+      "gene_b": "713fc38fb642989f",
+      "direct_edge": null,
+      "neighbors_a": 154,
+      "neighbors_b": 0,
+      "shared_neighbors": 0,
+      "nb_a_only": 154,
+      "nb_b_only": 0,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "a"
+      }
+    },
+    {
+      "idx": 8,
+      "query": "What is the value of days?",
+      "query_terms": [
+        "days"
+      ],
+      "rank_a": 16,
+      "rank_b": 17,
+      "score": 14.0,
+      "gene_a": "713fc38fb642989f",
+      "gene_b": "9e2049448fd87cfd",
+      "direct_edge": null,
+      "neighbors_a": 0,
+      "neighbors_b": 0,
+      "shared_neighbors": 0,
+      "nb_a_only": 0,
+      "nb_b_only": 0,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [],
+      "winner_by_signal": {}
+    },
+    {
+      "idx": 8,
+      "query": "What is the value of days?",
+      "query_terms": [
+        "days"
+      ],
+      "rank_a": 17,
+      "rank_b": 18,
+      "score": 14.0,
+      "gene_a": "9e2049448fd87cfd",
+      "gene_b": "a7e81ed0c4a90b8d",
+      "direct_edge": null,
+      "neighbors_a": 0,
+      "neighbors_b": 110,
+      "shared_neighbors": 0,
+      "nb_a_only": 0,
+      "nb_b_only": 110,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 8,
+      "query": "What is the value of days?",
+      "query_terms": [
+        "days"
+      ],
+      "rank_a": 18,
+      "rank_b": 19,
+      "score": 14.0,
+      "gene_a": "a7e81ed0c4a90b8d",
+      "gene_b": "d493de665f1e6201",
+      "direct_edge": null,
+      "neighbors_a": 110,
+      "neighbors_b": 0,
+      "shared_neighbors": 0,
+      "nb_a_only": 110,
+      "nb_b_only": 0,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "a"
+      }
+    },
+    {
+      "idx": 8,
+      "query": "What is the value of days?",
+      "query_terms": [
+        "days"
+      ],
+      "rank_a": 19,
+      "rank_b": 20,
+      "score": 14.0,
+      "gene_a": "d493de665f1e6201",
+      "gene_b": "f92e4236ed97df91",
+      "direct_edge": null,
+      "neighbors_a": 0,
+      "neighbors_b": 0,
+      "shared_neighbors": 0,
+      "nb_a_only": 0,
+      "nb_b_only": 0,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [],
+      "winner_by_signal": {}
+    },
+    {
+      "idx": 8,
+      "query": "What is the value of days?",
+      "query_terms": [
+        "days"
+      ],
+      "rank_a": 20,
+      "rank_b": 21,
+      "score": 14.0,
+      "gene_a": "f92e4236ed97df91",
+      "gene_b": "ff68b7a09a9f5aa5",
+      "direct_edge": null,
+      "neighbors_a": 0,
+      "neighbors_b": 0,
+      "shared_neighbors": 0,
+      "nb_a_only": 0,
+      "nb_b_only": 0,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [],
+      "winner_by_signal": {}
+    },
+    {
+      "idx": 8,
+      "query": "What is the value of days?",
+      "query_terms": [
+        "days"
+      ],
+      "rank_a": 22,
+      "rank_b": 23,
+      "score": 13.5,
+      "gene_a": "029a880282586e7c",
+      "gene_b": "038f2b9a168cf10b",
+      "direct_edge": {
+        "weight": 0.19365618811635116,
+        "co_count": 6,
+        "miss_count": 6.417263067170188,
+        "source": "co_retrieved"
+      },
+      "neighbors_a": 94,
+      "neighbors_b": 35,
+      "shared_neighbors": 11,
+      "nb_a_only": 83,
+      "nb_b_only": 24,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "direct_edge",
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "a"
+      }
+    },
+    {
+      "idx": 9,
+      "query": "What is the dxpixelshaderfile mentioned in the code?",
+      "query_terms": [
+        "dxpixelshaderfile"
+      ],
+      "rank_a": 15,
+      "rank_b": 16,
+      "score": 10.5,
+      "gene_a": "5feb2c555464279f",
+      "gene_b": "def81eee7523f7ed",
+      "direct_edge": {
+        "weight": 0.7243321653839374,
+        "co_count": 0,
+        "miss_count": 0.2839813683395477,
+        "source": "co_retrieved"
+      },
+      "neighbors_a": 50,
+      "neighbors_b": 45,
+      "shared_neighbors": 3,
+      "nb_a_only": 47,
+      "nb_b_only": 42,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": {
+        "relation": 5,
+        "confidence": 0.3333333333333333
+      },
+      "tie_break_signals_present": [
+        "direct_edge",
+        "neighborhood_size",
+        "nli_relation"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "a"
+      }
+    },
+    {
+      "idx": 10,
+      "query": "What is the value of model?",
+      "query_terms": [
+        "model"
+      ],
+      "rank_a": 3,
+      "rank_b": 4,
+      "score": 45.78647004652008,
+      "gene_a": "857ccc985852917d",
+      "gene_b": "e51ef180e163285a",
+      "direct_edge": {
+        "weight": 0.44988240448064704,
+        "co_count": 19,
+        "miss_count": 9.779868140643588,
+        "source": "co_retrieved"
+      },
+      "neighbors_a": 85,
+      "neighbors_b": 53,
+      "shared_neighbors": 15,
+      "nb_a_only": 70,
+      "nb_b_only": 38,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "direct_edge",
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "a"
+      }
+    },
+    {
+      "idx": 10,
+      "query": "What is the value of model?",
+      "query_terms": [
+        "model"
+      ],
+      "rank_a": 4,
+      "rank_b": 5,
+      "score": 45.78647004652008,
+      "gene_a": "e51ef180e163285a",
+      "gene_b": "f262ec6e44d7b168",
+      "direct_edge": null,
+      "neighbors_a": 53,
+      "neighbors_b": 61,
+      "shared_neighbors": 11,
+      "nb_a_only": 42,
+      "nb_b_only": 50,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 10,
+      "query": "What is the value of model?",
+      "query_terms": [
+        "model"
+      ],
+      "rank_a": 7,
+      "rank_b": 8,
+      "score": 41.61652577781285,
+      "gene_a": "75e197546f36446c",
+      "gene_b": "cdd44480377549e1",
+      "direct_edge": {
+        "weight": 0.4856434454087627,
+        "co_count": 25,
+        "miss_count": 4.1443804030772835,
+        "source": "co_retrieved"
+      },
+      "neighbors_a": 44,
+      "neighbors_b": 64,
+      "shared_neighbors": 17,
+      "nb_a_only": 27,
+      "nb_b_only": 47,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": {
+        "relation": 5,
+        "confidence": 0.4
+      },
+      "tie_break_signals_present": [
+        "direct_edge",
+        "neighborhood_size",
+        "nli_relation"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 10,
+      "query": "What is the value of model?",
+      "query_terms": [
+        "model"
+      ],
+      "rank_a": 12,
+      "rank_b": 13,
+      "score": 39.78647004652009,
+      "gene_a": "0352ff4beed17619",
+      "gene_b": "4ac96967752cc2df",
+      "direct_edge": {
+        "weight": 0.6327333551929429,
+        "co_count": 31,
+        "miss_count": 0.0,
+        "source": "co_retrieved"
+      },
+      "neighbors_a": 48,
+      "neighbors_b": 53,
+      "shared_neighbors": 16,
+      "nb_a_only": 32,
+      "nb_b_only": 37,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "direct_edge",
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 10,
+      "query": "What is the value of model?",
+      "query_terms": [
+        "model"
+      ],
+      "rank_a": 13,
+      "rank_b": 14,
+      "score": 39.78647004652009,
+      "gene_a": "4ac96967752cc2df",
+      "gene_b": "bc09edbfc60ed21e",
+      "direct_edge": {
+        "weight": 0.6430854672593215,
+        "co_count": 30,
+        "miss_count": 0.0,
+        "source": "co_retrieved"
+      },
+      "neighbors_a": 53,
+      "neighbors_b": 60,
+      "shared_neighbors": 13,
+      "nb_a_only": 40,
+      "nb_b_only": 47,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "direct_edge",
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 10,
+      "query": "What is the value of model?",
+      "query_terms": [
+        "model"
+      ],
+      "rank_a": 14,
+      "rank_b": 15,
+      "score": 39.78647004652009,
+      "gene_a": "bc09edbfc60ed21e",
+      "gene_b": "e42b33f189401646",
+      "direct_edge": null,
+      "neighbors_a": 60,
+      "neighbors_b": 45,
+      "shared_neighbors": 10,
+      "nb_a_only": 50,
+      "nb_b_only": 35,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "a"
+      }
+    },
+    {
+      "idx": 11,
+      "query": "What is the peers urls mentioned in the code?",
+      "query_terms": [
+        "peers",
+        "urls"
+      ],
+      "rank_a": 14,
+      "rank_b": 15,
+      "score": 10.5,
+      "gene_a": "5feb2c555464279f",
+      "gene_b": "def81eee7523f7ed",
+      "direct_edge": {
+        "weight": 0.7243321653839374,
+        "co_count": 0,
+        "miss_count": 0.2839813683395477,
+        "source": "co_retrieved"
+      },
+      "neighbors_a": 50,
+      "neighbors_b": 45,
+      "shared_neighbors": 3,
+      "nb_a_only": 47,
+      "nb_b_only": 42,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": {
+        "relation": 5,
+        "confidence": 0.3333333333333333
+      },
+      "tie_break_signals_present": [
+        "direct_edge",
+        "neighborhood_size",
+        "nli_relation"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "a"
+      }
+    },
+    {
+      "idx": 12,
+      "query": "What is the value of manager?",
+      "query_terms": [
+        "manager"
+      ],
+      "rank_a": 2,
+      "rank_b": 3,
+      "score": 15.708469798147554,
+      "gene_a": "8e6e4b4728727a5d",
+      "gene_b": "a6f6359c1422bdab",
+      "direct_edge": {
+        "weight": 0.948360983705851,
+        "co_count": 68,
+        "miss_count": 4.468941584731058,
+        "source": "co_retrieved"
+      },
+      "neighbors_a": 93,
+      "neighbors_b": 95,
+      "shared_neighbors": 88,
+      "nb_a_only": 5,
+      "nb_b_only": 7,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": {
+        "relation": 5,
+        "confidence": 0.9333333333333333
+      },
+      "tie_break_signals_present": [
+        "direct_edge",
+        "neighborhood_size",
+        "nli_relation"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 13,
+      "query": "What is the value of args?",
+      "query_terms": [
+        "args"
+      ],
+      "rank_a": 2,
+      "rank_b": 3,
+      "score": 15.5,
+      "gene_a": "d15b52a7975f764a",
+      "gene_b": "e7a32a83f55103cc",
+      "direct_edge": null,
+      "neighbors_a": 22,
+      "neighbors_b": 26,
+      "shared_neighbors": 0,
+      "nb_a_only": 22,
+      "nb_b_only": 26,
+      "query_match_a": 1,
+      "query_match_b": 1,
+      "entities_matched_by_a": [
+        "args"
+      ],
+      "entities_matched_by_b": [
+        "args"
+      ],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 13,
+      "query": "What is the value of args?",
+      "query_terms": [
+        "args"
+      ],
+      "rank_a": 4,
+      "rank_b": 5,
+      "score": 15.0,
+      "gene_a": "8b630a8a0e3f0079",
+      "gene_b": "8e6e4b4728727a5d",
+      "direct_edge": null,
+      "neighbors_a": 27,
+      "neighbors_b": 93,
+      "shared_neighbors": 0,
+      "nb_a_only": 27,
+      "nb_b_only": 93,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 13,
+      "query": "What is the value of args?",
+      "query_terms": [
+        "args"
+      ],
+      "rank_a": 5,
+      "rank_b": 6,
+      "score": 15.0,
+      "gene_a": "8e6e4b4728727a5d",
+      "gene_b": "a6f6359c1422bdab",
+      "direct_edge": {
+        "weight": 0.948360983705851,
+        "co_count": 68,
+        "miss_count": 4.468941584731058,
+        "source": "co_retrieved"
+      },
+      "neighbors_a": 93,
+      "neighbors_b": 95,
+      "shared_neighbors": 88,
+      "nb_a_only": 5,
+      "nb_b_only": 7,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": {
+        "relation": 5,
+        "confidence": 0.9333333333333333
+      },
+      "tie_break_signals_present": [
+        "direct_edge",
+        "neighborhood_size",
+        "nli_relation"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 14,
+      "query": "What is the value of linenumber?",
+      "query_terms": [
+        "linenumber"
+      ],
+      "rank_a": 1,
+      "rank_b": 2,
+      "score": 19.5,
+      "gene_a": "15f543656f5e9259",
+      "gene_b": "768d6e585a608db6",
+      "direct_edge": null,
+      "neighbors_a": 25,
+      "neighbors_b": 21,
+      "shared_neighbors": 0,
+      "nb_a_only": 25,
+      "nb_b_only": 21,
+      "query_match_a": 1,
+      "query_match_b": 1,
+      "entities_matched_by_a": [
+        "linenumber"
+      ],
+      "entities_matched_by_b": [
+        "linenumber"
+      ],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "a"
+      }
+    },
+    {
+      "idx": 14,
+      "query": "What is the value of linenumber?",
+      "query_terms": [
+        "linenumber"
+      ],
+      "rank_a": 2,
+      "rank_b": 3,
+      "score": 19.5,
+      "gene_a": "768d6e585a608db6",
+      "gene_b": "7bdbfa025e09b104",
+      "direct_edge": null,
+      "neighbors_a": 21,
+      "neighbors_b": 20,
+      "shared_neighbors": 0,
+      "nb_a_only": 21,
+      "nb_b_only": 20,
+      "query_match_a": 1,
+      "query_match_b": 1,
+      "entities_matched_by_a": [
+        "linenumber"
+      ],
+      "entities_matched_by_b": [
+        "linenumber"
+      ],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "a"
+      }
+    },
+    {
+      "idx": 14,
+      "query": "What is the value of linenumber?",
+      "query_terms": [
+        "linenumber"
+      ],
+      "rank_a": 3,
+      "rank_b": 4,
+      "score": 19.5,
+      "gene_a": "7bdbfa025e09b104",
+      "gene_b": "efed4e2fd13f667a",
+      "direct_edge": null,
+      "neighbors_a": 20,
+      "neighbors_b": 29,
+      "shared_neighbors": 0,
+      "nb_a_only": 20,
+      "nb_b_only": 29,
+      "query_match_a": 1,
+      "query_match_b": 1,
+      "entities_matched_by_a": [
+        "linenumber"
+      ],
+      "entities_matched_by_b": [
+        "linenumber"
+      ],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 14,
+      "query": "What is the value of linenumber?",
+      "query_terms": [
+        "linenumber"
+      ],
+      "rank_a": 4,
+      "rank_b": 5,
+      "score": 19.5,
+      "gene_a": "efed4e2fd13f667a",
+      "gene_b": "f56afe55cde257af",
+      "direct_edge": null,
+      "neighbors_a": 29,
+      "neighbors_b": 66,
+      "shared_neighbors": 0,
+      "nb_a_only": 29,
+      "nb_b_only": 66,
+      "query_match_a": 1,
+      "query_match_b": 1,
+      "entities_matched_by_a": [
+        "linenumber"
+      ],
+      "entities_matched_by_b": [
+        "linenumber"
+      ],
+      "nli_relation": {
+        "relation": 5,
+        "confidence": 0.6153846153846154
+      },
+      "tie_break_signals_present": [
+        "neighborhood_size",
+        "nli_relation"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 14,
+      "query": "What is the value of linenumber?",
+      "query_terms": [
+        "linenumber"
+      ],
+      "rank_a": 7,
+      "rank_b": 8,
+      "score": 15.0,
+      "gene_a": "4df4b7525b8a3826",
+      "gene_b": "8e6e4b4728727a5d",
+      "direct_edge": {
+        "weight": 0.32425610989120296,
+        "co_count": 75,
+        "miss_count": 1.55,
+        "source": "co_retrieved"
+      },
+      "neighbors_a": 288,
+      "neighbors_b": 93,
+      "shared_neighbors": 58,
+      "nb_a_only": 230,
+      "nb_b_only": 35,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "direct_edge",
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "a"
+      }
+    },
+    {
+      "idx": 14,
+      "query": "What is the value of linenumber?",
+      "query_terms": [
+        "linenumber"
+      ],
+      "rank_a": 8,
+      "rank_b": 9,
+      "score": 15.0,
+      "gene_a": "8e6e4b4728727a5d",
+      "gene_b": "a6f6359c1422bdab",
+      "direct_edge": {
+        "weight": 0.948360983705851,
+        "co_count": 68,
+        "miss_count": 4.468941584731058,
+        "source": "co_retrieved"
+      },
+      "neighbors_a": 93,
+      "neighbors_b": 95,
+      "shared_neighbors": 88,
+      "nb_a_only": 5,
+      "nb_b_only": 7,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": {
+        "relation": 5,
+        "confidence": 0.9333333333333333
+      },
+      "tie_break_signals_present": [
+        "direct_edge",
+        "neighborhood_size",
+        "nli_relation"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 15,
+      "query": "What is the value of knowledge dir?",
+      "query_terms": [
+        "dir",
+        "knowledge"
+      ],
+      "rank_a": 15,
+      "rank_b": 16,
+      "score": 15.493818197363249,
+      "gene_a": "8e6e4b4728727a5d",
+      "gene_b": "a6f6359c1422bdab",
+      "direct_edge": {
+        "weight": 0.948360983705851,
+        "co_count": 68,
+        "miss_count": 4.468941584731058,
+        "source": "co_retrieved"
+      },
+      "neighbors_a": 93,
+      "neighbors_b": 95,
+      "shared_neighbors": 88,
+      "nb_a_only": 5,
+      "nb_b_only": 7,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": {
+        "relation": 5,
+        "confidence": 0.9333333333333333
+      },
+      "tie_break_signals_present": [
+        "direct_edge",
+        "neighborhood_size",
+        "nli_relation"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 16,
+      "query": "What is the value of dot?",
+      "query_terms": [
+        "dot"
+      ],
+      "rank_a": 2,
+      "rank_b": 3,
+      "score": 15.0,
+      "gene_a": "8b630a8a0e3f0079",
+      "gene_b": "8e6e4b4728727a5d",
+      "direct_edge": null,
+      "neighbors_a": 27,
+      "neighbors_b": 93,
+      "shared_neighbors": 0,
+      "nb_a_only": 27,
+      "nb_b_only": 93,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 16,
+      "query": "What is the value of dot?",
+      "query_terms": [
+        "dot"
+      ],
+      "rank_a": 3,
+      "rank_b": 4,
+      "score": 15.0,
+      "gene_a": "8e6e4b4728727a5d",
+      "gene_b": "a6f6359c1422bdab",
+      "direct_edge": {
+        "weight": 0.948360983705851,
+        "co_count": 68,
+        "miss_count": 4.468941584731058,
+        "source": "co_retrieved"
+      },
+      "neighbors_a": 93,
+      "neighbors_b": 95,
+      "shared_neighbors": 88,
+      "nb_a_only": 5,
+      "nb_b_only": 7,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": {
+        "relation": 5,
+        "confidence": 0.9333333333333333
+      },
+      "tie_break_signals_present": [
+        "direct_edge",
+        "neighborhood_size",
+        "nli_relation"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 17,
+      "query": "What is the value of response?",
+      "query_terms": [
+        "response"
+      ],
+      "rank_a": 2,
+      "rank_b": 3,
+      "score": 15.774311576783656,
+      "gene_a": "8e6e4b4728727a5d",
+      "gene_b": "a6f6359c1422bdab",
+      "direct_edge": {
+        "weight": 0.948360983705851,
+        "co_count": 68,
+        "miss_count": 4.468941584731058,
+        "source": "co_retrieved"
+      },
+      "neighbors_a": 93,
+      "neighbors_b": 95,
+      "shared_neighbors": 88,
+      "nb_a_only": 5,
+      "nb_b_only": 7,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": {
+        "relation": 5,
+        "confidence": 0.9333333333333333
+      },
+      "tie_break_signals_present": [
+        "direct_edge",
+        "neighborhood_size",
+        "nli_relation"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 19,
+      "query": "What is the value of mgr?",
+      "query_terms": [
+        "mgr"
+      ],
+      "rank_a": 0,
+      "rank_b": 1,
+      "score": 15.0,
+      "gene_a": "4df4b7525b8a3826",
+      "gene_b": "8b630a8a0e3f0079",
+      "direct_edge": null,
+      "neighbors_a": 288,
+      "neighbors_b": 27,
+      "shared_neighbors": 0,
+      "nb_a_only": 288,
+      "nb_b_only": 27,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "a"
+      }
+    },
+    {
+      "idx": 19,
+      "query": "What is the value of mgr?",
+      "query_terms": [
+        "mgr"
+      ],
+      "rank_a": 1,
+      "rank_b": 2,
+      "score": 15.0,
+      "gene_a": "8b630a8a0e3f0079",
+      "gene_b": "8e6e4b4728727a5d",
+      "direct_edge": null,
+      "neighbors_a": 27,
+      "neighbors_b": 93,
+      "shared_neighbors": 0,
+      "nb_a_only": 27,
+      "nb_b_only": 93,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 19,
+      "query": "What is the value of mgr?",
+      "query_terms": [
+        "mgr"
+      ],
+      "rank_a": 2,
+      "rank_b": 3,
+      "score": 15.0,
+      "gene_a": "8e6e4b4728727a5d",
+      "gene_b": "a6f6359c1422bdab",
+      "direct_edge": {
+        "weight": 0.948360983705851,
+        "co_count": 68,
+        "miss_count": 4.468941584731058,
+        "source": "co_retrieved"
+      },
+      "neighbors_a": 93,
+      "neighbors_b": 95,
+      "shared_neighbors": 88,
+      "nb_a_only": 5,
+      "nb_b_only": 7,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": {
+        "relation": 5,
+        "confidence": 0.9333333333333333
+      },
+      "tie_break_signals_present": [
+        "direct_edge",
+        "neighborhood_size",
+        "nli_relation"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 19,
+      "query": "What is the value of mgr?",
+      "query_terms": [
+        "mgr"
+      ],
+      "rank_a": 20,
+      "rank_b": 21,
+      "score": 13.5,
+      "gene_a": "029a880282586e7c",
+      "gene_b": "038f2b9a168cf10b",
+      "direct_edge": {
+        "weight": 0.19365618811635116,
+        "co_count": 6,
+        "miss_count": 6.417263067170188,
+        "source": "co_retrieved"
+      },
+      "neighbors_a": 94,
+      "neighbors_b": 35,
+      "shared_neighbors": 11,
+      "nb_a_only": 83,
+      "nb_b_only": 24,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "direct_edge",
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "a"
+      }
+    },
+    {
+      "idx": 19,
+      "query": "What is the value of mgr?",
+      "query_terms": [
+        "mgr"
+      ],
+      "rank_a": 21,
+      "rank_b": 22,
+      "score": 13.5,
+      "gene_a": "038f2b9a168cf10b",
+      "gene_b": "0728dd28dfd4d33a",
+      "direct_edge": null,
+      "neighbors_a": 35,
+      "neighbors_b": 0,
+      "shared_neighbors": 0,
+      "nb_a_only": 35,
+      "nb_b_only": 0,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "a"
+      }
+    },
+    {
+      "idx": 19,
+      "query": "What is the value of mgr?",
+      "query_terms": [
+        "mgr"
+      ],
+      "rank_a": 22,
+      "rank_b": 23,
+      "score": 13.5,
+      "gene_a": "0728dd28dfd4d33a",
+      "gene_b": "0ecc34ef2722191d",
+      "direct_edge": null,
+      "neighbors_a": 0,
+      "neighbors_b": 159,
+      "shared_neighbors": 0,
+      "nb_a_only": 0,
+      "nb_b_only": 159,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 20,
+      "query": "What is the value of logs?",
+      "query_terms": [
+        "logs"
+      ],
+      "rank_a": 5,
+      "rank_b": 6,
+      "score": 15.0,
+      "gene_a": "8b630a8a0e3f0079",
+      "gene_b": "8e6e4b4728727a5d",
+      "direct_edge": null,
+      "neighbors_a": 27,
+      "neighbors_b": 93,
+      "shared_neighbors": 0,
+      "nb_a_only": 27,
+      "nb_b_only": 93,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 20,
+      "query": "What is the value of logs?",
+      "query_terms": [
+        "logs"
+      ],
+      "rank_a": 6,
+      "rank_b": 7,
+      "score": 15.0,
+      "gene_a": "8e6e4b4728727a5d",
+      "gene_b": "a6f6359c1422bdab",
+      "direct_edge": {
+        "weight": 0.948360983705851,
+        "co_count": 68,
+        "miss_count": 4.468941584731058,
+        "source": "co_retrieved"
+      },
+      "neighbors_a": 93,
+      "neighbors_b": 95,
+      "shared_neighbors": 88,
+      "nb_a_only": 5,
+      "nb_b_only": 7,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": {
+        "relation": 5,
+        "confidence": 0.9333333333333333
+      },
+      "tie_break_signals_present": [
+        "direct_edge",
+        "neighborhood_size",
+        "nli_relation"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 21,
+      "query": "What is the value of transmit?",
+      "query_terms": [
+        "transmit"
+      ],
+      "rank_a": 0,
+      "rank_b": 1,
+      "score": 15.0,
+      "gene_a": "4df4b7525b8a3826",
+      "gene_b": "8b630a8a0e3f0079",
+      "direct_edge": null,
+      "neighbors_a": 288,
+      "neighbors_b": 27,
+      "shared_neighbors": 0,
+      "nb_a_only": 288,
+      "nb_b_only": 27,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "a"
+      }
+    },
+    {
+      "idx": 21,
+      "query": "What is the value of transmit?",
+      "query_terms": [
+        "transmit"
+      ],
+      "rank_a": 1,
+      "rank_b": 2,
+      "score": 15.0,
+      "gene_a": "8b630a8a0e3f0079",
+      "gene_b": "8e6e4b4728727a5d",
+      "direct_edge": null,
+      "neighbors_a": 27,
+      "neighbors_b": 93,
+      "shared_neighbors": 0,
+      "nb_a_only": 27,
+      "nb_b_only": 93,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 21,
+      "query": "What is the value of transmit?",
+      "query_terms": [
+        "transmit"
+      ],
+      "rank_a": 2,
+      "rank_b": 3,
+      "score": 15.0,
+      "gene_a": "8e6e4b4728727a5d",
+      "gene_b": "a6f6359c1422bdab",
+      "direct_edge": {
+        "weight": 0.948360983705851,
+        "co_count": 68,
+        "miss_count": 4.468941584731058,
+        "source": "co_retrieved"
+      },
+      "neighbors_a": 93,
+      "neighbors_b": 95,
+      "shared_neighbors": 88,
+      "nb_a_only": 5,
+      "nb_b_only": 7,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": {
+        "relation": 5,
+        "confidence": 0.9333333333333333
+      },
+      "tie_break_signals_present": [
+        "direct_edge",
+        "neighborhood_size",
+        "nli_relation"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 21,
+      "query": "What is the value of transmit?",
+      "query_terms": [
+        "transmit"
+      ],
+      "rank_a": 20,
+      "rank_b": 21,
+      "score": 13.5,
+      "gene_a": "029a880282586e7c",
+      "gene_b": "038f2b9a168cf10b",
+      "direct_edge": {
+        "weight": 0.19365618811635116,
+        "co_count": 6,
+        "miss_count": 6.417263067170188,
+        "source": "co_retrieved"
+      },
+      "neighbors_a": 94,
+      "neighbors_b": 35,
+      "shared_neighbors": 11,
+      "nb_a_only": 83,
+      "nb_b_only": 24,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "direct_edge",
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "a"
+      }
+    },
+    {
+      "idx": 21,
+      "query": "What is the value of transmit?",
+      "query_terms": [
+        "transmit"
+      ],
+      "rank_a": 21,
+      "rank_b": 22,
+      "score": 13.5,
+      "gene_a": "038f2b9a168cf10b",
+      "gene_b": "0728dd28dfd4d33a",
+      "direct_edge": null,
+      "neighbors_a": 35,
+      "neighbors_b": 0,
+      "shared_neighbors": 0,
+      "nb_a_only": 35,
+      "nb_b_only": 0,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "a"
+      }
+    },
+    {
+      "idx": 21,
+      "query": "What is the value of transmit?",
+      "query_terms": [
+        "transmit"
+      ],
+      "rank_a": 22,
+      "rank_b": 23,
+      "score": 13.5,
+      "gene_a": "0728dd28dfd4d33a",
+      "gene_b": "0ecc34ef2722191d",
+      "direct_edge": null,
+      "neighbors_a": 0,
+      "neighbors_b": 159,
+      "shared_neighbors": 0,
+      "nb_a_only": 0,
+      "nb_b_only": 159,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": null,
+      "tie_break_signals_present": [
+        "neighborhood_size"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 22,
+      "query": "What is the value of reranker?",
+      "query_terms": [
+        "reranker"
+      ],
+      "rank_a": 5,
+      "rank_b": 6,
+      "score": 15.0,
+      "gene_a": "8e6e4b4728727a5d",
+      "gene_b": "a6f6359c1422bdab",
+      "direct_edge": {
+        "weight": 0.948360983705851,
+        "co_count": 68,
+        "miss_count": 4.468941584731058,
+        "source": "co_retrieved"
+      },
+      "neighbors_a": 93,
+      "neighbors_b": 95,
+      "shared_neighbors": 88,
+      "nb_a_only": 5,
+      "nb_b_only": 7,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": {
+        "relation": 5,
+        "confidence": 0.9333333333333333
+      },
+      "tie_break_signals_present": [
+        "direct_edge",
+        "neighborhood_size",
+        "nli_relation"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 23,
+      "query": "What is the value of balloondirection?",
+      "query_terms": [
+        "balloondirection"
+      ],
+      "rank_a": 3,
+      "rank_b": 4,
+      "score": 15.0,
+      "gene_a": "8e6e4b4728727a5d",
+      "gene_b": "a6f6359c1422bdab",
+      "direct_edge": {
+        "weight": 0.948360983705851,
+        "co_count": 68,
+        "miss_count": 4.468941584731058,
+        "source": "co_retrieved"
+      },
+      "neighbors_a": 93,
+      "neighbors_b": 95,
+      "shared_neighbors": 88,
+      "nb_a_only": 5,
+      "nb_b_only": 7,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": {
+        "relation": 5,
+        "confidence": 0.9333333333333333
+      },
+      "tie_break_signals_present": [
+        "direct_edge",
+        "neighborhood_size",
+        "nli_relation"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    },
+    {
+      "idx": 24,
+      "query": "What is the value of starttimestamp?",
+      "query_terms": [
+        "starttimestamp"
+      ],
+      "rank_a": 2,
+      "rank_b": 3,
+      "score": 15.645979653480232,
+      "gene_a": "8e6e4b4728727a5d",
+      "gene_b": "a6f6359c1422bdab",
+      "direct_edge": {
+        "weight": 0.948360983705851,
+        "co_count": 68,
+        "miss_count": 4.468941584731058,
+        "source": "co_retrieved"
+      },
+      "neighbors_a": 93,
+      "neighbors_b": 95,
+      "shared_neighbors": 88,
+      "nb_a_only": 5,
+      "nb_b_only": 7,
+      "query_match_a": 0,
+      "query_match_b": 0,
+      "entities_matched_by_a": [],
+      "entities_matched_by_b": [],
+      "nli_relation": {
+        "relation": 5,
+        "confidence": 0.9333333333333333
+      },
+      "tie_break_signals_present": [
+        "direct_edge",
+        "neighborhood_size",
+        "nli_relation"
+      ],
+      "winner_by_signal": {
+        "neighborhood_size": "b"
+      }
+    }
+  ]
+}

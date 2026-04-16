@@ -1,0 +1,5488 @@
+{
+  "input": "precision_probe_2026-04-15.json",
+  "thresholds": {
+    "catastrophic": 1e-15,
+    "float32_risky": 1e-06,
+    "close_but_safe": 0.001,
+    "comfortable": Infinity
+  },
+  "per_query_worst_class_counts": {
+    "catastrophic": 0,
+    "float32_risky": 0,
+    "close_but_safe": 23,
+    "exact_tie": 2,
+    "comfortable": 0,
+    "padding": 0
+  },
+  "all_pair_class_counts": {
+    "catastrophic": 0,
+    "float32_risky": 0,
+    "close_but_safe": 106,
+    "exact_tie": 74,
+    "comfortable": 395,
+    "padding": 0
+  },
+  "distribution": {
+    "p01_rel_gap": 0.0,
+    "p05_rel_gap": 0.0,
+    "p25_rel_gap": 0.0005752818098110113,
+    "p50_rel_gap": 0.002518524487774764,
+    "p75_rel_gap": 0.008559101792881085,
+    "p95_rel_gap": 0.06666666666666667,
+    "p99_rel_gap": 0.19752256061807955
+  },
+  "pct_risky_or_worse": 0.0,
+  "decision": "FLAG_ONLY - <5pct risky on real workload; Decimal path is a solution to a non-problem",
+  "queries": [
+    {
+      "idx": 0,
+      "query": "What is the queries path mentioned in the code?",
+      "n_scores": 24,
+      "n_pairs": 23,
+      "worst_adjacent_class": "close_but_safe",
+      "min_rel_gap": 0.0,
+      "min_abs_gap": 0.0,
+      "pairs": [
+        {
+          "rank_a": 0,
+          "rank_b": 1,
+          "score_a": 21.52839459180832,
+          "score_b": 15.533376250151427,
+          "abs_gap": 5.995018341656891,
+          "rel_gap": 0.2784702926217281,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 1,
+          "rank_b": 2,
+          "score_a": 15.533376250151427,
+          "score_b": 14.587429547309876,
+          "abs_gap": 0.9459467028415514,
+          "rel_gap": 0.060897688152781966,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 2,
+          "rank_b": 3,
+          "score_a": 14.587429547309876,
+          "score_b": 13.158703685023955,
+          "abs_gap": 1.428725862285921,
+          "rel_gap": 0.09794226307330463,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 3,
+          "rank_b": 4,
+          "score_a": 13.158703685023955,
+          "score_b": 12.98395621583687,
+          "abs_gap": 0.1747474691870856,
+          "rel_gap": 0.013279991203538337,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 4,
+          "rank_b": 5,
+          "score_a": 12.98395621583687,
+          "score_b": 12.962826793793244,
+          "abs_gap": 0.021129422043625112,
+          "rel_gap": 0.0016273485286289711,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 5,
+          "rank_b": 6,
+          "score_a": 12.962826793793244,
+          "score_b": 12.53060787138717,
+          "abs_gap": 0.43221892240607396,
+          "rel_gap": 0.033342952835952844,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 6,
+          "rank_b": 7,
+          "score_a": 12.53060787138717,
+          "score_b": 12.53060787138717,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 7,
+          "rank_b": 8,
+          "score_a": 12.53060787138717,
+          "score_b": 12.509567700002359,
+          "abs_gap": 0.0210401713848114,
+          "rel_gap": 0.0016791022112227507,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 8,
+          "rank_b": 9,
+          "score_a": 12.509567700002359,
+          "score_b": 12.483802447889015,
+          "abs_gap": 0.02576525211334335,
+          "rel_gap": 0.0020596436848364067,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 9,
+          "rank_b": 10,
+          "score_a": 12.483802447889015,
+          "score_b": 12.43481729529158,
+          "abs_gap": 0.04898515259743519,
+          "rel_gap": 0.003923896809638995,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 10,
+          "rank_b": 11,
+          "score_a": 12.43481729529158,
+          "score_b": 12.39208905515449,
+          "abs_gap": 0.04272824013709098,
+          "rel_gap": 0.0034361775587382327,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 11,
+          "rank_b": 12,
+          "score_a": 12.39208905515449,
+          "score_b": 12.380201707456276,
+          "abs_gap": 0.011887347698213091,
+          "rel_gap": 0.000959269066362023,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 12,
+          "rank_b": 13,
+          "score_a": 12.380201707456276,
+          "score_b": 12.29588051852958,
+          "abs_gap": 0.08432118892669571,
+          "rel_gap": 0.006810970525295338,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 13,
+          "rank_b": 14,
+          "score_a": 12.29588051852958,
+          "score_b": 12.276800940606758,
+          "abs_gap": 0.01907957792282211,
+          "rel_gap": 0.0015517048896229652,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 14,
+          "rank_b": 15,
+          "score_a": 12.276800940606758,
+          "score_b": 12.273756621453927,
+          "abs_gap": 0.0030443191528313207,
+          "rel_gap": 0.00024797332526276677,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 15,
+          "rank_b": 16,
+          "score_a": 12.273756621453927,
+          "score_b": 11.980630604598687,
+          "abs_gap": 0.29312601685523987,
+          "rel_gap": 0.023882339034071273,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 16,
+          "rank_b": 17,
+          "score_a": 11.980630604598687,
+          "score_b": 11.904710010860132,
+          "abs_gap": 0.0759205937385552,
+          "rel_gap": 0.006336944710524133,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 17,
+          "rank_b": 18,
+          "score_a": 11.904710010860132,
+          "score_b": 11.868478403661417,
+          "abs_gap": 0.03623160719871521,
+          "rel_gap": 0.0030434682714373337,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 18,
+          "rank_b": 19,
+          "score_a": 11.868478403661417,
+          "score_b": 11.766894888877868,
+          "abs_gap": 0.10158351478354888,
+          "rel_gap": 0.008559101792881085,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 19,
+          "rank_b": 20,
+          "score_a": 11.766894888877868,
+          "score_b": 11.761293557645669,
+          "abs_gap": 0.0056013312321994135,
+          "rel_gap": 0.00047602458295890974,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 20,
+          "rank_b": 21,
+          "score_a": 11.761293557645669,
+          "score_b": 11.697781870935128,
+          "abs_gap": 0.06351168671054097,
+          "rel_gap": 0.005400059644736433,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 21,
+          "rank_b": 22,
+          "score_a": 11.697781870935128,
+          "score_b": 11.670725494623184,
+          "abs_gap": 0.027056376311943353,
+          "rel_gap": 0.002312949293333032,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 22,
+          "rank_b": 23,
+          "score_a": 11.670725494623184,
+          "score_b": 11.656578658197091,
+          "abs_gap": 0.014146836426093046,
+          "rel_gap": 0.0012121642679892206,
+          "classification": "comfortable"
+        }
+      ]
+    },
+    {
+      "idx": 1,
+      "query": "What is the value of flexiblenavigationitem?",
+      "n_scores": 24,
+      "n_pairs": 23,
+      "worst_adjacent_class": "close_but_safe",
+      "min_rel_gap": 0.0,
+      "min_abs_gap": 0.0,
+      "pairs": [
+        {
+          "rank_a": 0,
+          "rank_b": 1,
+          "score_a": 19.5,
+          "score_b": 15.865991625080875,
+          "abs_gap": 3.6340083749191248,
+          "rel_gap": 0.1863594038420064,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 1,
+          "rank_b": 2,
+          "score_a": 15.865991625080875,
+          "score_b": 15.822537837922573,
+          "abs_gap": 0.043453787158302504,
+          "rel_gap": 0.00273880058587772,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 2,
+          "rank_b": 3,
+          "score_a": 15.822537837922573,
+          "score_b": 15.655416344106197,
+          "abs_gap": 0.1671214938163761,
+          "rel_gap": 0.010562243271482571,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 3,
+          "rank_b": 4,
+          "score_a": 15.655416344106197,
+          "score_b": 15.501769953966141,
+          "abs_gap": 0.15364639014005554,
+          "rel_gap": 0.009814264070843372,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 4,
+          "rank_b": 5,
+          "score_a": 15.501769953966141,
+          "score_b": 15.501769953966141,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 5,
+          "rank_b": 6,
+          "score_a": 15.501769953966141,
+          "score_b": 14.849537014961243,
+          "abs_gap": 0.6522329390048984,
+          "rel_gap": 0.04207473991303968,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 6,
+          "rank_b": 7,
+          "score_a": 14.849537014961243,
+          "score_b": 14.829445113241672,
+          "abs_gap": 0.02009190171957087,
+          "rel_gap": 0.0013530321988711046,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 7,
+          "rank_b": 8,
+          "score_a": 14.829445113241672,
+          "score_b": 14.696309065073729,
+          "abs_gap": 0.1331360481679429,
+          "rel_gap": 0.00897781725150738,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 8,
+          "rank_b": 9,
+          "score_a": 14.696309065073729,
+          "score_b": 14.69517067372799,
+          "abs_gap": 0.0011383913457390094,
+          "rel_gap": 7.746103737328406e-05,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 9,
+          "rank_b": 10,
+          "score_a": 14.69517067372799,
+          "score_b": 14.693185027688742,
+          "abs_gap": 0.0019856460392482234,
+          "rel_gap": 0.000135122353005274,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 10,
+          "rank_b": 11,
+          "score_a": 14.693185027688742,
+          "score_b": 14.668668446689844,
+          "abs_gap": 0.024516580998897197,
+          "rel_gap": 0.0016685681799212793,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 11,
+          "rank_b": 12,
+          "score_a": 14.668668446689844,
+          "score_b": 14.471412716805935,
+          "abs_gap": 0.19725572988390994,
+          "rel_gap": 0.01344741893927141,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 12,
+          "rank_b": 13,
+          "score_a": 14.471412716805935,
+          "score_b": 14.433921103179454,
+          "abs_gap": 0.03749161362648046,
+          "rel_gap": 0.0025907362577629145,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 13,
+          "rank_b": 14,
+          "score_a": 14.433921103179454,
+          "score_b": 14.423928825557232,
+          "abs_gap": 0.009992277622222545,
+          "rel_gap": 0.0006922774172585356,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 14,
+          "rank_b": 15,
+          "score_a": 14.423928825557232,
+          "score_b": 14.422652184963226,
+          "abs_gap": 0.0012766405940052294,
+          "rel_gap": 8.850852007416986e-05,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 15,
+          "rank_b": 16,
+          "score_a": 14.422652184963226,
+          "score_b": 14.393150718510151,
+          "abs_gap": 0.029501466453075054,
+          "rel_gap": 0.0020454952441987546,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 16,
+          "rank_b": 17,
+          "score_a": 14.393150718510151,
+          "score_b": 14.384346900880336,
+          "abs_gap": 0.008803817629814858,
+          "rel_gap": 0.0006116671604426963,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 17,
+          "rank_b": 18,
+          "score_a": 14.384346900880336,
+          "score_b": 14.381715109944343,
+          "abs_gap": 0.0026317909359931946,
+          "rel_gap": 0.0001829621430940411,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 18,
+          "rank_b": 19,
+          "score_a": 14.381715109944343,
+          "score_b": 14.378929904103279,
+          "abs_gap": 0.002785205841064453,
+          "rel_gap": 0.00019366298245878906,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 19,
+          "rank_b": 20,
+          "score_a": 14.378929904103279,
+          "score_b": 14.37474857866764,
+          "abs_gap": 0.004181325435638428,
+          "rel_gap": 0.00029079531394371797,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 20,
+          "rank_b": 21,
+          "score_a": 14.37474857866764,
+          "score_b": 14.36203650534153,
+          "abs_gap": 0.01271207332611013,
+          "rel_gap": 0.0008843336115787828,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 21,
+          "rank_b": 22,
+          "score_a": 14.36203650534153,
+          "score_b": 14.348704442381859,
+          "abs_gap": 0.013332062959671376,
+          "rel_gap": 0.0009282849931980686,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 22,
+          "rank_b": 23,
+          "score_a": 14.348704442381859,
+          "score_b": 14.345798790454865,
+          "abs_gap": 0.0029056519269943237,
+          "rel_gap": 0.00020250273734901677,
+          "classification": "close_but_safe"
+        }
+      ]
+    },
+    {
+      "idx": 2,
+      "query": "What is the value of rbac?",
+      "n_scores": 24,
+      "n_pairs": 23,
+      "worst_adjacent_class": "close_but_safe",
+      "min_rel_gap": 0.0,
+      "min_abs_gap": 0.0,
+      "pairs": [
+        {
+          "rank_a": 0,
+          "rank_b": 1,
+          "score_a": 29.004499033628576,
+          "score_b": 26.145167336403006,
+          "abs_gap": 2.8593316972255707,
+          "rel_gap": 0.09858235075566679,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 1,
+          "rank_b": 2,
+          "score_a": 26.145167336403006,
+          "score_b": 26.111268175183408,
+          "abs_gap": 0.03389916121959757,
+          "rel_gap": 0.0012965746511936973,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 2,
+          "rank_b": 3,
+          "score_a": 26.111268175183408,
+          "score_b": 26.009528074203605,
+          "abs_gap": 0.10174010097980357,
+          "rel_gap": 0.00389640596148827,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 3,
+          "rank_b": 4,
+          "score_a": 26.009528074203605,
+          "score_b": 25.996759564219587,
+          "abs_gap": 0.012768509984017129,
+          "rel_gap": 0.0004909166343806526,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 4,
+          "rank_b": 5,
+          "score_a": 25.996759564219587,
+          "score_b": 25.639423555670852,
+          "abs_gap": 0.35733600854873515,
+          "rel_gap": 0.013745405755898572,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 5,
+          "rank_b": 6,
+          "score_a": 25.639423555670852,
+          "score_b": 25.639423555670852,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 6,
+          "rank_b": 7,
+          "score_a": 25.639423555670852,
+          "score_b": 24.52159549647438,
+          "abs_gap": 1.1178280591964729,
+          "rel_gap": 0.0435980183707849,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 7,
+          "rank_b": 8,
+          "score_a": 24.52159549647438,
+          "score_b": 23.972099051414602,
+          "abs_gap": 0.549496445059777,
+          "rel_gap": 0.022408674229161863,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 8,
+          "rank_b": 9,
+          "score_a": 23.972099051414602,
+          "score_b": 23.67813848906624,
+          "abs_gap": 0.29396056234836365,
+          "rel_gap": 0.012262612536260854,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 9,
+          "rank_b": 10,
+          "score_a": 23.67813848906624,
+          "score_b": 23.639423555670852,
+          "abs_gap": 0.03871493339538645,
+          "rel_gap": 0.0016350497068535897,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 10,
+          "rank_b": 11,
+          "score_a": 23.639423555670852,
+          "score_b": 23.247335970936888,
+          "abs_gap": 0.39208758473396443,
+          "rel_gap": 0.016586173677653266,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 11,
+          "rank_b": 12,
+          "score_a": 23.247335970936888,
+          "score_b": 22.660977805195923,
+          "abs_gap": 0.5863581657409647,
+          "rel_gap": 0.02522259610623823,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 12,
+          "rank_b": 13,
+          "score_a": 22.660977805195923,
+          "score_b": 22.609964839159126,
+          "abs_gap": 0.05101296603679728,
+          "rel_gap": 0.0022511370195641136,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 13,
+          "rank_b": 14,
+          "score_a": 22.609964839159126,
+          "score_b": 22.59257952922451,
+          "abs_gap": 0.01738530993461751,
+          "rel_gap": 0.0007689224666332598,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 14,
+          "rank_b": 15,
+          "score_a": 22.59257952922451,
+          "score_b": 22.50833734625446,
+          "abs_gap": 0.08424218297004771,
+          "rel_gap": 0.0037287545169898237,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 15,
+          "rank_b": 16,
+          "score_a": 22.50833734625446,
+          "score_b": 21.133506545692025,
+          "abs_gap": 1.3748308005624352,
+          "rel_gap": 0.06108095766528114,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 16,
+          "rank_b": 17,
+          "score_a": 21.133506545692025,
+          "score_b": 19.15491860237652,
+          "abs_gap": 1.9785879433155067,
+          "rel_gap": 0.09362326782058954,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 17,
+          "rank_b": 18,
+          "score_a": 19.15491860237652,
+          "score_b": 18.57713665121662,
+          "abs_gap": 0.5777819511598992,
+          "rel_gap": 0.030163633850587845,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 18,
+          "rank_b": 19,
+          "score_a": 18.57713665121662,
+          "score_b": 18.193410822637063,
+          "abs_gap": 0.38372582857955706,
+          "rel_gap": 0.020655811268655698,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 19,
+          "rank_b": 20,
+          "score_a": 18.193410822637063,
+          "score_b": 18.134880301891442,
+          "abs_gap": 0.05853052074562015,
+          "rel_gap": 0.003217127415866069,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 20,
+          "rank_b": 21,
+          "score_a": 18.134880301891442,
+          "score_b": 18.11295352631676,
+          "abs_gap": 0.021926775574684143,
+          "rel_gap": 0.001209094033689167,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 21,
+          "rank_b": 22,
+          "score_a": 18.11295352631676,
+          "score_b": 17.78304344740444,
+          "abs_gap": 0.3299100789123166,
+          "rel_gap": 0.018214041041566306,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 22,
+          "rank_b": 23,
+          "score_a": 17.78304344740444,
+          "score_b": 17.732086441188393,
+          "abs_gap": 0.050957006216048484,
+          "rel_gap": 0.0028654828610614465,
+          "classification": "comfortable"
+        }
+      ]
+    },
+    {
+      "idx": 3,
+      "query": "What is the value of current?",
+      "n_scores": 24,
+      "n_pairs": 23,
+      "worst_adjacent_class": "close_but_safe",
+      "min_rel_gap": 0.0,
+      "min_abs_gap": 0.0,
+      "pairs": [
+        {
+          "rank_a": 0,
+          "rank_b": 1,
+          "score_a": 15.0,
+          "score_b": 15.0,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 1,
+          "rank_b": 2,
+          "score_a": 15.0,
+          "score_b": 15.0,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 2,
+          "rank_b": 3,
+          "score_a": 15.0,
+          "score_b": 15.0,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 3,
+          "rank_b": 4,
+          "score_a": 15.0,
+          "score_b": 14.557092502713203,
+          "abs_gap": 0.44290749728679657,
+          "rel_gap": 0.02952716648578644,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 4,
+          "rank_b": 5,
+          "score_a": 14.557092502713203,
+          "score_b": 14.521247793734073,
+          "abs_gap": 0.0358447089791305,
+          "rel_gap": 0.002462353589664257,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 5,
+          "rank_b": 6,
+          "score_a": 14.521247793734073,
+          "score_b": 14.49911320656538,
+          "abs_gap": 0.022134587168693542,
+          "rel_gap": 0.0015242896122359836,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 6,
+          "rank_b": 7,
+          "score_a": 14.49911320656538,
+          "score_b": 14.497401595115662,
+          "abs_gap": 0.0017116114497177648,
+          "rel_gap": 0.00011804938863038367,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 7,
+          "rank_b": 8,
+          "score_a": 14.497401595115662,
+          "score_b": 14.111423335969448,
+          "abs_gap": 0.38597825914621353,
+          "rel_gap": 0.0266239613087806,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 8,
+          "rank_b": 9,
+          "score_a": 14.111423335969448,
+          "score_b": 14.099967415630818,
+          "abs_gap": 0.011455920338629966,
+          "rel_gap": 0.0008118189119469819,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 9,
+          "rank_b": 10,
+          "score_a": 14.099967415630818,
+          "score_b": 14.0,
+          "abs_gap": 0.09996741563081812,
+          "rel_gap": 0.007089904017792064,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 10,
+          "rank_b": 11,
+          "score_a": 14.0,
+          "score_b": 14.0,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 11,
+          "rank_b": 12,
+          "score_a": 14.0,
+          "score_b": 14.0,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 12,
+          "rank_b": 13,
+          "score_a": 14.0,
+          "score_b": 13.973940096795559,
+          "abs_gap": 0.02605990320444107,
+          "rel_gap": 0.0018614216574600764,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 13,
+          "rank_b": 14,
+          "score_a": 13.973940096795559,
+          "score_b": 13.5,
+          "abs_gap": 0.47394009679555893,
+          "rel_gap": 0.03391599602636344,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 14,
+          "rank_b": 15,
+          "score_a": 13.5,
+          "score_b": 13.5,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 15,
+          "rank_b": 16,
+          "score_a": 13.5,
+          "score_b": 13.5,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 16,
+          "rank_b": 17,
+          "score_a": 13.5,
+          "score_b": 13.5,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 17,
+          "rank_b": 18,
+          "score_a": 13.5,
+          "score_b": 13.5,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 18,
+          "rank_b": 19,
+          "score_a": 13.5,
+          "score_b": 13.5,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 19,
+          "rank_b": 20,
+          "score_a": 13.5,
+          "score_b": 13.5,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 20,
+          "rank_b": 21,
+          "score_a": 13.5,
+          "score_b": 13.5,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 21,
+          "rank_b": 22,
+          "score_a": 13.5,
+          "score_b": 13.5,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 22,
+          "rank_b": 23,
+          "score_a": 13.5,
+          "score_b": 13.5,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        }
+      ]
+    },
+    {
+      "idx": 4,
+      "query": "What is the value of payload?",
+      "n_scores": 24,
+      "n_pairs": 23,
+      "worst_adjacent_class": "close_but_safe",
+      "min_rel_gap": 0.0,
+      "min_abs_gap": 0.0,
+      "pairs": [
+        {
+          "rank_a": 0,
+          "rank_b": 1,
+          "score_a": 19.590875911712647,
+          "score_b": 15.721235936880111,
+          "abs_gap": 3.869639974832536,
+          "rel_gap": 0.19752256061807955,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 1,
+          "rank_b": 2,
+          "score_a": 15.721235936880111,
+          "score_b": 15.586940824985504,
+          "abs_gap": 0.1342951118946072,
+          "rel_gap": 0.008542274439095922,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 2,
+          "rank_b": 3,
+          "score_a": 15.586940824985504,
+          "score_b": 15.586940824985504,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 3,
+          "rank_b": 4,
+          "score_a": 15.586940824985504,
+          "score_b": 15.0,
+          "abs_gap": 0.5869408249855042,
+          "rel_gap": 0.03765593464271396,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 4,
+          "rank_b": 5,
+          "score_a": 15.0,
+          "score_b": 14.995778816938401,
+          "abs_gap": 0.004221183061599021,
+          "rel_gap": 0.0002814122041066014,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 5,
+          "rank_b": 6,
+          "score_a": 14.995778816938401,
+          "score_b": 14.968677151203156,
+          "abs_gap": 0.02710166573524475,
+          "rel_gap": 0.0018072863081063993,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 6,
+          "rank_b": 7,
+          "score_a": 14.968677151203156,
+          "score_b": 14.94543976187706,
+          "abs_gap": 0.023237389326096647,
+          "rel_gap": 0.001552400996518845,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 7,
+          "rank_b": 8,
+          "score_a": 14.94543976187706,
+          "score_b": 14.928668993711472,
+          "abs_gap": 0.016770768165587313,
+          "rel_gap": 0.0011221327998903261,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 8,
+          "rank_b": 9,
+          "score_a": 14.928668993711472,
+          "score_b": 14.925097334384919,
+          "abs_gap": 0.0035716593265533447,
+          "rel_gap": 0.00023924834344293282,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 9,
+          "rank_b": 10,
+          "score_a": 14.925097334384919,
+          "score_b": 14.886865335702897,
+          "abs_gap": 0.038231998682022095,
+          "rel_gap": 0.002561591246305777,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 10,
+          "rank_b": 11,
+          "score_a": 14.886865335702897,
+          "score_b": 14.86465128660202,
+          "abs_gap": 0.02221404910087621,
+          "rel_gap": 0.001492191176580382,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 11,
+          "rank_b": 12,
+          "score_a": 14.86465128660202,
+          "score_b": 14.498913550376892,
+          "abs_gap": 0.3657377362251282,
+          "rel_gap": 0.02460452850009197,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 12,
+          "rank_b": 13,
+          "score_a": 14.498913550376892,
+          "score_b": 14.467705541849137,
+          "abs_gap": 0.031208008527755737,
+          "rel_gap": 0.0021524377270974557,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 13,
+          "rank_b": 14,
+          "score_a": 14.467705541849137,
+          "score_b": 14.335356533527374,
+          "abs_gap": 0.13234900832176244,
+          "rel_gap": 0.009147892037125795,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 14,
+          "rank_b": 15,
+          "score_a": 14.335356533527374,
+          "score_b": 14.262880927324295,
+          "abs_gap": 0.07247560620307958,
+          "rel_gap": 0.00505572400892677,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 15,
+          "rank_b": 16,
+          "score_a": 14.262880927324295,
+          "score_b": 14.219281485892731,
+          "abs_gap": 0.04359944143156369,
+          "rel_gap": 0.003056846765651497,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 16,
+          "rank_b": 17,
+          "score_a": 14.219281485892731,
+          "score_b": 14.216849827766419,
+          "abs_gap": 0.002431658126312186,
+          "rel_gap": 0.00017101132210686515,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 17,
+          "rank_b": 18,
+          "score_a": 14.216849827766419,
+          "score_b": 14.16940770149231,
+          "abs_gap": 0.0474421262741096,
+          "rel_gap": 0.0033370350569119807,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 18,
+          "rank_b": 19,
+          "score_a": 14.16940770149231,
+          "score_b": 14.147928768396378,
+          "abs_gap": 0.021478933095931296,
+          "rel_gap": 0.0015158666860626189,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 19,
+          "rank_b": 20,
+          "score_a": 14.147928768396378,
+          "score_b": 14.132880526781083,
+          "abs_gap": 0.015048241615295055,
+          "rel_gap": 0.0010636356643885425,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 20,
+          "rank_b": 21,
+          "score_a": 14.132880526781083,
+          "score_b": 14.106927168369293,
+          "abs_gap": 0.02595335841179036,
+          "rel_gap": 0.0018363813634885032,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 21,
+          "rank_b": 22,
+          "score_a": 14.106927168369293,
+          "score_b": 14.069411730766296,
+          "abs_gap": 0.03751543760299647,
+          "rel_gap": 0.0026593628190775664,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 22,
+          "rank_b": 23,
+          "score_a": 14.069411730766296,
+          "score_b": 14.003349179029465,
+          "abs_gap": 0.06606255173683095,
+          "rel_gap": 0.0046954736275411305,
+          "classification": "comfortable"
+        }
+      ]
+    },
+    {
+      "idx": 5,
+      "query": "What is the value of priority?",
+      "n_scores": 24,
+      "n_pairs": 23,
+      "worst_adjacent_class": "close_but_safe",
+      "min_rel_gap": 0.0,
+      "min_abs_gap": 0.0,
+      "pairs": [
+        {
+          "rank_a": 0,
+          "rank_b": 1,
+          "score_a": 18.02816720111378,
+          "score_b": 15.732313599342358,
+          "abs_gap": 2.295853601771423,
+          "rel_gap": 0.12734814227979788,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 1,
+          "rank_b": 2,
+          "score_a": 15.732313599342358,
+          "score_b": 15.725631301189239,
+          "abs_gap": 0.0066822981531196035,
+          "rel_gap": 0.0004247498698092909,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 2,
+          "rank_b": 3,
+          "score_a": 15.725631301189239,
+          "score_b": 15.621437933030672,
+          "abs_gap": 0.10419336815856717,
+          "rel_gap": 0.006625703360518672,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 3,
+          "rank_b": 4,
+          "score_a": 15.621437933030672,
+          "score_b": 15.0,
+          "abs_gap": 0.6214379330306716,
+          "rel_gap": 0.03978109670151909,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 4,
+          "rank_b": 5,
+          "score_a": 15.0,
+          "score_b": 15.0,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 5,
+          "rank_b": 6,
+          "score_a": 15.0,
+          "score_b": 14.849876649094075,
+          "abs_gap": 0.15012335090592543,
+          "rel_gap": 0.010008223393728363,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 6,
+          "rank_b": 7,
+          "score_a": 14.849876649094075,
+          "score_b": 14.799016537282474,
+          "abs_gap": 0.050860111811600106,
+          "rel_gap": 0.0034249518035358805,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 7,
+          "rank_b": 8,
+          "score_a": 14.799016537282474,
+          "score_b": 14.683174394852006,
+          "abs_gap": 0.11584214243046809,
+          "rel_gap": 0.007827691937408973,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 8,
+          "rank_b": 9,
+          "score_a": 14.683174394852006,
+          "score_b": 14.681029867720943,
+          "abs_gap": 0.0021445271310636116,
+          "rel_gap": 0.00014605337193403448,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 9,
+          "rank_b": 10,
+          "score_a": 14.681029867720943,
+          "score_b": 14.67626680307868,
+          "abs_gap": 0.004763064642263615,
+          "rel_gap": 0.0003244366836100596,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 10,
+          "rank_b": 11,
+          "score_a": 14.67626680307868,
+          "score_b": 14.634175575100375,
+          "abs_gap": 0.04209122797830389,
+          "rel_gap": 0.002867979203640145,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 11,
+          "rank_b": 12,
+          "score_a": 14.634175575100375,
+          "score_b": 14.576136627914453,
+          "abs_gap": 0.058038947185922396,
+          "rel_gap": 0.003965986801789776,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 12,
+          "rank_b": 13,
+          "score_a": 14.576136627914453,
+          "score_b": 14.481149275413262,
+          "abs_gap": 0.09498735250119061,
+          "rel_gap": 0.006516634340493374,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 13,
+          "rank_b": 14,
+          "score_a": 14.481149275413262,
+          "score_b": 14.452862415710403,
+          "abs_gap": 0.0282868597028596,
+          "rel_gap": 0.0019533573727387983,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 14,
+          "rank_b": 15,
+          "score_a": 14.452862415710403,
+          "score_b": 14.452609384161578,
+          "abs_gap": 0.00025303154882472256,
+          "rel_gap": 1.7507365776185264e-05,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 15,
+          "rank_b": 16,
+          "score_a": 14.452609384161578,
+          "score_b": 14.394814559046448,
+          "abs_gap": 0.057794825115129456,
+          "rel_gap": 0.003998919750676029,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 16,
+          "rank_b": 17,
+          "score_a": 14.394814559046448,
+          "score_b": 14.392066886067582,
+          "abs_gap": 0.0027476729788666887,
+          "rel_gap": 0.0001908793592022975,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 17,
+          "rank_b": 18,
+          "score_a": 14.392066886067582,
+          "score_b": 14.350215128872998,
+          "abs_gap": 0.04185175719458378,
+          "rel_gap": 0.002907974061397595,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 18,
+          "rank_b": 19,
+          "score_a": 14.350215128872998,
+          "score_b": 14.339681342281677,
+          "abs_gap": 0.010533786591320649,
+          "rel_gap": 0.0007340507788016642,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 19,
+          "rank_b": 20,
+          "score_a": 14.339681342281677,
+          "score_b": 14.330990741046921,
+          "abs_gap": 0.008690601234755846,
+          "rel_gap": 0.0006060526051670984,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 20,
+          "rank_b": 21,
+          "score_a": 14.330990741046921,
+          "score_b": 14.311672121313354,
+          "abs_gap": 0.019318619733567743,
+          "rel_gap": 0.0013480309967848364,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 21,
+          "rank_b": 22,
+          "score_a": 14.311672121313354,
+          "score_b": 14.304131796568365,
+          "abs_gap": 0.00754032474498878,
+          "rel_gap": 0.000526865392182896,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 22,
+          "rank_b": 23,
+          "score_a": 14.304131796568365,
+          "score_b": 14.295997109652966,
+          "abs_gap": 0.008134686915399314,
+          "rel_gap": 0.0005686949079531599,
+          "classification": "close_but_safe"
+        }
+      ]
+    },
+    {
+      "idx": 6,
+      "query": "What is the value of product?",
+      "n_scores": 24,
+      "n_pairs": 23,
+      "worst_adjacent_class": "close_but_safe",
+      "min_rel_gap": 0.0,
+      "min_abs_gap": 0.0,
+      "pairs": [
+        {
+          "rank_a": 0,
+          "rank_b": 1,
+          "score_a": 15.647773921489716,
+          "score_b": 15.439202266931535,
+          "abs_gap": 0.20857165455818105,
+          "rel_gap": 0.01332915823072707,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 1,
+          "rank_b": 2,
+          "score_a": 15.439202266931535,
+          "score_b": 15.0,
+          "abs_gap": 0.4392022669315345,
+          "rel_gap": 0.028447212449068057,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 2,
+          "rank_b": 3,
+          "score_a": 15.0,
+          "score_b": 15.0,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 3,
+          "rank_b": 4,
+          "score_a": 15.0,
+          "score_b": 15.0,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 4,
+          "rank_b": 5,
+          "score_a": 15.0,
+          "score_b": 14.880416095256805,
+          "abs_gap": 0.11958390474319458,
+          "rel_gap": 0.007972260316212973,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 5,
+          "rank_b": 6,
+          "score_a": 14.880416095256805,
+          "score_b": 14.831939685344697,
+          "abs_gap": 0.048476409912108664,
+          "rel_gap": 0.0032577321495439043,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 6,
+          "rank_b": 7,
+          "score_a": 14.831939685344697,
+          "score_b": 14.81506313085556,
+          "abs_gap": 0.016876554489137163,
+          "rel_gap": 0.001137852151988774,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 7,
+          "rank_b": 8,
+          "score_a": 14.81506313085556,
+          "score_b": 14.802215623855592,
+          "abs_gap": 0.012847506999968061,
+          "rel_gap": 0.0008671921872010361,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 8,
+          "rank_b": 9,
+          "score_a": 14.802215623855592,
+          "score_b": 14.79694572687149,
+          "abs_gap": 0.005269896984101408,
+          "rel_gap": 0.0003560208226941594,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 9,
+          "rank_b": 10,
+          "score_a": 14.79694572687149,
+          "score_b": 14.776190662384034,
+          "abs_gap": 0.020755064487456565,
+          "rel_gap": 0.0014026586885268516,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 10,
+          "rank_b": 11,
+          "score_a": 14.776190662384034,
+          "score_b": 14.62904235124588,
+          "abs_gap": 0.14714831113815308,
+          "rel_gap": 0.00995847404113096,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 11,
+          "rank_b": 12,
+          "score_a": 14.62904235124588,
+          "score_b": 14.572051435709,
+          "abs_gap": 0.05699091553688085,
+          "rel_gap": 0.0038957379552617966,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 12,
+          "rank_b": 13,
+          "score_a": 14.572051435709,
+          "score_b": 14.528095459938049,
+          "abs_gap": 0.04395597577095067,
+          "rel_gap": 0.003016457632261439,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 13,
+          "rank_b": 14,
+          "score_a": 14.528095459938049,
+          "score_b": 14.513079345226288,
+          "abs_gap": 0.01501611471176112,
+          "rel_gap": 0.0010335914128020984,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 14,
+          "rank_b": 15,
+          "score_a": 14.513079345226288,
+          "score_b": 14.41152219772339,
+          "abs_gap": 0.10155714750289846,
+          "rel_gap": 0.006997629178972492,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 15,
+          "rank_b": 16,
+          "score_a": 14.41152219772339,
+          "score_b": 14.284179246425628,
+          "abs_gap": 0.12734295129776108,
+          "rel_gap": 0.008836190206047605,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 16,
+          "rank_b": 17,
+          "score_a": 14.284179246425628,
+          "score_b": 14.282021820545197,
+          "abs_gap": 0.0021574258804317736,
+          "rel_gap": 0.00015103604086819566,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 17,
+          "rank_b": 18,
+          "score_a": 14.282021820545197,
+          "score_b": 14.235006058216095,
+          "abs_gap": 0.04701576232910121,
+          "rel_gap": 0.0032919542428836903,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 18,
+          "rank_b": 19,
+          "score_a": 14.235006058216095,
+          "score_b": 14.226876199245453,
+          "abs_gap": 0.008129858970642445,
+          "rel_gap": 0.000571117352349147,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 19,
+          "rank_b": 20,
+          "score_a": 14.226876199245453,
+          "score_b": 14.212693464756011,
+          "abs_gap": 0.014182734489441629,
+          "rel_gap": 0.0009968973013340647,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 20,
+          "rank_b": 21,
+          "score_a": 14.212693464756011,
+          "score_b": 14.197945380210877,
+          "abs_gap": 0.014748084545134432,
+          "rel_gap": 0.0010376699238399856,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 21,
+          "rank_b": 22,
+          "score_a": 14.197945380210877,
+          "score_b": 14.17266217470169,
+          "abs_gap": 0.0252832055091865,
+          "rel_gap": 0.0017807650918580291,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 22,
+          "rank_b": 23,
+          "score_a": 14.17266217470169,
+          "score_b": 14.128646773099899,
+          "abs_gap": 0.04401540160179174,
+          "rel_gap": 0.003105655173264453,
+          "classification": "comfortable"
+        }
+      ]
+    },
+    {
+      "idx": 7,
+      "query": "What is the value of stored?",
+      "n_scores": 24,
+      "n_pairs": 23,
+      "worst_adjacent_class": "close_but_safe",
+      "min_rel_gap": 0.0,
+      "min_abs_gap": 0.0,
+      "pairs": [
+        {
+          "rank_a": 0,
+          "rank_b": 1,
+          "score_a": 15.508121067285538,
+          "score_b": 15.0,
+          "abs_gap": 0.5081210672855381,
+          "rel_gap": 0.03276483753776092,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 1,
+          "rank_b": 2,
+          "score_a": 15.0,
+          "score_b": 15.0,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 2,
+          "rank_b": 3,
+          "score_a": 15.0,
+          "score_b": 15.0,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 3,
+          "rank_b": 4,
+          "score_a": 15.0,
+          "score_b": 14.982715332508088,
+          "abs_gap": 0.017284667491912487,
+          "rel_gap": 0.0011523111661274992,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 4,
+          "rank_b": 5,
+          "score_a": 14.982715332508088,
+          "score_b": 14.957566893100738,
+          "abs_gap": 0.025148439407349343,
+          "rel_gap": 0.001678496777735917,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 5,
+          "rank_b": 6,
+          "score_a": 14.957566893100738,
+          "score_b": 14.944949865341187,
+          "abs_gap": 0.012617027759551647,
+          "rel_gap": 0.000843521399551375,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 6,
+          "rank_b": 7,
+          "score_a": 14.944949865341187,
+          "score_b": 14.89051913022995,
+          "abs_gap": 0.05443073511123586,
+          "rel_gap": 0.003642082148262411,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 7,
+          "rank_b": 8,
+          "score_a": 14.89051913022995,
+          "score_b": 14.877807056903839,
+          "abs_gap": 0.012712073326111906,
+          "rel_gap": 0.0008537024945157568,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 8,
+          "rank_b": 9,
+          "score_a": 14.877807056903839,
+          "score_b": 14.847978937625886,
+          "abs_gap": 0.029828119277953036,
+          "rel_gap": 0.0020048733770957,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 9,
+          "rank_b": 10,
+          "score_a": 14.847978937625886,
+          "score_b": 14.8370729804039,
+          "abs_gap": 0.010905957221986284,
+          "rel_gap": 0.0007345078591369615,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 10,
+          "rank_b": 11,
+          "score_a": 14.8370729804039,
+          "score_b": 14.612747502326965,
+          "abs_gap": 0.22432547807693481,
+          "rel_gap": 0.01511925420689197,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 11,
+          "rank_b": 12,
+          "score_a": 14.612747502326965,
+          "score_b": 14.603573322296143,
+          "abs_gap": 0.009174180030822043,
+          "rel_gap": 0.0006278203349069795,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 12,
+          "rank_b": 13,
+          "score_a": 14.603573322296143,
+          "score_b": 14.592872881889344,
+          "abs_gap": 0.010700440406798961,
+          "rel_gap": 0.0007327275435021073,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 13,
+          "rank_b": 14,
+          "score_a": 14.592872881889344,
+          "score_b": 14.538467442989349,
+          "abs_gap": 0.05440543889999461,
+          "rel_gap": 0.0037282198879094682,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 14,
+          "rank_b": 15,
+          "score_a": 14.538467442989349,
+          "score_b": 14.383578717708588,
+          "abs_gap": 0.15488872528076136,
+          "rel_gap": 0.010653717517897725,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 15,
+          "rank_b": 16,
+          "score_a": 14.383578717708588,
+          "score_b": 14.248167324066163,
+          "abs_gap": 0.13541139364242483,
+          "rel_gap": 0.009414304763786692,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 16,
+          "rank_b": 17,
+          "score_a": 14.248167324066163,
+          "score_b": 14.22448011636734,
+          "abs_gap": 0.023687207698822377,
+          "rel_gap": 0.0016624739982392688,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 17,
+          "rank_b": 18,
+          "score_a": 14.22448011636734,
+          "score_b": 14.159399312734603,
+          "abs_gap": 0.06508080363273727,
+          "rel_gap": 0.0045752676442531144,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 18,
+          "rank_b": 19,
+          "score_a": 14.159399312734603,
+          "score_b": 14.147080147266388,
+          "abs_gap": 0.012319165468214877,
+          "rel_gap": 0.0008700344694096827,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 19,
+          "rank_b": 20,
+          "score_a": 14.147080147266388,
+          "score_b": 14.119193410873413,
+          "abs_gap": 0.027886736392975564,
+          "rel_gap": 0.0019712008487040387,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 20,
+          "rank_b": 21,
+          "score_a": 14.119193410873413,
+          "score_b": 14.019853854179383,
+          "abs_gap": 0.09933955669403005,
+          "rel_gap": 0.007035781280361745,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 21,
+          "rank_b": 22,
+          "score_a": 14.019853854179383,
+          "score_b": 13.99614394903183,
+          "abs_gap": 0.023709905147553556,
+          "rel_gap": 0.0016911663555241358,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 22,
+          "rank_b": 23,
+          "score_a": 13.99614394903183,
+          "score_b": 13.96356355547905,
+          "abs_gap": 0.032580393552779086,
+          "rel_gap": 0.002327812122497697,
+          "classification": "comfortable"
+        }
+      ]
+    },
+    {
+      "idx": 8,
+      "query": "What is the value of days?",
+      "n_scores": 24,
+      "n_pairs": 23,
+      "worst_adjacent_class": "exact_tie",
+      "min_rel_gap": 0.0,
+      "min_abs_gap": 0.0,
+      "pairs": [
+        {
+          "rank_a": 0,
+          "rank_b": 1,
+          "score_a": 25.48080743225,
+          "score_b": 25.251502141,
+          "abs_gap": 0.2293052912500002,
+          "rel_gap": 0.008999137561071869,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 1,
+          "rank_b": 2,
+          "score_a": 25.251502141,
+          "score_b": 23.0,
+          "abs_gap": 2.2515021409999996,
+          "rel_gap": 0.0891630972457798,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 2,
+          "rank_b": 3,
+          "score_a": 23.0,
+          "score_b": 19.9340424365,
+          "abs_gap": 3.0659575634999996,
+          "rel_gap": 0.13330250276086955,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 3,
+          "rank_b": 4,
+          "score_a": 19.9340424365,
+          "score_b": 19.67412617675,
+          "abs_gap": 0.25991625974999977,
+          "rel_gap": 0.013038813405658406,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 4,
+          "rank_b": 5,
+          "score_a": 19.67412617675,
+          "score_b": 19.636007605,
+          "abs_gap": 0.038118571750000996,
+          "rel_gap": 0.0019374975746088187,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 5,
+          "rank_b": 6,
+          "score_a": 19.636007605,
+          "score_b": 19.25943563175,
+          "abs_gap": 0.37657197324999814,
+          "rel_gap": 0.019177624129362733,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 6,
+          "rank_b": 7,
+          "score_a": 19.25943563175,
+          "score_b": 18.825406713,
+          "abs_gap": 0.43402891875000194,
+          "rel_gap": 0.022535910555680393,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 7,
+          "rank_b": 8,
+          "score_a": 18.825406713,
+          "score_b": 17.0,
+          "abs_gap": 1.8254067129999996,
+          "rel_gap": 0.09696506114470578,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 8,
+          "rank_b": 9,
+          "score_a": 17.0,
+          "score_b": 17.0,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 9,
+          "rank_b": 10,
+          "score_a": 17.0,
+          "score_b": 15.0,
+          "abs_gap": 2.0,
+          "rel_gap": 0.11764705882352941,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 10,
+          "rank_b": 11,
+          "score_a": 15.0,
+          "score_b": 15.0,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 11,
+          "rank_b": 12,
+          "score_a": 15.0,
+          "score_b": 15.0,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 12,
+          "rank_b": 13,
+          "score_a": 15.0,
+          "score_b": 15.0,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 13,
+          "rank_b": 14,
+          "score_a": 15.0,
+          "score_b": 15.0,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 14,
+          "rank_b": 15,
+          "score_a": 15.0,
+          "score_b": 14.0,
+          "abs_gap": 1.0,
+          "rel_gap": 0.06666666666666667,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 15,
+          "rank_b": 16,
+          "score_a": 14.0,
+          "score_b": 14.0,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 16,
+          "rank_b": 17,
+          "score_a": 14.0,
+          "score_b": 14.0,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 17,
+          "rank_b": 18,
+          "score_a": 14.0,
+          "score_b": 14.0,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 18,
+          "rank_b": 19,
+          "score_a": 14.0,
+          "score_b": 14.0,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 19,
+          "rank_b": 20,
+          "score_a": 14.0,
+          "score_b": 14.0,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 20,
+          "rank_b": 21,
+          "score_a": 14.0,
+          "score_b": 14.0,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 21,
+          "rank_b": 22,
+          "score_a": 14.0,
+          "score_b": 13.5,
+          "abs_gap": 0.5,
+          "rel_gap": 0.03571428571428571,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 22,
+          "rank_b": 23,
+          "score_a": 13.5,
+          "score_b": 13.5,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        }
+      ]
+    },
+    {
+      "idx": 9,
+      "query": "What is the dxpixelshaderfile mentioned in the code?",
+      "n_scores": 24,
+      "n_pairs": 23,
+      "worst_adjacent_class": "close_but_safe",
+      "min_rel_gap": 0.0,
+      "min_abs_gap": 0.0,
+      "pairs": [
+        {
+          "rank_a": 0,
+          "rank_b": 1,
+          "score_a": 14.695119209587574,
+          "score_b": 11.914927737767325,
+          "abs_gap": 2.780191471820249,
+          "rel_gap": 0.18919148815113807,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 1,
+          "rank_b": 2,
+          "score_a": 11.914927737767325,
+          "score_b": 11.892333827617172,
+          "abs_gap": 0.022593910150153107,
+          "rel_gap": 0.0018962691715314474,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 2,
+          "rank_b": 3,
+          "score_a": 11.892333827617172,
+          "score_b": 11.89183525443077,
+          "abs_gap": 0.000498573186401785,
+          "rel_gap": 4.1923914483796703e-05,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 3,
+          "rank_b": 4,
+          "score_a": 11.89183525443077,
+          "score_b": 11.750840487640167,
+          "abs_gap": 0.14099476679060352,
+          "rel_gap": 0.01185643458507133,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 4,
+          "rank_b": 5,
+          "score_a": 11.750840487640167,
+          "score_b": 11.748724664747716,
+          "abs_gap": 0.002115822892450936,
+          "rel_gap": 0.00018005715375648342,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 5,
+          "rank_b": 6,
+          "score_a": 11.748724664747716,
+          "score_b": 11.748213898686036,
+          "abs_gap": 0.0005107660616801013,
+          "rel_gap": 4.347417070830378e-05,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 6,
+          "rank_b": 7,
+          "score_a": 11.748213898686036,
+          "score_b": 11.675366035400344,
+          "abs_gap": 0.07284786328569126,
+          "rel_gap": 0.006200760721069169,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 7,
+          "rank_b": 8,
+          "score_a": 11.675366035400344,
+          "score_b": 11.656787032449413,
+          "abs_gap": 0.018579002950930956,
+          "rel_gap": 0.0015912993986311357,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 8,
+          "rank_b": 9,
+          "score_a": 11.656787032449413,
+          "score_b": 11.455071890354157,
+          "abs_gap": 0.20171514209525654,
+          "rel_gap": 0.01730452323901388,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 9,
+          "rank_b": 10,
+          "score_a": 11.455071890354157,
+          "score_b": 11.435176669063218,
+          "abs_gap": 0.019895221290939347,
+          "rel_gap": 0.0017368045771665817,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 10,
+          "rank_b": 11,
+          "score_a": 11.435176669063218,
+          "score_b": 11.41837569475174,
+          "abs_gap": 0.016800974311477646,
+          "rel_gap": 0.001469236094701631,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 11,
+          "rank_b": 12,
+          "score_a": 11.41837569475174,
+          "score_b": 11.33978338241577,
+          "abs_gap": 0.07859231233596908,
+          "rel_gap": 0.006882967808818262,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 12,
+          "rank_b": 13,
+          "score_a": 11.33978338241577,
+          "score_b": 11.155855897068978,
+          "abs_gap": 0.1839274853467927,
+          "rel_gap": 0.01621966479818327,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 13,
+          "rank_b": 14,
+          "score_a": 11.155855897068978,
+          "score_b": 11.015398898720742,
+          "abs_gap": 0.14045699834823644,
+          "rel_gap": 0.01259042781156211,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 14,
+          "rank_b": 15,
+          "score_a": 11.015398898720742,
+          "score_b": 10.5,
+          "abs_gap": 0.5153988987207416,
+          "rel_gap": 0.04678894549888672,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 15,
+          "rank_b": 16,
+          "score_a": 10.5,
+          "score_b": 10.5,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 16,
+          "rank_b": 17,
+          "score_a": 10.5,
+          "score_b": 10.414988872408866,
+          "abs_gap": 0.08501112759113383,
+          "rel_gap": 0.008096297865822269,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 17,
+          "rank_b": 18,
+          "score_a": 10.414988872408866,
+          "score_b": 10.110032108426093,
+          "abs_gap": 0.3049567639827728,
+          "rel_gap": 0.029280565511755546,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 18,
+          "rank_b": 19,
+          "score_a": 10.110032108426093,
+          "score_b": 10.080688470602036,
+          "abs_gap": 0.029343637824057467,
+          "rel_gap": 0.0029024277578308913,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 19,
+          "rank_b": 20,
+          "score_a": 10.080688470602036,
+          "score_b": 10.051938205957413,
+          "abs_gap": 0.028750264644623158,
+          "rel_gap": 0.0028520139996852955,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 20,
+          "rank_b": 21,
+          "score_a": 10.051938205957413,
+          "score_b": 9.941268503665924,
+          "abs_gap": 0.11066970229148865,
+          "rel_gap": 0.011009787368758276,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 21,
+          "rank_b": 22,
+          "score_a": 9.941268503665924,
+          "score_b": 9.922444704174996,
+          "abs_gap": 0.01882379949092794,
+          "rel_gap": 0.0018935007624013484,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 22,
+          "rank_b": 23,
+          "score_a": 9.922444704174996,
+          "score_b": 9.876532977819442,
+          "abs_gap": 0.04591172635555374,
+          "rel_gap": 0.004627057920134923,
+          "classification": "comfortable"
+        }
+      ]
+    },
+    {
+      "idx": 10,
+      "query": "What is the value of model?",
+      "n_scores": 24,
+      "n_pairs": 23,
+      "worst_adjacent_class": "exact_tie",
+      "min_rel_gap": 0.0,
+      "min_abs_gap": 0.0,
+      "pairs": [
+        {
+          "rank_a": 0,
+          "rank_b": 1,
+          "score_a": 49.28647004652007,
+          "score_b": 49.05477927252007,
+          "abs_gap": 0.2316907740000005,
+          "rel_gap": 0.0047009001411810235,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 1,
+          "rank_b": 2,
+          "score_a": 49.05477927252007,
+          "score_b": 47.78647004652008,
+          "abs_gap": 1.2683092259999924,
+          "rel_gap": 0.025854957351943174,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 2,
+          "rank_b": 3,
+          "score_a": 47.78647004652008,
+          "score_b": 45.78647004652008,
+          "abs_gap": 2.0,
+          "rel_gap": 0.04185285077665293,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 3,
+          "rank_b": 4,
+          "score_a": 45.78647004652008,
+          "score_b": 45.78647004652008,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 4,
+          "rank_b": 5,
+          "score_a": 45.78647004652008,
+          "score_b": 45.78647004652008,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 5,
+          "rank_b": 6,
+          "score_a": 45.78647004652008,
+          "score_b": 42.56592219576004,
+          "abs_gap": 3.220547850760042,
+          "rel_gap": 0.07033841760432488,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 6,
+          "rank_b": 7,
+          "score_a": 42.56592219576004,
+          "score_b": 41.61652577781285,
+          "abs_gap": 0.9493964179471845,
+          "rel_gap": 0.022304143055586218,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 7,
+          "rank_b": 8,
+          "score_a": 41.61652577781285,
+          "score_b": 41.61652577781285,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 8,
+          "rank_b": 9,
+          "score_a": 41.61652577781285,
+          "score_b": 41.51014219281286,
+          "abs_gap": 0.10638358499999612,
+          "rel_gap": 0.0025562822223068105,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 9,
+          "rank_b": 10,
+          "score_a": 41.51014219281286,
+          "score_b": 40.11652577781286,
+          "abs_gap": 1.3936164149999968,
+          "rel_gap": 0.03357291354307358,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 10,
+          "rank_b": 11,
+          "score_a": 40.11652577781286,
+          "score_b": 39.97454418171728,
+          "abs_gap": 0.14198159609558303,
+          "rel_gap": 0.0035392296152950615,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 11,
+          "rank_b": 12,
+          "score_a": 39.97454418171728,
+          "score_b": 39.78647004652009,
+          "abs_gap": 0.18807413519719063,
+          "rel_gap": 0.004704847523519932,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 12,
+          "rank_b": 13,
+          "score_a": 39.78647004652009,
+          "score_b": 39.78647004652009,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 13,
+          "rank_b": 14,
+          "score_a": 39.78647004652009,
+          "score_b": 39.78647004652009,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 14,
+          "rank_b": 15,
+          "score_a": 39.78647004652009,
+          "score_b": 39.78647004652009,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 15,
+          "rank_b": 16,
+          "score_a": 39.78647004652009,
+          "score_b": 38.28647004652009,
+          "abs_gap": 1.5,
+          "rel_gap": 0.03770125870041082,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 16,
+          "rank_b": 17,
+          "score_a": 38.28647004652009,
+          "score_b": 38.11652577781286,
+          "abs_gap": 0.16994426870722634,
+          "rel_gap": 0.004438755218246422,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 17,
+          "rank_b": 18,
+          "score_a": 38.11652577781286,
+          "score_b": 37.11652577781286,
+          "abs_gap": 1.0,
+          "rel_gap": 0.026235339648454717,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 18,
+          "rank_b": 19,
+          "score_a": 37.11652577781286,
+          "score_b": 36.61652577781286,
+          "abs_gap": 0.5,
+          "rel_gap": 0.01347108840393906,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 19,
+          "rank_b": 20,
+          "score_a": 36.61652577781286,
+          "score_b": 36.31317929196728,
+          "abs_gap": 0.3033464858455801,
+          "rel_gap": 0.00828441473902441,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 20,
+          "rank_b": 21,
+          "score_a": 36.31317929196728,
+          "score_b": 36.12002397606286,
+          "abs_gap": 0.19315531590441992,
+          "rel_gap": 0.0053191518801314975,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 21,
+          "rank_b": 22,
+          "score_a": 36.12002397606286,
+          "score_b": 36.05209276831286,
+          "abs_gap": 0.06793120775000006,
+          "rel_gap": 0.0018807077147849852,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 22,
+          "rank_b": 23,
+          "score_a": 36.05209276831286,
+          "score_b": 35.934331586312865,
+          "abs_gap": 0.1177611819999953,
+          "rel_gap": 0.003266417368799703,
+          "classification": "comfortable"
+        }
+      ]
+    },
+    {
+      "idx": 11,
+      "query": "What is the peers urls mentioned in the code?",
+      "n_scores": 24,
+      "n_pairs": 23,
+      "worst_adjacent_class": "close_but_safe",
+      "min_rel_gap": 0.0,
+      "min_abs_gap": 0.0,
+      "pairs": [
+        {
+          "rank_a": 0,
+          "rank_b": 1,
+          "score_a": 17.320574823142508,
+          "score_b": 14.630993809665533,
+          "abs_gap": 2.6895810134769746,
+          "rel_gap": 0.1552824338071823,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 1,
+          "rank_b": 2,
+          "score_a": 14.630993809665533,
+          "score_b": 14.45748946711548,
+          "abs_gap": 0.17350434255005354,
+          "rel_gap": 0.011858684707762848,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 2,
+          "rank_b": 3,
+          "score_a": 14.45748946711548,
+          "score_b": 14.186458470019591,
+          "abs_gap": 0.2710309970958882,
+          "rel_gap": 0.01874675390304563,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 3,
+          "rank_b": 4,
+          "score_a": 14.186458470019591,
+          "score_b": 12.587859351989955,
+          "abs_gap": 1.598599118029636,
+          "rel_gap": 0.11268486221617426,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 4,
+          "rank_b": 5,
+          "score_a": 12.587859351989955,
+          "score_b": 12.011513147190257,
+          "abs_gap": 0.5763462047996981,
+          "rel_gap": 0.04578587897143816,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 5,
+          "rank_b": 6,
+          "score_a": 12.011513147190257,
+          "score_b": 11.706576117358829,
+          "abs_gap": 0.3049370298314287,
+          "rel_gap": 0.025387062070756656,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 6,
+          "rank_b": 7,
+          "score_a": 11.706576117358829,
+          "score_b": 11.676508852742957,
+          "abs_gap": 0.03006726461587128,
+          "rel_gap": 0.002568408073756658,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 7,
+          "rank_b": 8,
+          "score_a": 11.676508852742957,
+          "score_b": 11.672328013995315,
+          "abs_gap": 0.004180838747641857,
+          "rel_gap": 0.0003580555455717165,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 8,
+          "rank_b": 9,
+          "score_a": 11.672328013995315,
+          "score_b": 11.470279780817528,
+          "abs_gap": 0.20204823317778775,
+          "rel_gap": 0.017310020154979244,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 9,
+          "rank_b": 10,
+          "score_a": 11.470279780817528,
+          "score_b": 11.266305645914167,
+          "abs_gap": 0.20397413490336014,
+          "rel_gap": 0.01778283867534591,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 10,
+          "rank_b": 11,
+          "score_a": 11.266305645914167,
+          "score_b": 11.264441443262175,
+          "abs_gap": 0.001864202651992386,
+          "rel_gap": 0.00016546707595035438,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 11,
+          "rank_b": 12,
+          "score_a": 11.264441443262175,
+          "score_b": 11.191322483367308,
+          "abs_gap": 0.07311895989486672,
+          "rel_gap": 0.006491130542349512,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 12,
+          "rank_b": 13,
+          "score_a": 11.191322483367308,
+          "score_b": 11.015108121625092,
+          "abs_gap": 0.1762143617422165,
+          "rel_gap": 0.015745624523295493,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 13,
+          "rank_b": 14,
+          "score_a": 11.015108121625092,
+          "score_b": 10.5,
+          "abs_gap": 0.5151081216250919,
+          "rel_gap": 0.04676378260997918,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 14,
+          "rank_b": 15,
+          "score_a": 10.5,
+          "score_b": 10.5,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 15,
+          "rank_b": 16,
+          "score_a": 10.5,
+          "score_b": 10.306846179483088,
+          "abs_gap": 0.19315382051691188,
+          "rel_gap": 0.01839560195399161,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 16,
+          "rank_b": 17,
+          "score_a": 10.306846179483088,
+          "score_b": 10.272218502052054,
+          "abs_gap": 0.03462767743103434,
+          "rel_gap": 0.0033596773278682032,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 17,
+          "rank_b": 18,
+          "score_a": 10.272218502052054,
+          "score_b": 9.763759641985786,
+          "abs_gap": 0.5084588600662681,
+          "rel_gap": 0.04949844670503208,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 18,
+          "rank_b": 19,
+          "score_a": 9.763759641985786,
+          "score_b": 9.747746570962697,
+          "abs_gap": 0.0160130710230888,
+          "rel_gap": 0.0016400517434114147,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 19,
+          "rank_b": 20,
+          "score_a": 9.747746570962697,
+          "score_b": 9.635576446903091,
+          "abs_gap": 0.11217012405960602,
+          "rel_gap": 0.01150728768367313,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 20,
+          "rank_b": 21,
+          "score_a": 9.635576446903091,
+          "score_b": 9.63539659682118,
+          "abs_gap": 0.00017985008191168106,
+          "rel_gap": 1.8665212496911436e-05,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 21,
+          "rank_b": 22,
+          "score_a": 9.63539659682118,
+          "score_b": 9.63506229724845,
+          "abs_gap": 0.0003342995727297904,
+          "rel_gap": 3.4694946842154835e-05,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 22,
+          "rank_b": 23,
+          "score_a": 9.63506229724845,
+          "score_b": 9.617555885605043,
+          "abs_gap": 0.017506411643406494,
+          "rel_gap": 0.001816948464194769,
+          "classification": "comfortable"
+        }
+      ]
+    },
+    {
+      "idx": 12,
+      "query": "What is the value of manager?",
+      "n_scores": 24,
+      "n_pairs": 23,
+      "worst_adjacent_class": "close_but_safe",
+      "min_rel_gap": 0.0,
+      "min_abs_gap": 0.0,
+      "pairs": [
+        {
+          "rank_a": 0,
+          "rank_b": 1,
+          "score_a": 16.074476074980204,
+          "score_b": 16.019636400520746,
+          "abs_gap": 0.054839674459458365,
+          "rel_gap": 0.0034115994949792416,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 1,
+          "rank_b": 2,
+          "score_a": 16.019636400520746,
+          "score_b": 15.708469798147554,
+          "abs_gap": 0.3111666023731914,
+          "rel_gap": 0.019424073967314038,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 2,
+          "rank_b": 3,
+          "score_a": 15.708469798147554,
+          "score_b": 15.708469798147554,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 3,
+          "rank_b": 4,
+          "score_a": 15.708469798147554,
+          "score_b": 15.08827184916344,
+          "abs_gap": 0.6201979489841136,
+          "rel_gap": 0.03948175455366451,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 4,
+          "rank_b": 5,
+          "score_a": 15.08827184916344,
+          "score_b": 15.08622717600916,
+          "abs_gap": 0.002044673154280474,
+          "rel_gap": 0.0001355140717718338,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 5,
+          "rank_b": 6,
+          "score_a": 15.08622717600916,
+          "score_b": 15.050018824697137,
+          "abs_gap": 0.03620835131202327,
+          "rel_gap": 0.002400093203528283,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 6,
+          "rank_b": 7,
+          "score_a": 15.050018824697137,
+          "score_b": 15.021137828264536,
+          "abs_gap": 0.028880996432601336,
+          "rel_gap": 0.0019190006849165871,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 7,
+          "rank_b": 8,
+          "score_a": 15.021137828264536,
+          "score_b": 15.017209366173695,
+          "abs_gap": 0.003928462090840412,
+          "rel_gap": 0.0002615289291499888,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 8,
+          "rank_b": 9,
+          "score_a": 15.017209366173695,
+          "score_b": 14.903983156572917,
+          "abs_gap": 0.11322620960077856,
+          "rel_gap": 0.007539763669794796,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 9,
+          "rank_b": 10,
+          "score_a": 14.903983156572917,
+          "score_b": 14.894161051616077,
+          "abs_gap": 0.00982210495683944,
+          "rel_gap": 0.0006590255003413447,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 10,
+          "rank_b": 11,
+          "score_a": 14.894161051616077,
+          "score_b": 14.795073410343154,
+          "abs_gap": 0.09908764127292358,
+          "rel_gap": 0.006652784331358641,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 11,
+          "rank_b": 12,
+          "score_a": 14.795073410343154,
+          "score_b": 14.751912562479541,
+          "abs_gap": 0.04316084786361252,
+          "rel_gap": 0.0029172445899078143,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 12,
+          "rank_b": 13,
+          "score_a": 14.751912562479541,
+          "score_b": 14.751716158369593,
+          "abs_gap": 0.00019640410994803403,
+          "rel_gap": 1.3313806539741441e-05,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 13,
+          "rank_b": 14,
+          "score_a": 14.751716158369593,
+          "score_b": 14.730795986552078,
+          "abs_gap": 0.020920171817515154,
+          "rel_gap": 0.0014181517318339807,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 14,
+          "rank_b": 15,
+          "score_a": 14.730795986552078,
+          "score_b": 14.71489779564645,
+          "abs_gap": 0.015898190905627274,
+          "rel_gap": 0.001079248597301933,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 15,
+          "rank_b": 16,
+          "score_a": 14.71489779564645,
+          "score_b": 14.668930211486286,
+          "abs_gap": 0.045967584160164776,
+          "rel_gap": 0.0031238806275477324,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 16,
+          "rank_b": 17,
+          "score_a": 14.668930211486286,
+          "score_b": 14.638665078932616,
+          "abs_gap": 0.03026513255366936,
+          "rel_gap": 0.002063213343940426,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 17,
+          "rank_b": 18,
+          "score_a": 14.638665078932616,
+          "score_b": 14.597592021953417,
+          "abs_gap": 0.04107305697919905,
+          "rel_gap": 0.002805792519859598,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 18,
+          "rank_b": 19,
+          "score_a": 14.597592021953417,
+          "score_b": 14.5317152532825,
+          "abs_gap": 0.0658767686709183,
+          "rel_gap": 0.004512851747866756,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 19,
+          "rank_b": 20,
+          "score_a": 14.5317152532825,
+          "score_b": 14.514624961608956,
+          "abs_gap": 0.01709029167354359,
+          "rel_gap": 0.0011760684389740671,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 20,
+          "rank_b": 21,
+          "score_a": 14.514624961608956,
+          "score_b": 14.510071387404153,
+          "abs_gap": 0.004553574204802402,
+          "rel_gap": 0.00031372317347823744,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 21,
+          "rank_b": 22,
+          "score_a": 14.510071387404153,
+          "score_b": 14.495528365862569,
+          "abs_gap": 0.014543021541584267,
+          "rel_gap": 0.0010022708471447437,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 22,
+          "rank_b": 23,
+          "score_a": 14.495528365862569,
+          "score_b": 14.493292037247034,
+          "abs_gap": 0.0022363286155346884,
+          "rel_gap": 0.00015427713699635217,
+          "classification": "close_but_safe"
+        }
+      ]
+    },
+    {
+      "idx": 13,
+      "query": "What is the value of args?",
+      "n_scores": 24,
+      "n_pairs": 23,
+      "worst_adjacent_class": "close_but_safe",
+      "min_rel_gap": 0.0,
+      "min_abs_gap": 0.0,
+      "pairs": [
+        {
+          "rank_a": 0,
+          "rank_b": 1,
+          "score_a": 16.283111526072027,
+          "score_b": 15.624890602380038,
+          "abs_gap": 0.6582209236919887,
+          "rel_gap": 0.04042353469348074,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 1,
+          "rank_b": 2,
+          "score_a": 15.624890602380038,
+          "score_b": 15.5,
+          "abs_gap": 0.12489060238003802,
+          "rel_gap": 0.007993054515275405,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 2,
+          "rank_b": 3,
+          "score_a": 15.5,
+          "score_b": 15.5,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 3,
+          "rank_b": 4,
+          "score_a": 15.5,
+          "score_b": 15.0,
+          "abs_gap": 0.5,
+          "rel_gap": 0.03225806451612903,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 4,
+          "rank_b": 5,
+          "score_a": 15.0,
+          "score_b": 15.0,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 5,
+          "rank_b": 6,
+          "score_a": 15.0,
+          "score_b": 15.0,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 6,
+          "rank_b": 7,
+          "score_a": 15.0,
+          "score_b": 14.997190025448798,
+          "abs_gap": 0.0028099745512015772,
+          "rel_gap": 0.00018733163674677182,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 7,
+          "rank_b": 8,
+          "score_a": 14.997190025448798,
+          "score_b": 14.952117429673672,
+          "abs_gap": 0.045072595775126345,
+          "rel_gap": 0.00300540272535338,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 8,
+          "rank_b": 9,
+          "score_a": 14.952117429673672,
+          "score_b": 14.927500008046627,
+          "abs_gap": 0.02461742162704539,
+          "rel_gap": 0.0016464170872675296,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 9,
+          "rank_b": 10,
+          "score_a": 14.927500008046627,
+          "score_b": 14.864963433146476,
+          "abs_gap": 0.0625365749001503,
+          "rel_gap": 0.004189353533173012,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 10,
+          "rank_b": 11,
+          "score_a": 14.864963433146476,
+          "score_b": 14.85808411538601,
+          "abs_gap": 0.0068793177604664635,
+          "rel_gap": 0.0004627873987988892,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 11,
+          "rank_b": 12,
+          "score_a": 14.85808411538601,
+          "score_b": 14.825975650548935,
+          "abs_gap": 0.032108464837074635,
+          "rel_gap": 0.0021610097632860565,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 12,
+          "rank_b": 13,
+          "score_a": 14.825975650548935,
+          "score_b": 14.82429388910532,
+          "abs_gap": 0.001681761443615315,
+          "rel_gap": 0.00011343344163343796,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 13,
+          "rank_b": 14,
+          "score_a": 14.82429388910532,
+          "score_b": 14.670045192539693,
+          "abs_gap": 0.15424869656562734,
+          "rel_gap": 0.01040512942602871,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 14,
+          "rank_b": 15,
+          "score_a": 14.670045192539693,
+          "score_b": 14.660087817907334,
+          "abs_gap": 0.009957374632358906,
+          "rel_gap": 0.0006787555526701875,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 15,
+          "rank_b": 16,
+          "score_a": 14.660087817907334,
+          "score_b": 14.369429169595241,
+          "abs_gap": 0.29065864831209254,
+          "rel_gap": 0.019826528457561644,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 16,
+          "rank_b": 17,
+          "score_a": 14.369429169595241,
+          "score_b": 14.360378129780292,
+          "abs_gap": 0.009051039814949036,
+          "rel_gap": 0.0006298816541787502,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 17,
+          "rank_b": 18,
+          "score_a": 14.360378129780292,
+          "score_b": 14.325035907328129,
+          "abs_gap": 0.03534222245216334,
+          "rel_gap": 0.0024610927464974812,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 18,
+          "rank_b": 19,
+          "score_a": 14.325035907328129,
+          "score_b": 14.25734177827835,
+          "abs_gap": 0.06769412904977834,
+          "rel_gap": 0.004725581805707633,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 19,
+          "rank_b": 20,
+          "score_a": 14.25734177827835,
+          "score_b": 14.238896998763085,
+          "abs_gap": 0.018444779515265353,
+          "rel_gap": 0.0012937039598339948,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 20,
+          "rank_b": 21,
+          "score_a": 14.238896998763085,
+          "score_b": 14.180211050063372,
+          "abs_gap": 0.05868594869971311,
+          "rel_gap": 0.004121523507390431,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 21,
+          "rank_b": 22,
+          "score_a": 14.180211050063372,
+          "score_b": 14.163018734008073,
+          "abs_gap": 0.017192316055298917,
+          "rel_gap": 0.0012124160913121306,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 22,
+          "rank_b": 23,
+          "score_a": 14.163018734008073,
+          "score_b": 14.071543184667826,
+          "abs_gap": 0.09147554934024704,
+          "rel_gap": 0.006458760738669154,
+          "classification": "comfortable"
+        }
+      ]
+    },
+    {
+      "idx": 14,
+      "query": "What is the value of linenumber?",
+      "n_scores": 24,
+      "n_pairs": 23,
+      "worst_adjacent_class": "close_but_safe",
+      "min_rel_gap": 0.0,
+      "min_abs_gap": 0.0,
+      "pairs": [
+        {
+          "rank_a": 0,
+          "rank_b": 1,
+          "score_a": 20.14586052969098,
+          "score_b": 19.5,
+          "abs_gap": 0.6458605296909816,
+          "rel_gap": 0.03205921776034893,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 1,
+          "rank_b": 2,
+          "score_a": 19.5,
+          "score_b": 19.5,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 2,
+          "rank_b": 3,
+          "score_a": 19.5,
+          "score_b": 19.5,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 3,
+          "rank_b": 4,
+          "score_a": 19.5,
+          "score_b": 19.5,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 4,
+          "rank_b": 5,
+          "score_a": 19.5,
+          "score_b": 19.5,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 5,
+          "rank_b": 6,
+          "score_a": 19.5,
+          "score_b": 15.522767794877291,
+          "abs_gap": 3.977232205122709,
+          "rel_gap": 0.20396062590372865,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 6,
+          "rank_b": 7,
+          "score_a": 15.522767794877291,
+          "score_b": 15.0,
+          "abs_gap": 0.5227677948772911,
+          "rel_gap": 0.033677485986088836,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 7,
+          "rank_b": 8,
+          "score_a": 15.0,
+          "score_b": 15.0,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 8,
+          "rank_b": 9,
+          "score_a": 15.0,
+          "score_b": 15.0,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 9,
+          "rank_b": 10,
+          "score_a": 15.0,
+          "score_b": 14.727655598521233,
+          "abs_gap": 0.27234440147876704,
+          "rel_gap": 0.018156293431917804,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 10,
+          "rank_b": 11,
+          "score_a": 14.727655598521233,
+          "score_b": 14.720310673117638,
+          "abs_gap": 0.007344925403595326,
+          "rel_gap": 0.0004987165373647665,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 11,
+          "rank_b": 12,
+          "score_a": 14.720310673117638,
+          "score_b": 14.70510879456997,
+          "abs_gap": 0.015201878547667746,
+          "rel_gap": 0.0010327145184122746,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 12,
+          "rank_b": 13,
+          "score_a": 14.70510879456997,
+          "score_b": 14.658076664060355,
+          "abs_gap": 0.0470321305096153,
+          "rel_gap": 0.0031983531143259854,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 13,
+          "rank_b": 14,
+          "score_a": 14.658076664060355,
+          "score_b": 14.61891348734498,
+          "abs_gap": 0.03916317671537506,
+          "rel_gap": 0.002671781408498015,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 14,
+          "rank_b": 15,
+          "score_a": 14.61891348734498,
+          "score_b": 14.60460822880268,
+          "abs_gap": 0.014305258542298915,
+          "rel_gap": 0.0009785445788896977,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 15,
+          "rank_b": 16,
+          "score_a": 14.60460822880268,
+          "score_b": 14.584169670939445,
+          "abs_gap": 0.02043855786323512,
+          "rel_gap": 0.0013994595091518396,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 16,
+          "rank_b": 17,
+          "score_a": 14.584169670939445,
+          "score_b": 14.471136482059956,
+          "abs_gap": 0.11303318887948954,
+          "rel_gap": 0.007750402760653597,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 17,
+          "rank_b": 18,
+          "score_a": 14.471136482059956,
+          "score_b": 14.436068911850452,
+          "abs_gap": 0.03506757020950424,
+          "rel_gap": 0.0024232768623928006,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 18,
+          "rank_b": 19,
+          "score_a": 14.436068911850452,
+          "score_b": 14.272124557197094,
+          "abs_gap": 0.1639443546533581,
+          "rel_gap": 0.011356578834198936,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 19,
+          "rank_b": 20,
+          "score_a": 14.272124557197094,
+          "score_b": 14.17886653766036,
+          "abs_gap": 0.09325801953673363,
+          "rel_gap": 0.006534277301392092,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 20,
+          "rank_b": 21,
+          "score_a": 14.17886653766036,
+          "score_b": 14.17047065421939,
+          "abs_gap": 0.008395883440970309,
+          "rel_gap": 0.0005921406636186382,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 21,
+          "rank_b": 22,
+          "score_a": 14.17047065421939,
+          "score_b": 14.157853750884533,
+          "abs_gap": 0.0126169033348571,
+          "rel_gap": 0.0008903658631197475,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 22,
+          "rank_b": 23,
+          "score_a": 14.157853750884533,
+          "score_b": 14.112764099240303,
+          "abs_gap": 0.04508965164422918,
+          "rel_gap": 0.0031847801536593876,
+          "classification": "comfortable"
+        }
+      ]
+    },
+    {
+      "idx": 15,
+      "query": "What is the value of knowledge dir?",
+      "n_scores": 24,
+      "n_pairs": 23,
+      "worst_adjacent_class": "close_but_safe",
+      "min_rel_gap": 0.0,
+      "min_abs_gap": 0.0,
+      "pairs": [
+        {
+          "rank_a": 0,
+          "rank_b": 1,
+          "score_a": 23.324260397203112,
+          "score_b": 20.128215598594018,
+          "abs_gap": 3.196044798609094,
+          "rel_gap": 0.13702662996303808,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 1,
+          "rank_b": 2,
+          "score_a": 20.128215598594018,
+          "score_b": 18.684309502411118,
+          "abs_gap": 1.4439060961829,
+          "rel_gap": 0.07173542478766765,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 2,
+          "rank_b": 3,
+          "score_a": 18.684309502411118,
+          "score_b": 18.5,
+          "abs_gap": 0.18430950241111788,
+          "rel_gap": 0.009864399986915955,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 3,
+          "rank_b": 4,
+          "score_a": 18.5,
+          "score_b": 16.423229784675712,
+          "abs_gap": 2.076770215324288,
+          "rel_gap": 0.11225784947698854,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 4,
+          "rank_b": 5,
+          "score_a": 16.423229784675712,
+          "score_b": 16.346325764494907,
+          "abs_gap": 0.07690402018080533,
+          "rel_gap": 0.004682636800988038,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 5,
+          "rank_b": 6,
+          "score_a": 16.346325764494907,
+          "score_b": 16.341350323197915,
+          "abs_gap": 0.004975441296991789,
+          "rel_gap": 0.00030437673693000256,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 6,
+          "rank_b": 7,
+          "score_a": 16.341350323197915,
+          "score_b": 16.328372931618212,
+          "abs_gap": 0.012977391579703124,
+          "rel_gap": 0.0007941443836058413,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 7,
+          "rank_b": 8,
+          "score_a": 16.328372931618212,
+          "score_b": 16.28817607293216,
+          "abs_gap": 0.04019685868605194,
+          "rel_gap": 0.0024617798022125562,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 8,
+          "rank_b": 9,
+          "score_a": 16.28817607293216,
+          "score_b": 16.247153902631293,
+          "abs_gap": 0.041022170300866634,
+          "rel_gap": 0.002518524487774764,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 9,
+          "rank_b": 10,
+          "score_a": 16.247153902631293,
+          "score_b": 16.04895734878876,
+          "abs_gap": 0.1981965538425321,
+          "rel_gap": 0.01219884756618409,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 10,
+          "rank_b": 11,
+          "score_a": 16.04895734878876,
+          "score_b": 15.896613611405744,
+          "abs_gap": 0.15234373738301699,
+          "rel_gap": 0.009492438298149917,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 11,
+          "rank_b": 12,
+          "score_a": 15.896613611405744,
+          "score_b": 15.84763688514471,
+          "abs_gap": 0.048976726261035,
+          "rel_gap": 0.003080953431861389,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 12,
+          "rank_b": 13,
+          "score_a": 15.84763688514471,
+          "score_b": 15.700135444990895,
+          "abs_gap": 0.14750144015381395,
+          "rel_gap": 0.009307472225848332,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 13,
+          "rank_b": 14,
+          "score_a": 15.700135444990895,
+          "score_b": 15.55554585751494,
+          "abs_gap": 0.14458958747595574,
+          "rel_gap": 0.009209448414159181,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 14,
+          "rank_b": 15,
+          "score_a": 15.55554585751494,
+          "score_b": 15.493818197363249,
+          "abs_gap": 0.061727660151690955,
+          "rel_gap": 0.003968209197999317,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 15,
+          "rank_b": 16,
+          "score_a": 15.493818197363249,
+          "score_b": 15.493818197363249,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 16,
+          "rank_b": 17,
+          "score_a": 15.493818197363249,
+          "score_b": 15.485155936722341,
+          "abs_gap": 0.008662260640907249,
+          "rel_gap": 0.0005590785002486605,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 17,
+          "rank_b": 18,
+          "score_a": 15.485155936722341,
+          "score_b": 14.830325466843677,
+          "abs_gap": 0.6548304698786644,
+          "rel_gap": 0.042287625165321314,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 18,
+          "rank_b": 19,
+          "score_a": 14.830325466843677,
+          "score_b": 14.795556551050314,
+          "abs_gap": 0.03476891579336261,
+          "rel_gap": 0.0023444472524285363,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 19,
+          "rank_b": 20,
+          "score_a": 14.795556551050314,
+          "score_b": 14.786053345810988,
+          "abs_gap": 0.009503205239326462,
+          "rel_gap": 0.0006423013021873681,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 20,
+          "rank_b": 21,
+          "score_a": 14.786053345810988,
+          "score_b": 14.74586491428016,
+          "abs_gap": 0.04018843153082763,
+          "rel_gap": 0.002717995843171589,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 21,
+          "rank_b": 22,
+          "score_a": 14.74586491428016,
+          "score_b": 14.723051383763462,
+          "abs_gap": 0.02281353051669832,
+          "rel_gap": 0.0015471137603197008,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 22,
+          "rank_b": 23,
+          "score_a": 14.723051383763462,
+          "score_b": 14.67190789470753,
+          "abs_gap": 0.05114348905593147,
+          "rel_gap": 0.003473701729543127,
+          "classification": "comfortable"
+        }
+      ]
+    },
+    {
+      "idx": 16,
+      "query": "What is the value of dot?",
+      "n_scores": 24,
+      "n_pairs": 23,
+      "worst_adjacent_class": "close_but_safe",
+      "min_rel_gap": 0.0,
+      "min_abs_gap": 0.0,
+      "pairs": [
+        {
+          "rank_a": 0,
+          "rank_b": 1,
+          "score_a": 15.481622421741486,
+          "score_b": 15.44056932926178,
+          "abs_gap": 0.041053092479705455,
+          "rel_gap": 0.002651730636580627,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 1,
+          "rank_b": 2,
+          "score_a": 15.44056932926178,
+          "score_b": 15.0,
+          "abs_gap": 0.4405693292617805,
+          "rel_gap": 0.028533230858712403,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 2,
+          "rank_b": 3,
+          "score_a": 15.0,
+          "score_b": 15.0,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 3,
+          "rank_b": 4,
+          "score_a": 15.0,
+          "score_b": 15.0,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 4,
+          "rank_b": 5,
+          "score_a": 15.0,
+          "score_b": 14.910556137561798,
+          "abs_gap": 0.0894438624382019,
+          "rel_gap": 0.005962924162546793,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 5,
+          "rank_b": 6,
+          "score_a": 14.910556137561798,
+          "score_b": 14.906606447696685,
+          "abs_gap": 0.003949689865113015,
+          "rel_gap": 0.00026489218971270884,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 6,
+          "rank_b": 7,
+          "score_a": 14.906606447696685,
+          "score_b": 14.871118319034576,
+          "abs_gap": 0.035488128662109375,
+          "rel_gap": 0.0023806980338971027,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 7,
+          "rank_b": 8,
+          "score_a": 14.871118319034576,
+          "score_b": 14.826958763599396,
+          "abs_gap": 0.04415955543517924,
+          "rel_gap": 0.0029694845059941703,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 8,
+          "rank_b": 9,
+          "score_a": 14.826958763599396,
+          "score_b": 14.780856907367706,
+          "abs_gap": 0.046101856231690164,
+          "rel_gap": 0.0031093265292456013,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 9,
+          "rank_b": 10,
+          "score_a": 14.780856907367706,
+          "score_b": 14.721355712413787,
+          "abs_gap": 0.05950119495391881,
+          "rel_gap": 0.004025557877111961,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 10,
+          "rank_b": 11,
+          "score_a": 14.721355712413787,
+          "score_b": 14.70640994310379,
+          "abs_gap": 0.014945769309997914,
+          "rel_gap": 0.0010152440849856572,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 11,
+          "rank_b": 12,
+          "score_a": 14.70640994310379,
+          "score_b": 14.392388415336608,
+          "abs_gap": 0.3140215277671814,
+          "rel_gap": 0.021352697835982336,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 12,
+          "rank_b": 13,
+          "score_a": 14.392388415336608,
+          "score_b": 14.389121901988982,
+          "abs_gap": 0.0032665133476257324,
+          "rel_gap": 0.00022696117234752487,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 13,
+          "rank_b": 14,
+          "score_a": 14.389121901988982,
+          "score_b": 14.353891289234161,
+          "abs_gap": 0.03523061275482142,
+          "rel_gap": 0.0024484199240783107,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 14,
+          "rank_b": 15,
+          "score_a": 14.353891289234161,
+          "score_b": 14.297552466392517,
+          "abs_gap": 0.05633882284164393,
+          "rel_gap": 0.003924986033849908,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 15,
+          "rank_b": 16,
+          "score_a": 14.297552466392517,
+          "score_b": 14.27179661989212,
+          "abs_gap": 0.025755846500397084,
+          "rel_gap": 0.0018014164704720026,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 16,
+          "rank_b": 17,
+          "score_a": 14.27179661989212,
+          "score_b": 14.20300999879837,
+          "abs_gap": 0.06878662109375,
+          "rel_gap": 0.004819759062280552,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 17,
+          "rank_b": 18,
+          "score_a": 14.20300999879837,
+          "score_b": 14.135237294435502,
+          "abs_gap": 0.0677727043628682,
+          "rel_gap": 0.004771714190766749,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 18,
+          "rank_b": 19,
+          "score_a": 14.135237294435502,
+          "score_b": 14.106863814592362,
+          "abs_gap": 0.02837347984313965,
+          "rel_gap": 0.0020072871259337963,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 19,
+          "rank_b": 20,
+          "score_a": 14.106863814592362,
+          "score_b": 14.046148347854615,
+          "abs_gap": 0.06071546673774719,
+          "rel_gap": 0.004303966319923083,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 20,
+          "rank_b": 21,
+          "score_a": 14.046148347854615,
+          "score_b": 14.04395787715912,
+          "abs_gap": 0.0021904706954956055,
+          "rel_gap": 0.00015594813903771522,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 21,
+          "rank_b": 22,
+          "score_a": 14.04395787715912,
+          "score_b": 14.01923793554306,
+          "abs_gap": 0.02471994161605906,
+          "rel_gap": 0.0017601834064358167,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 22,
+          "rank_b": 23,
+          "score_a": 14.01923793554306,
+          "score_b": 13.946700352430344,
+          "abs_gap": 0.07253758311271596,
+          "rel_gap": 0.005174145944752887,
+          "classification": "comfortable"
+        }
+      ]
+    },
+    {
+      "idx": 17,
+      "query": "What is the value of response?",
+      "n_scores": 24,
+      "n_pairs": 23,
+      "worst_adjacent_class": "close_but_safe",
+      "min_rel_gap": 0.0,
+      "min_abs_gap": 0.0,
+      "pairs": [
+        {
+          "rank_a": 0,
+          "rank_b": 1,
+          "score_a": 21.21870963126421,
+          "score_b": 15.825378607213498,
+          "abs_gap": 5.393331024050713,
+          "rel_gap": 0.2541780870644479,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 1,
+          "rank_b": 2,
+          "score_a": 15.825378607213498,
+          "score_b": 15.774311576783656,
+          "abs_gap": 0.05106703042984151,
+          "rel_gap": 0.0032269073427768874,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 2,
+          "rank_b": 3,
+          "score_a": 15.774311576783656,
+          "score_b": 15.774311576783656,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 3,
+          "rank_b": 4,
+          "score_a": 15.774311576783656,
+          "score_b": 15.342984144389629,
+          "abs_gap": 0.4313274323940277,
+          "rel_gap": 0.027343661261823148,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 4,
+          "rank_b": 5,
+          "score_a": 15.342984144389629,
+          "score_b": 15.305450242757797,
+          "abs_gap": 0.03753390163183212,
+          "rel_gap": 0.0024463234321699346,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 5,
+          "rank_b": 6,
+          "score_a": 15.305450242757797,
+          "score_b": 15.288327644765378,
+          "abs_gap": 0.017122597992418775,
+          "rel_gap": 0.0011187255337699598,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 6,
+          "rank_b": 7,
+          "score_a": 15.288327644765378,
+          "score_b": 15.277630449831486,
+          "abs_gap": 0.010697194933891652,
+          "rel_gap": 0.0006996968656381655,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 7,
+          "rank_b": 8,
+          "score_a": 15.277630449831486,
+          "score_b": 15.242696073651313,
+          "abs_gap": 0.03493437618017303,
+          "rel_gap": 0.0022866357642888505,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 8,
+          "rank_b": 9,
+          "score_a": 15.242696073651313,
+          "score_b": 15.139726187288762,
+          "abs_gap": 0.10296988636255122,
+          "rel_gap": 0.006755359148080507,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 9,
+          "rank_b": 10,
+          "score_a": 15.139726187288762,
+          "score_b": 15.0,
+          "abs_gap": 0.13972618728876185,
+          "rel_gap": 0.009229109269233367,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 10,
+          "rank_b": 11,
+          "score_a": 15.0,
+          "score_b": 14.831190714240075,
+          "abs_gap": 0.1688092857599255,
+          "rel_gap": 0.011253952383995033,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 11,
+          "rank_b": 12,
+          "score_a": 14.831190714240075,
+          "score_b": 14.801549284160137,
+          "abs_gap": 0.029641430079937692,
+          "rel_gap": 0.001998587345483843,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 12,
+          "rank_b": 13,
+          "score_a": 14.801549284160137,
+          "score_b": 14.59382031559944,
+          "abs_gap": 0.207728968560696,
+          "rel_gap": 0.014034271992256713,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 13,
+          "rank_b": 14,
+          "score_a": 14.59382031559944,
+          "score_b": 14.423056426644326,
+          "abs_gap": 0.17076388895511485,
+          "rel_gap": 0.011701109460185972,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 14,
+          "rank_b": 15,
+          "score_a": 14.423056426644326,
+          "score_b": 14.367130671441554,
+          "abs_gap": 0.055925755202771654,
+          "rel_gap": 0.0038775245376879777,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 15,
+          "rank_b": 16,
+          "score_a": 14.367130671441554,
+          "score_b": 14.346561732888222,
+          "abs_gap": 0.02056893855333186,
+          "rel_gap": 0.0014316664213417387,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 16,
+          "rank_b": 17,
+          "score_a": 14.346561732888222,
+          "score_b": 14.319735312461853,
+          "abs_gap": 0.02682642042636907,
+          "rel_gap": 0.0018698849888800796,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 17,
+          "rank_b": 18,
+          "score_a": 14.319735312461853,
+          "score_b": 14.246810218691826,
+          "abs_gap": 0.07292509377002787,
+          "rel_gap": 0.005092628612105999,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 18,
+          "rank_b": 19,
+          "score_a": 14.246810218691826,
+          "score_b": 14.234781347215176,
+          "abs_gap": 0.012028871476649883,
+          "rel_gap": 0.0008443203279894888,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 19,
+          "rank_b": 20,
+          "score_a": 14.234781347215176,
+          "score_b": 14.123362167924643,
+          "abs_gap": 0.11141917929053236,
+          "rel_gap": 0.00782724908607956,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 20,
+          "rank_b": 21,
+          "score_a": 14.123362167924643,
+          "score_b": 14.118114894628524,
+          "abs_gap": 0.005247273296118848,
+          "rel_gap": 0.00037153145502675367,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 21,
+          "rank_b": 22,
+          "score_a": 14.118114894628524,
+          "score_b": 14.05409503057599,
+          "abs_gap": 0.06401986405253446,
+          "rel_gap": 0.004534590101465451,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 22,
+          "rank_b": 23,
+          "score_a": 14.05409503057599,
+          "score_b": 14.037280229479075,
+          "abs_gap": 0.016814801096915133,
+          "rel_gap": 0.0011964342819891975,
+          "classification": "comfortable"
+        }
+      ]
+    },
+    {
+      "idx": 18,
+      "query": "What is the randomswapname?",
+      "n_scores": 24,
+      "n_pairs": 23,
+      "worst_adjacent_class": "close_but_safe",
+      "min_rel_gap": 0.00011593561271526109,
+      "min_abs_gap": 0.0002933288426816283,
+      "pairs": [
+        {
+          "rank_a": 0,
+          "rank_b": 1,
+          "score_a": 6.868502980470657,
+          "score_b": 6.771251657605172,
+          "abs_gap": 0.09725132286548543,
+          "rel_gap": 0.01415902754093606,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 1,
+          "rank_b": 2,
+          "score_a": 6.771251657605172,
+          "score_b": 6.642872354388237,
+          "abs_gap": 0.12837930321693491,
+          "rel_gap": 0.018959464174211415,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 2,
+          "rank_b": 3,
+          "score_a": 6.642872354388237,
+          "score_b": 5.440847078231879,
+          "abs_gap": 1.2020252761563572,
+          "rel_gap": 0.1809496272139427,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 3,
+          "rank_b": 4,
+          "score_a": 5.440847078231879,
+          "score_b": 5.411275084261696,
+          "abs_gap": 0.029571993970183286,
+          "rel_gap": 0.005435181975339278,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 4,
+          "rank_b": 5,
+          "score_a": 5.411275084261696,
+          "score_b": 5.398441380249138,
+          "abs_gap": 0.012833704012558123,
+          "rel_gap": 0.002371659879181531,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 5,
+          "rank_b": 6,
+          "score_a": 5.398441380249138,
+          "score_b": 5.367111599100326,
+          "abs_gap": 0.0313297811488118,
+          "rel_gap": 0.0058034864032117965,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 6,
+          "rank_b": 7,
+          "score_a": 5.367111599100326,
+          "score_b": 5.353899029039627,
+          "abs_gap": 0.013212570060699314,
+          "rel_gap": 0.0024617654797627272,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 7,
+          "rank_b": 8,
+          "score_a": 5.353899029039627,
+          "score_b": 5.339095419644295,
+          "abs_gap": 0.014803609395332096,
+          "rel_gap": 0.002765014677160907,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 8,
+          "rank_b": 9,
+          "score_a": 5.339095419644295,
+          "score_b": 5.280428662372543,
+          "abs_gap": 0.058666757271751635,
+          "rel_gap": 0.010988145492941982,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 9,
+          "rank_b": 10,
+          "score_a": 5.280428662372543,
+          "score_b": 5.241177260207206,
+          "abs_gap": 0.039251402165336735,
+          "rel_gap": 0.0074333741964995575,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 10,
+          "rank_b": 11,
+          "score_a": 5.241177260207206,
+          "score_b": 5.234795317624695,
+          "abs_gap": 0.00638194258251179,
+          "rel_gap": 0.0012176544058079585,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 11,
+          "rank_b": 12,
+          "score_a": 5.234795317624695,
+          "score_b": 5.233499688718269,
+          "abs_gap": 0.0012956289064254278,
+          "rel_gap": 0.00024750325997718734,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 12,
+          "rank_b": 13,
+          "score_a": 5.233499688718269,
+          "score_b": 5.207453989623467,
+          "abs_gap": 0.026045699094802366,
+          "rel_gap": 0.004976726978879632,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 13,
+          "rank_b": 14,
+          "score_a": 5.207453989623467,
+          "score_b": 5.190520766865928,
+          "abs_gap": 0.016933222757538502,
+          "rel_gap": 0.003251727771628931,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 14,
+          "rank_b": 15,
+          "score_a": 5.190520766865928,
+          "score_b": 5.06093279873941,
+          "abs_gap": 0.1295879681265184,
+          "rel_gap": 0.0249662748589222,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 15,
+          "rank_b": 16,
+          "score_a": 5.06093279873941,
+          "score_b": 4.649706408,
+          "abs_gap": 0.4112263907394098,
+          "rel_gap": 0.08125505852238131,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 16,
+          "rank_b": 17,
+          "score_a": 4.649706408,
+          "score_b": 4.63086119,
+          "abs_gap": 0.018845218000000052,
+          "rel_gap": 0.0040529909517676484,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 17,
+          "rank_b": 18,
+          "score_a": 4.63086119,
+          "score_b": 3.4485196824168773,
+          "abs_gap": 1.1823415075831227,
+          "rel_gap": 0.25531784674010555,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 18,
+          "rank_b": 19,
+          "score_a": 3.4485196824168773,
+          "score_b": 3.073563930665329,
+          "abs_gap": 0.3749557517515485,
+          "rel_gap": 0.10872947997465471,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 19,
+          "rank_b": 20,
+          "score_a": 3.073563930665329,
+          "score_b": 2.530101284771286,
+          "abs_gap": 0.543462645894043,
+          "rel_gap": 0.17681839654345521,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 20,
+          "rank_b": 21,
+          "score_a": 2.530101284771286,
+          "score_b": 2.529807955928604,
+          "abs_gap": 0.0002933288426816283,
+          "rel_gap": 0.00011593561271526109,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 21,
+          "rank_b": 22,
+          "score_a": 2.529807955928604,
+          "score_b": 2.5056755118065186,
+          "abs_gap": 0.024132444122085595,
+          "rel_gap": 0.009539239555924084,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 22,
+          "rank_b": 23,
+          "score_a": 2.5056755118065186,
+          "score_b": 2.4263359611212767,
+          "abs_gap": 0.0793395506852419,
+          "rel_gap": 0.03166393665556495,
+          "classification": "comfortable"
+        }
+      ]
+    },
+    {
+      "idx": 19,
+      "query": "What is the value of mgr?",
+      "n_scores": 24,
+      "n_pairs": 23,
+      "worst_adjacent_class": "close_but_safe",
+      "min_rel_gap": 0.0,
+      "min_abs_gap": 0.0,
+      "pairs": [
+        {
+          "rank_a": 0,
+          "rank_b": 1,
+          "score_a": 15.0,
+          "score_b": 15.0,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 1,
+          "rank_b": 2,
+          "score_a": 15.0,
+          "score_b": 15.0,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 2,
+          "rank_b": 3,
+          "score_a": 15.0,
+          "score_b": 15.0,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 3,
+          "rank_b": 4,
+          "score_a": 15.0,
+          "score_b": 14.911170655574745,
+          "abs_gap": 0.08882934442525503,
+          "rel_gap": 0.005921956295017002,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 4,
+          "rank_b": 5,
+          "score_a": 14.911170655574745,
+          "score_b": 14.852208370328698,
+          "abs_gap": 0.05896228524604652,
+          "rel_gap": 0.003954235828157641,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 5,
+          "rank_b": 6,
+          "score_a": 14.852208370328698,
+          "score_b": 14.842894851227962,
+          "abs_gap": 0.0093135191007363,
+          "rel_gap": 0.000627079749254163,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 6,
+          "rank_b": 7,
+          "score_a": 14.842894851227962,
+          "score_b": 14.816247099438982,
+          "abs_gap": 0.026647751788980045,
+          "rel_gap": 0.0017953203910742155,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 7,
+          "rank_b": 8,
+          "score_a": 14.816247099438982,
+          "score_b": 14.764551549546699,
+          "abs_gap": 0.05169554989228331,
+          "rel_gap": 0.003489112293101589,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 8,
+          "rank_b": 9,
+          "score_a": 14.764551549546699,
+          "score_b": 14.699863304246472,
+          "abs_gap": 0.06468824530022665,
+          "rel_gap": 0.0043813213752647105,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 9,
+          "rank_b": 10,
+          "score_a": 14.699863304246472,
+          "score_b": 14.694211958353248,
+          "abs_gap": 0.0056513458932236915,
+          "rel_gap": 0.0003844488738606937,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 10,
+          "rank_b": 11,
+          "score_a": 14.694211958353248,
+          "score_b": 14.399402610797168,
+          "abs_gap": 0.2948093475560807,
+          "rel_gap": 0.020062957332563167,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 11,
+          "rank_b": 12,
+          "score_a": 14.399402610797168,
+          "score_b": 14.325109608945537,
+          "abs_gap": 0.07429300185163079,
+          "rel_gap": 0.005159450281355654,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 12,
+          "rank_b": 13,
+          "score_a": 14.325109608945537,
+          "score_b": 14.286004331936821,
+          "abs_gap": 0.03910527700871569,
+          "rel_gap": 0.0027298413817577905,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 13,
+          "rank_b": 14,
+          "score_a": 14.286004331936821,
+          "score_b": 14.25472033830437,
+          "abs_gap": 0.03128399363245116,
+          "rel_gap": 0.002189835093533801,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 14,
+          "rank_b": 15,
+          "score_a": 14.25472033830437,
+          "score_b": 14.214081410199855,
+          "abs_gap": 0.040638928104515415,
+          "rel_gap": 0.002850910234647894,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 15,
+          "rank_b": 16,
+          "score_a": 14.214081410199855,
+          "score_b": 14.143909522763465,
+          "abs_gap": 0.07017188743638947,
+          "rel_gap": 0.004936786656226337,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 16,
+          "rank_b": 17,
+          "score_a": 14.143909522763465,
+          "score_b": 14.142381096083774,
+          "abs_gap": 0.0015284266796911083,
+          "rel_gap": 0.00010806253230277178,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 17,
+          "rank_b": 18,
+          "score_a": 14.142381096083774,
+          "score_b": 14.13858190069016,
+          "abs_gap": 0.0037991953936149514,
+          "rel_gap": 0.0002686390196815586,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 18,
+          "rank_b": 19,
+          "score_a": 14.13858190069016,
+          "score_b": 14.078605318804124,
+          "abs_gap": 0.05997658188603516,
+          "rel_gap": 0.004242050745068533,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 19,
+          "rank_b": 20,
+          "score_a": 14.078605318804124,
+          "score_b": 13.5,
+          "abs_gap": 0.578605318804124,
+          "rel_gap": 0.041098198699505296,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 20,
+          "rank_b": 21,
+          "score_a": 13.5,
+          "score_b": 13.5,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 21,
+          "rank_b": 22,
+          "score_a": 13.5,
+          "score_b": 13.5,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 22,
+          "rank_b": 23,
+          "score_a": 13.5,
+          "score_b": 13.5,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        }
+      ]
+    },
+    {
+      "idx": 20,
+      "query": "What is the value of logs?",
+      "n_scores": 24,
+      "n_pairs": 23,
+      "worst_adjacent_class": "close_but_safe",
+      "min_rel_gap": 0.0,
+      "min_abs_gap": 0.0,
+      "pairs": [
+        {
+          "rank_a": 0,
+          "rank_b": 1,
+          "score_a": 24.58414414525032,
+          "score_b": 19.5,
+          "abs_gap": 5.08414414525032,
+          "rel_gap": 0.2068058222898348,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 1,
+          "rank_b": 2,
+          "score_a": 19.5,
+          "score_b": 15.606632125377654,
+          "abs_gap": 3.8933678746223457,
+          "rel_gap": 0.19965989100627413,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 2,
+          "rank_b": 3,
+          "score_a": 15.606632125377654,
+          "score_b": 15.556033891439437,
+          "abs_gap": 0.05059823393821716,
+          "rel_gap": 0.0032420982010551986,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 3,
+          "rank_b": 4,
+          "score_a": 15.556033891439437,
+          "score_b": 15.471375533938408,
+          "abs_gap": 0.0846583575010289,
+          "rel_gap": 0.005442155635030907,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 4,
+          "rank_b": 5,
+          "score_a": 15.471375533938408,
+          "score_b": 15.0,
+          "abs_gap": 0.47137553393840825,
+          "rel_gap": 0.03046759048052235,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 5,
+          "rank_b": 6,
+          "score_a": 15.0,
+          "score_b": 15.0,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 6,
+          "rank_b": 7,
+          "score_a": 15.0,
+          "score_b": 15.0,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 7,
+          "rank_b": 8,
+          "score_a": 15.0,
+          "score_b": 14.793720000982285,
+          "abs_gap": 0.2062799990177151,
+          "rel_gap": 0.01375199993451434,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 8,
+          "rank_b": 9,
+          "score_a": 14.793720000982285,
+          "score_b": 14.790694695711135,
+          "abs_gap": 0.0030253052711497475,
+          "rel_gap": 0.00020449929233139945,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 9,
+          "rank_b": 10,
+          "score_a": 14.790694695711135,
+          "score_b": 14.776965427398682,
+          "abs_gap": 0.013729268312452803,
+          "rel_gap": 0.0009282368810191102,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 10,
+          "rank_b": 11,
+          "score_a": 14.776965427398682,
+          "score_b": 14.695302313566208,
+          "abs_gap": 0.08166311383247482,
+          "rel_gap": 0.005526379163143964,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 11,
+          "rank_b": 12,
+          "score_a": 14.695302313566208,
+          "score_b": 14.672555220127105,
+          "abs_gap": 0.022747093439102528,
+          "rel_gap": 0.0015479159906838513,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 12,
+          "rank_b": 13,
+          "score_a": 14.672555220127105,
+          "score_b": 14.64143592119217,
+          "abs_gap": 0.031119298934935813,
+          "rel_gap": 0.002120918849379954,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 13,
+          "rank_b": 14,
+          "score_a": 14.64143592119217,
+          "score_b": 14.617351233959198,
+          "abs_gap": 0.02408468723297119,
+          "rel_gap": 0.0016449675675669735,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 14,
+          "rank_b": 15,
+          "score_a": 14.617351233959198,
+          "score_b": 14.398085969686509,
+          "abs_gap": 0.2192652642726891,
+          "rel_gap": 0.015000341769395917,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 15,
+          "rank_b": 16,
+          "score_a": 14.398085969686509,
+          "score_b": 14.385820358991623,
+          "abs_gap": 0.012265610694885964,
+          "rel_gap": 0.0008518917528836665,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 16,
+          "rank_b": 17,
+          "score_a": 14.385820358991623,
+          "score_b": 14.350554329156875,
+          "abs_gap": 0.035266029834748025,
+          "rel_gap": 0.002451443779687237,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 17,
+          "rank_b": 18,
+          "score_a": 14.350554329156875,
+          "score_b": 14.20778820514679,
+          "abs_gap": 0.1427661240100857,
+          "rel_gap": 0.009948474514327246,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 18,
+          "rank_b": 19,
+          "score_a": 14.20778820514679,
+          "score_b": 14.205870753526687,
+          "abs_gap": 0.0019174516201019287,
+          "rel_gap": 0.00013495778459080137,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 19,
+          "rank_b": 20,
+          "score_a": 14.205870753526687,
+          "score_b": 14.164618235826492,
+          "abs_gap": 0.04125251770019567,
+          "rel_gap": 0.00290390630859108,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 20,
+          "rank_b": 21,
+          "score_a": 14.164618235826492,
+          "score_b": 14.163102173805237,
+          "abs_gap": 0.0015160620212544273,
+          "rel_gap": 0.00010703161892636541,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 21,
+          "rank_b": 22,
+          "score_a": 14.163102173805237,
+          "score_b": 14.124256026744842,
+          "abs_gap": 0.03884614706039535,
+          "rel_gap": 0.0027427710810588933,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 22,
+          "rank_b": 23,
+          "score_a": 14.124256026744842,
+          "score_b": 13.969488897919655,
+          "abs_gap": 0.15476712882518662,
+          "rel_gap": 0.01095754201369112,
+          "classification": "comfortable"
+        }
+      ]
+    },
+    {
+      "idx": 21,
+      "query": "What is the value of transmit?",
+      "n_scores": 24,
+      "n_pairs": 23,
+      "worst_adjacent_class": "close_but_safe",
+      "min_rel_gap": 0.0,
+      "min_abs_gap": 0.0,
+      "pairs": [
+        {
+          "rank_a": 0,
+          "rank_b": 1,
+          "score_a": 15.0,
+          "score_b": 15.0,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 1,
+          "rank_b": 2,
+          "score_a": 15.0,
+          "score_b": 15.0,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 2,
+          "rank_b": 3,
+          "score_a": 15.0,
+          "score_b": 15.0,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 3,
+          "rank_b": 4,
+          "score_a": 15.0,
+          "score_b": 14.977929785847664,
+          "abs_gap": 0.02207021415233612,
+          "rel_gap": 0.0014713476101557413,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 4,
+          "rank_b": 5,
+          "score_a": 14.977929785847664,
+          "score_b": 14.941555611789227,
+          "abs_gap": 0.03637417405843735,
+          "rel_gap": 0.002428518131578274,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 5,
+          "rank_b": 6,
+          "score_a": 14.941555611789227,
+          "score_b": 14.89558508247137,
+          "abs_gap": 0.045970529317855835,
+          "rel_gap": 0.003076689637428652,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 6,
+          "rank_b": 7,
+          "score_a": 14.89558508247137,
+          "score_b": 14.880807913839817,
+          "abs_gap": 0.01477716863155365,
+          "rel_gap": 0.000992050231645008,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 7,
+          "rank_b": 8,
+          "score_a": 14.880807913839817,
+          "score_b": 14.864041969180107,
+          "abs_gap": 0.01676594465970993,
+          "rel_gap": 0.0011266824191794621,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 8,
+          "rank_b": 9,
+          "score_a": 14.864041969180107,
+          "score_b": 14.823234431445599,
+          "abs_gap": 0.040807537734508514,
+          "rel_gap": 0.002745386336981625,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 9,
+          "rank_b": 10,
+          "score_a": 14.823234431445599,
+          "score_b": 14.688134133815765,
+          "abs_gap": 0.13510029762983322,
+          "rel_gap": 0.009114090332622359,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 10,
+          "rank_b": 11,
+          "score_a": 14.688134133815765,
+          "score_b": 14.542867250740528,
+          "abs_gap": 0.14526688307523727,
+          "rel_gap": 0.009890084183041091,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 11,
+          "rank_b": 12,
+          "score_a": 14.542867250740528,
+          "score_b": 14.535782121121883,
+          "abs_gap": 0.007085129618644714,
+          "rel_gap": 0.0004871893208186946,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 12,
+          "rank_b": 13,
+          "score_a": 14.535782121121883,
+          "score_b": 14.362454667687416,
+          "abs_gap": 0.17332745343446732,
+          "rel_gap": 0.011924191762795201,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 13,
+          "rank_b": 14,
+          "score_a": 14.362454667687416,
+          "score_b": 14.34464643895626,
+          "abs_gap": 0.017808228731155396,
+          "rel_gap": 0.0012399154004795758,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 14,
+          "rank_b": 15,
+          "score_a": 14.34464643895626,
+          "score_b": 14.271095044910908,
+          "abs_gap": 0.07355139404535294,
+          "rel_gap": 0.005127445584549706,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 15,
+          "rank_b": 16,
+          "score_a": 14.271095044910908,
+          "score_b": 14.269248504191637,
+          "abs_gap": 0.0018465407192707062,
+          "rel_gap": 0.00012939026146624853,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 16,
+          "rank_b": 17,
+          "score_a": 14.269248504191637,
+          "score_b": 14.21615570038557,
+          "abs_gap": 0.05309280380606651,
+          "rel_gap": 0.0037207848605671375,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 17,
+          "rank_b": 18,
+          "score_a": 14.21615570038557,
+          "score_b": 14.177144967019558,
+          "abs_gap": 0.03901073336601257,
+          "rel_gap": 0.0027441126974259663,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 18,
+          "rank_b": 19,
+          "score_a": 14.177144967019558,
+          "score_b": 14.08977897465229,
+          "abs_gap": 0.08736599236726761,
+          "rel_gap": 0.006162453199886722,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 19,
+          "rank_b": 20,
+          "score_a": 14.08977897465229,
+          "score_b": 13.5,
+          "abs_gap": 0.5897789746522903,
+          "rel_gap": 0.04185863921026092,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 20,
+          "rank_b": 21,
+          "score_a": 13.5,
+          "score_b": 13.5,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 21,
+          "rank_b": 22,
+          "score_a": 13.5,
+          "score_b": 13.5,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 22,
+          "rank_b": 23,
+          "score_a": 13.5,
+          "score_b": 13.5,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        }
+      ]
+    },
+    {
+      "idx": 22,
+      "query": "What is the value of reranker?",
+      "n_scores": 24,
+      "n_pairs": 23,
+      "worst_adjacent_class": "close_but_safe",
+      "min_rel_gap": 0.0,
+      "min_abs_gap": 0.0,
+      "pairs": [
+        {
+          "rank_a": 0,
+          "rank_b": 1,
+          "score_a": 20.283695340156555,
+          "score_b": 17.352998912334442,
+          "abs_gap": 2.930696427822113,
+          "rel_gap": 0.1444853306399293,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 1,
+          "rank_b": 2,
+          "score_a": 17.352998912334442,
+          "score_b": 15.806685824148499,
+          "abs_gap": 1.5463130881859435,
+          "rel_gap": 0.08910927131372263,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 2,
+          "rank_b": 3,
+          "score_a": 15.806685824148499,
+          "score_b": 15.492441177368164,
+          "abs_gap": 0.3142446467803346,
+          "rel_gap": 0.019880489197821,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 3,
+          "rank_b": 4,
+          "score_a": 15.492441177368164,
+          "score_b": 15.47595056295395,
+          "abs_gap": 0.016490614414214733,
+          "rel_gap": 0.001064429693514327,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 4,
+          "rank_b": 5,
+          "score_a": 15.47595056295395,
+          "score_b": 15.0,
+          "abs_gap": 0.47595056295394933,
+          "rel_gap": 0.030754205437517432,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 5,
+          "rank_b": 6,
+          "score_a": 15.0,
+          "score_b": 15.0,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 6,
+          "rank_b": 7,
+          "score_a": 15.0,
+          "score_b": 14.681099909543992,
+          "abs_gap": 0.3189000904560082,
+          "rel_gap": 0.021260006030400548,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 7,
+          "rank_b": 8,
+          "score_a": 14.681099909543992,
+          "score_b": 14.62525029182434,
+          "abs_gap": 0.05584961771965169,
+          "rel_gap": 0.003804184840629317,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 8,
+          "rank_b": 9,
+          "score_a": 14.62525029182434,
+          "score_b": 14.604001069068909,
+          "abs_gap": 0.021249222755431063,
+          "rel_gap": 0.001452913442945287,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 9,
+          "rank_b": 10,
+          "score_a": 14.604001069068909,
+          "score_b": 14.574002707004547,
+          "abs_gap": 0.029998362064361572,
+          "rel_gap": 0.002054119410323636,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 10,
+          "rank_b": 11,
+          "score_a": 14.574002707004547,
+          "score_b": 14.510159748792649,
+          "abs_gap": 0.06384295821189845,
+          "rel_gap": 0.004380605623272891,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 11,
+          "rank_b": 12,
+          "score_a": 14.510159748792649,
+          "score_b": 14.43212508559227,
+          "abs_gap": 0.07803466320037877,
+          "rel_gap": 0.0053779327417034,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 12,
+          "rank_b": 13,
+          "score_a": 14.43212508559227,
+          "score_b": 14.394070279598235,
+          "abs_gap": 0.03805480599403488,
+          "rel_gap": 0.002636812372976545,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 13,
+          "rank_b": 14,
+          "score_a": 14.394070279598235,
+          "score_b": 14.385789632797241,
+          "abs_gap": 0.008280646800994163,
+          "rel_gap": 0.0005752818098110113,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 14,
+          "rank_b": 15,
+          "score_a": 14.385789632797241,
+          "score_b": 14.327106380462647,
+          "abs_gap": 0.05868325233459437,
+          "rel_gap": 0.0040792513885234485,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 15,
+          "rank_b": 16,
+          "score_a": 14.327106380462647,
+          "score_b": 14.30400630235672,
+          "abs_gap": 0.023100078105926514,
+          "rel_gap": 0.001612333816228743,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 16,
+          "rank_b": 17,
+          "score_a": 14.30400630235672,
+          "score_b": 14.296099412441254,
+          "abs_gap": 0.007906889915465953,
+          "rel_gap": 0.0005527744988593314,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 17,
+          "rank_b": 18,
+          "score_a": 14.296099412441254,
+          "score_b": 14.271392488479615,
+          "abs_gap": 0.02470692396163976,
+          "rel_gap": 0.0017282283264019856,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 18,
+          "rank_b": 19,
+          "score_a": 14.271392488479615,
+          "score_b": 14.19156105518341,
+          "abs_gap": 0.07983143329620468,
+          "rel_gap": 0.0055938082678790805,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 19,
+          "rank_b": 20,
+          "score_a": 14.19156105518341,
+          "score_b": 14.187040090560913,
+          "abs_gap": 0.004520964622496848,
+          "rel_gap": 0.0003185671121673809,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 20,
+          "rank_b": 21,
+          "score_a": 14.187040090560913,
+          "score_b": 14.186509954929353,
+          "abs_gap": 0.0005301356315605688,
+          "rel_gap": 3.7367599455314485e-05,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 21,
+          "rank_b": 22,
+          "score_a": 14.186509954929353,
+          "score_b": 14.131826168298721,
+          "abs_gap": 0.05468378663063156,
+          "rel_gap": 0.0038546328028783933,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 22,
+          "rank_b": 23,
+          "score_a": 14.131826168298721,
+          "score_b": 14.128814375400543,
+          "abs_gap": 0.0030117928981781006,
+          "rel_gap": 0.00021312128116423608,
+          "classification": "close_but_safe"
+        }
+      ]
+    },
+    {
+      "idx": 23,
+      "query": "What is the value of balloondirection?",
+      "n_scores": 24,
+      "n_pairs": 23,
+      "worst_adjacent_class": "close_but_safe",
+      "min_rel_gap": 0.0,
+      "min_abs_gap": 0.0,
+      "pairs": [
+        {
+          "rank_a": 0,
+          "rank_b": 1,
+          "score_a": 16.5,
+          "score_b": 15.740161506831646,
+          "abs_gap": 0.7598384931683544,
+          "rel_gap": 0.046050817767779056,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 1,
+          "rank_b": 2,
+          "score_a": 15.740161506831646,
+          "score_b": 15.664313353598118,
+          "abs_gap": 0.07584815323352778,
+          "rel_gap": 0.004818765881189191,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 2,
+          "rank_b": 3,
+          "score_a": 15.664313353598118,
+          "score_b": 15.0,
+          "abs_gap": 0.6643133535981178,
+          "rel_gap": 0.042409350387869,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 3,
+          "rank_b": 4,
+          "score_a": 15.0,
+          "score_b": 15.0,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 4,
+          "rank_b": 5,
+          "score_a": 15.0,
+          "score_b": 14.821843382716178,
+          "abs_gap": 0.17815661728382182,
+          "rel_gap": 0.011877107818921455,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 5,
+          "rank_b": 6,
+          "score_a": 14.821843382716178,
+          "score_b": 14.79654838591814,
+          "abs_gap": 0.025294996798038483,
+          "rel_gap": 0.0017066026232293817,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 6,
+          "rank_b": 7,
+          "score_a": 14.79654838591814,
+          "score_b": 14.794389939308166,
+          "abs_gap": 0.002158446609973552,
+          "rel_gap": 0.00014587500771651204,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 7,
+          "rank_b": 8,
+          "score_a": 14.794389939308166,
+          "score_b": 14.783889150619506,
+          "abs_gap": 0.010500788688659668,
+          "rel_gap": 0.0007097817978123888,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 8,
+          "rank_b": 9,
+          "score_a": 14.783889150619506,
+          "score_b": 14.772458289563655,
+          "abs_gap": 0.011430861055851338,
+          "rel_gap": 0.000773197156674591,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 9,
+          "rank_b": 10,
+          "score_a": 14.772458289563655,
+          "score_b": 14.706294189393521,
+          "abs_gap": 0.06616410017013408,
+          "rel_gap": 0.004478882178796013,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 10,
+          "rank_b": 11,
+          "score_a": 14.706294189393521,
+          "score_b": 14.655788891762494,
+          "abs_gap": 0.050505297631026735,
+          "rel_gap": 0.0034342640627611125,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 11,
+          "rank_b": 12,
+          "score_a": 14.655788891762494,
+          "score_b": 14.592762576043606,
+          "abs_gap": 0.06302631571888817,
+          "rel_gap": 0.004300438289904207,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 12,
+          "rank_b": 13,
+          "score_a": 14.592762576043606,
+          "score_b": 14.59269401282072,
+          "abs_gap": 6.856322288584238e-05,
+          "rel_gap": 4.698440239026438e-06,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 13,
+          "rank_b": 14,
+          "score_a": 14.59269401282072,
+          "score_b": 14.57830228805542,
+          "abs_gap": 0.01439172476530004,
+          "rel_gap": 0.0009862280914446561,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 14,
+          "rank_b": 15,
+          "score_a": 14.57830228805542,
+          "score_b": 14.557805529236793,
+          "abs_gap": 0.020496758818627114,
+          "rel_gap": 0.0014059770756311536,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 15,
+          "rank_b": 16,
+          "score_a": 14.557805529236793,
+          "score_b": 14.450938288867473,
+          "abs_gap": 0.10686724036932027,
+          "rel_gap": 0.007340889404979082,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 16,
+          "rank_b": 17,
+          "score_a": 14.450938288867473,
+          "score_b": 14.390374919772148,
+          "abs_gap": 0.060563369095325115,
+          "rel_gap": 0.004190964481661453,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 17,
+          "rank_b": 18,
+          "score_a": 14.390374919772148,
+          "score_b": 14.257508204877377,
+          "abs_gap": 0.13286671489477087,
+          "rel_gap": 0.009233026633115312,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 18,
+          "rank_b": 19,
+          "score_a": 14.257508204877377,
+          "score_b": 14.229496665298939,
+          "abs_gap": 0.02801153957843816,
+          "rel_gap": 0.0019646868987145765,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 19,
+          "rank_b": 20,
+          "score_a": 14.229496665298939,
+          "score_b": 14.227777011692524,
+          "abs_gap": 0.001719653606414795,
+          "rel_gap": 0.0001208513306453393,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 20,
+          "rank_b": 21,
+          "score_a": 14.227777011692524,
+          "score_b": 14.220392655581236,
+          "abs_gap": 0.007384356111288071,
+          "rel_gap": 0.0005190098288172169,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 21,
+          "rank_b": 22,
+          "score_a": 14.220392655581236,
+          "score_b": 14.217067068815231,
+          "abs_gap": 0.0033255867660049176,
+          "rel_gap": 0.0002338604036154858,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 22,
+          "rank_b": 23,
+          "score_a": 14.217067068815231,
+          "score_b": 14.194729419052601,
+          "abs_gap": 0.022337649762629752,
+          "rel_gap": 0.0015711855092550564,
+          "classification": "comfortable"
+        }
+      ]
+    },
+    {
+      "idx": 24,
+      "query": "What is the value of starttimestamp?",
+      "n_scores": 24,
+      "n_pairs": 23,
+      "worst_adjacent_class": "close_but_safe",
+      "min_rel_gap": 0.0,
+      "min_abs_gap": 0.0,
+      "pairs": [
+        {
+          "rank_a": 0,
+          "rank_b": 1,
+          "score_a": 15.808900421402345,
+          "score_b": 15.744310836644305,
+          "abs_gap": 0.06458958475804089,
+          "rel_gap": 0.004085646884750976,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 1,
+          "rank_b": 2,
+          "score_a": 15.744310836644305,
+          "score_b": 15.645979653480232,
+          "abs_gap": 0.0983311831640723,
+          "rel_gap": 0.0062455057057950155,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 2,
+          "rank_b": 3,
+          "score_a": 15.645979653480232,
+          "score_b": 15.645979653480232,
+          "abs_gap": 0.0,
+          "rel_gap": 0.0,
+          "classification": "exact_tie"
+        },
+        {
+          "rank_a": 3,
+          "rank_b": 4,
+          "score_a": 15.645979653480232,
+          "score_b": 14.856672955593739,
+          "abs_gap": 0.7893066978864933,
+          "rel_gap": 0.05044789238946268,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 4,
+          "rank_b": 5,
+          "score_a": 14.856672955593739,
+          "score_b": 14.843003126698981,
+          "abs_gap": 0.01366982889475743,
+          "rel_gap": 0.0009201137384942269,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 5,
+          "rank_b": 6,
+          "score_a": 14.843003126698981,
+          "score_b": 14.814718425640555,
+          "abs_gap": 0.02828470105842662,
+          "rel_gap": 0.0019055915313761045,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 6,
+          "rank_b": 7,
+          "score_a": 14.814718425640555,
+          "score_b": 14.762993862646816,
+          "abs_gap": 0.05172456299373884,
+          "rel_gap": 0.0034914307182657366,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 7,
+          "rank_b": 8,
+          "score_a": 14.762993862646816,
+          "score_b": 14.6806378002165,
+          "abs_gap": 0.0823560624303159,
+          "rel_gap": 0.005578547494942229,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 8,
+          "rank_b": 9,
+          "score_a": 14.6806378002165,
+          "score_b": 14.667314294422559,
+          "abs_gap": 0.013323505793941592,
+          "rel_gap": 0.000907556332037911,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 9,
+          "rank_b": 10,
+          "score_a": 14.667314294422559,
+          "score_b": 14.554786802228378,
+          "abs_gap": 0.11252749219418057,
+          "rel_gap": 0.007671990245478727,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 10,
+          "rank_b": 11,
+          "score_a": 14.554786802228378,
+          "score_b": 14.53644701069027,
+          "abs_gap": 0.018339791538107164,
+          "rel_gap": 0.0012600522279927378,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 11,
+          "rank_b": 12,
+          "score_a": 14.53644701069027,
+          "score_b": 14.39791870309524,
+          "abs_gap": 0.1385283075950312,
+          "rel_gap": 0.009529722599556542,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 12,
+          "rank_b": 13,
+          "score_a": 14.39791870309524,
+          "score_b": 14.380737047895927,
+          "abs_gap": 0.017181655199312473,
+          "rel_gap": 0.0011933429791917626,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 13,
+          "rank_b": 14,
+          "score_a": 14.380737047895927,
+          "score_b": 14.365615889227755,
+          "abs_gap": 0.01512115866817254,
+          "rel_gap": 0.0010514870425493905,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 14,
+          "rank_b": 15,
+          "score_a": 14.365615889227755,
+          "score_b": 14.286607399134706,
+          "abs_gap": 0.07900849009304878,
+          "rel_gap": 0.005499833122525177,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 15,
+          "rank_b": 16,
+          "score_a": 14.286607399134706,
+          "score_b": 14.253180550877797,
+          "abs_gap": 0.03342684825690867,
+          "rel_gap": 0.002339733102691212,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 16,
+          "rank_b": 17,
+          "score_a": 14.253180550877797,
+          "score_b": 14.249962861362476,
+          "abs_gap": 0.003217689515320643,
+          "rel_gap": 0.00022575238585064288,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 17,
+          "rank_b": 18,
+          "score_a": 14.249962861362476,
+          "score_b": 14.181239458487928,
+          "abs_gap": 0.06872340287454826,
+          "rel_gap": 0.004822707507602404,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 18,
+          "rank_b": 19,
+          "score_a": 14.181239458487928,
+          "score_b": 14.17449865662033,
+          "abs_gap": 0.0067408018675987336,
+          "rel_gap": 0.0004753323492865884,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 19,
+          "rank_b": 20,
+          "score_a": 14.17449865662033,
+          "score_b": 14.153707984523667,
+          "abs_gap": 0.020790672096662632,
+          "rel_gap": 0.001466765957676546,
+          "classification": "comfortable"
+        },
+        {
+          "rank_a": 20,
+          "rank_b": 21,
+          "score_a": 14.153707984523667,
+          "score_b": 14.15056523996162,
+          "abs_gap": 0.003142744562046218,
+          "rel_gap": 0.00022204390294632638,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 21,
+          "rank_b": 22,
+          "score_a": 14.15056523996162,
+          "score_b": 14.146965130647391,
+          "abs_gap": 0.0036001093142292717,
+          "rel_gap": 0.0002544145236023827,
+          "classification": "close_but_safe"
+        },
+        {
+          "rank_a": 22,
+          "rank_b": 23,
+          "score_a": 14.146965130647391,
+          "score_b": 14.129133781518984,
+          "abs_gap": 0.017831349128407226,
+          "rel_gap": 0.001260436352513384,
+          "classification": "comfortable"
+        }
+      ]
+    }
+  ]
+}

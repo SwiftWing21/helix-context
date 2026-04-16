@@ -2006,6 +2006,23 @@ class Genome:
         # Sort by combined score, fetch top genes
         ranked_ids = sorted(gene_scores, key=gene_scores.get, reverse=True)[:limit]
 
+        # Walking tie-break (opt-in via HELIX_WALKING_TIEBREAK=1).
+        # When adjacent top-k genes have bitwise-identical fused scores,
+        # re-order them using associative-graph signals (neighborhood
+        # size, direct edge weight, NLI entailment, freshness) instead
+        # of dict insertion order. Overall score ordering is preserved —
+        # only within-tie ordering changes. Soft-fails: any exception in
+        # the tie-break path falls through to the original ranking.
+        # See docs/FUTURE/tie_break_walking.md for the empirical basis.
+        try:
+            from . import tie_break
+            if tie_break.is_enabled():
+                ranked_ids = tie_break.walking_reorder(
+                    self.conn, ranked_ids, gene_scores,
+                )
+        except Exception:
+            log.warning("walking tie-break failed, using insertion-order default", exc_info=True)
+
         # ── Sprint 4: Hebbian evidence accumulation on seeded edges ───
         # Fire-and-forget update to harmonic_links so seeded / co_retrieved
         # rows accrue co_count (both endpoints in top-k) or miss_count
