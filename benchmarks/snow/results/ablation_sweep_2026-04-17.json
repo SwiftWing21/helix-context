@@ -1,0 +1,58 @@
+{
+  "timestamp": "2026-04-17T10:30:30",
+  "genome": "F:/Projects/helix-context/genomes/main/genome.db",
+  "variants": {
+    "baseline": {
+      "avg_tier": 0.98,
+      "avg_tokens": 3407.7,
+      "miss_rate": 0.2769,
+      "cascade": {
+        "T0": 20,
+        "T1": 10,
+        "T2": 15,
+        "T3": 2,
+        "T4": 0
+      },
+      "file": "F:\\Projects\\helix-context\\benchmarks\\snow\\results\\ablation_baseline_2026-04-17.json"
+    },
+    "d6_cymatics_off": {
+      "avg_tier": 1.02,
+      "avg_tokens": 3694.5,
+      "miss_rate": 0.2615,
+      "cascade": {
+        "T0": 19,
+        "T1": 11,
+        "T2": 16,
+        "T3": 2,
+        "T4": 0
+      },
+      "file": "F:\\Projects\\helix-context\\benchmarks\\snow\\results\\ablation_d6_cymatics_off_2026-04-17.json"
+    },
+    "d8_harmonic_off": {
+      "avg_tier": 1.06,
+      "avg_tokens": 3785.3,
+      "miss_rate": 0.2615,
+      "cascade": {
+        "T0": 18,
+        "T1": 10,
+        "T2": 19,
+        "T3": 1,
+        "T4": 0
+      },
+      "file": "F:\\Projects\\helix-context\\benchmarks\\snow\\results\\ablation_d8_harmonic_off_2026-04-17.json"
+    },
+    "d5_cold_tier_on": {
+      "avg_tier": 1.02,
+      "avg_tokens": 3413.9,
+      "miss_rate": 0.2769,
+      "cascade": {
+        "T0": 18,
+        "T1": 11,
+        "T2": 17,
+        "T3": 1,
+        "T4": 0
+      },
+      "file": "F:\\Projects\\helix-context\\benchmarks\\snow\\results\\ablation_d5_cold_tier_on_2026-04-17.json"
+    }
+  }
+}

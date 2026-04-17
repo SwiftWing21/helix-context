@@ -1,0 +1,315 @@
+{
+  "timestamp": "2026-04-17T10:50:14",
+  "genome": "F:/Projects/helix-context/genomes/main/genome.db",
+  "repeats": 3,
+  "variants": {
+    "baseline": {
+      "n_runs": 3,
+      "avg_tier": {
+        "mean": 0.9700000000000001,
+        "min": 0.93,
+        "max": 1.02,
+        "stddev": 0.03741657386773941,
+        "values": [
+          0.93,
+          1.02,
+          0.96
+        ]
+      },
+      "miss_rate": {
+        "mean": 0.2871666666666666,
+        "min": 0.2769,
+        "max": 0.2923,
+        "stddev": 0.007259629620181899,
+        "values": [
+          0.2923,
+          0.2923,
+          0.2769
+        ]
+      },
+      "avg_tokens": {
+        "mean": 3272.7333333333336,
+        "min": 2978.6,
+        "max": 3429.2,
+        "stddev": 208.1252400732683,
+        "values": [
+          2978.6,
+          3429.2,
+          3410.4
+        ]
+      },
+      "runs": [
+        {
+          "avg_tier": 0.93,
+          "avg_tokens": 2978.6,
+          "miss_rate": 0.2923,
+          "cascade": {
+            "T0": 20,
+            "T1": 10,
+            "T2": 15,
+            "T3": 1,
+            "T4": 0
+          },
+          "file": "F:\\Projects\\helix-context\\benchmarks\\snow\\results\\ablation_baseline_r1_2026-04-17.json"
+        },
+        {
+          "avg_tier": 1.02,
+          "avg_tokens": 3429.2,
+          "miss_rate": 0.2923,
+          "cascade": {
+            "T0": 18,
+            "T1": 10,
+            "T2": 17,
+            "T3": 1,
+            "T4": 0
+          },
+          "file": "F:\\Projects\\helix-context\\benchmarks\\snow\\results\\ablation_baseline_r2_2026-04-17.json"
+        },
+        {
+          "avg_tier": 0.96,
+          "avg_tokens": 3410.4,
+          "miss_rate": 0.2769,
+          "cascade": {
+            "T0": 20,
+            "T1": 10,
+            "T2": 16,
+            "T3": 1,
+            "T4": 0
+          },
+          "file": "F:\\Projects\\helix-context\\benchmarks\\snow\\results\\ablation_baseline_r3_2026-04-17.json"
+        }
+      ]
+    },
+    "d6_cymatics_off": {
+      "n_runs": 3,
+      "avg_tier": {
+        "mean": 1.0066666666666666,
+        "min": 1,
+        "max": 1.02,
+        "stddev": 0.009428090415820642,
+        "values": [
+          1,
+          1,
+          1.02
+        ]
+      },
+      "miss_rate": {
+        "mean": 0.2820333333333333,
+        "min": 0.2769,
+        "max": 0.2923,
+        "stddev": 0.007259629620181899,
+        "values": [
+          0.2769,
+          0.2923,
+          0.2769
+        ]
+      },
+      "avg_tokens": {
+        "mean": 3341.6,
+        "min": 3328.4,
+        "max": 3354.4,
+        "stddev": 10.618223329101092,
+        "values": [
+          3354.4,
+          3328.4,
+          3342.0
+        ]
+      },
+      "runs": [
+        {
+          "avg_tier": 1,
+          "avg_tokens": 3354.4,
+          "miss_rate": 0.2769,
+          "cascade": {
+            "T0": 19,
+            "T1": 11,
+            "T2": 15,
+            "T3": 2,
+            "T4": 0
+          },
+          "file": "F:\\Projects\\helix-context\\benchmarks\\snow\\results\\ablation_d6_cymatics_off_r1_2026-04-17.json"
+        },
+        {
+          "avg_tier": 1,
+          "avg_tokens": 3328.4,
+          "miss_rate": 0.2923,
+          "cascade": {
+            "T0": 19,
+            "T1": 10,
+            "T2": 15,
+            "T3": 2,
+            "T4": 0
+          },
+          "file": "F:\\Projects\\helix-context\\benchmarks\\snow\\results\\ablation_d6_cymatics_off_r2_2026-04-17.json"
+        },
+        {
+          "avg_tier": 1.02,
+          "avg_tokens": 3342.0,
+          "miss_rate": 0.2769,
+          "cascade": {
+            "T0": 18,
+            "T1": 11,
+            "T2": 17,
+            "T3": 1,
+            "T4": 0
+          },
+          "file": "F:\\Projects\\helix-context\\benchmarks\\snow\\results\\ablation_d6_cymatics_off_r3_2026-04-17.json"
+        }
+      ]
+    },
+    "d8_harmonic_off": {
+      "n_runs": 3,
+      "avg_tier": {
+        "mean": 1.02,
+        "min": 1,
+        "max": 1.04,
+        "stddev": 0.016329931618554536,
+        "values": [
+          1.04,
+          1.02,
+          1
+        ]
+      },
+      "miss_rate": {
+        "mean": 0.27176666666666666,
+        "min": 0.2615,
+        "max": 0.2769,
+        "stddev": 0.007259629620181873,
+        "values": [
+          0.2769,
+          0.2769,
+          0.2615
+        ]
+      },
+      "avg_tokens": {
+        "mean": 3695.433333333333,
+        "min": 3590.7,
+        "max": 3752.9,
+        "stddev": 74.17462878609886,
+        "values": [
+          3752.9,
+          3742.7,
+          3590.7
+        ]
+      },
+      "runs": [
+        {
+          "avg_tier": 1.04,
+          "avg_tokens": 3752.9,
+          "miss_rate": 0.2769,
+          "cascade": {
+            "T0": 19,
+            "T1": 9,
+            "T2": 17,
+            "T3": 2,
+            "T4": 0
+          },
+          "file": "F:\\Projects\\helix-context\\benchmarks\\snow\\results\\ablation_d8_harmonic_off_r1_2026-04-17.json"
+        },
+        {
+          "avg_tier": 1.02,
+          "avg_tokens": 3742.7,
+          "miss_rate": 0.2769,
+          "cascade": {
+            "T0": 19,
+            "T1": 10,
+            "T2": 16,
+            "T3": 2,
+            "T4": 0
+          },
+          "file": "F:\\Projects\\helix-context\\benchmarks\\snow\\results\\ablation_d8_harmonic_off_r2_2026-04-17.json"
+        },
+        {
+          "avg_tier": 1,
+          "avg_tokens": 3590.7,
+          "miss_rate": 0.2615,
+          "cascade": {
+            "T0": 19,
+            "T1": 11,
+            "T2": 17,
+            "T3": 1,
+            "T4": 0
+          },
+          "file": "F:\\Projects\\helix-context\\benchmarks\\snow\\results\\ablation_d8_harmonic_off_r3_2026-04-17.json"
+        }
+      ]
+    },
+    "d5_cold_tier_on": {
+      "n_runs": 3,
+      "avg_tier": {
+        "mean": 0.9766666666666667,
+        "min": 0.93,
+        "max": 1.02,
+        "stddev": 0.036817870057290855,
+        "values": [
+          1.02,
+          0.98,
+          0.93
+        ]
+      },
+      "miss_rate": {
+        "mean": 0.28203333333333336,
+        "min": 0.2615,
+        "max": 0.2923,
+        "stddev": 0.014519259240363774,
+        "values": [
+          0.2615,
+          0.2923,
+          0.2923
+        ]
+      },
+      "avg_tokens": {
+        "mean": 3438.2999999999997,
+        "min": 3183.6,
+        "max": 3681.1,
+        "stddev": 203.27775743220573,
+        "values": [
+          3681.1,
+          3450.2,
+          3183.6
+        ]
+      },
+      "runs": [
+        {
+          "avg_tier": 1.02,
+          "avg_tokens": 3681.1,
+          "miss_rate": 0.2615,
+          "cascade": {
+            "T0": 19,
+            "T1": 11,
+            "T2": 16,
+            "T3": 2,
+            "T4": 0
+          },
+          "file": "F:\\Projects\\helix-context\\benchmarks\\snow\\results\\ablation_d5_cold_tier_on_r1_2026-04-17.json"
+        },
+        {
+          "avg_tier": 0.98,
+          "avg_tokens": 3450.2,
+          "miss_rate": 0.2923,
+          "cascade": {
+            "T0": 19,
+            "T1": 10,
+            "T2": 16,
+            "T3": 1,
+            "T4": 0
+          },
+          "file": "F:\\Projects\\helix-context\\benchmarks\\snow\\results\\ablation_d5_cold_tier_on_r2_2026-04-17.json"
+        },
+        {
+          "avg_tier": 0.93,
+          "avg_tokens": 3183.6,
+          "miss_rate": 0.2923,
+          "cascade": {
+            "T0": 20,
+            "T1": 11,
+            "T2": 13,
+            "T3": 2,
+            "T4": 0
+          },
+          "file": "F:\\Projects\\helix-context\\benchmarks\\snow\\results\\ablation_d5_cold_tier_on_r3_2026-04-17.json"
+        }
+      ]
+    }
+  }
+}
