@@ -1,0 +1,142 @@
+{
+  "timestamp": "2026-04-16T20:51:42",
+  "genome_genes": 7738,
+  "compression_ratio": 2.5914405827603826,
+  "needles": [
+    {
+      "name": "helix_port",
+      "query": "What port does the Helix proxy server listen on?",
+      "expected": "11437",
+      "found_in_context": true,
+      "answer_correct": true,
+      "context_latency_s": 4.049,
+      "proxy_latency_s": 13.8,
+      "ellipticity": 0.5832,
+      "status": "sparse",
+      "genes_expressed": 12,
+      "answer_preview": "The Helix proxy server listens on port **11437**. This is specified in the `helix-context/helix_context/schemas.py` GENE block with the fact `port=11437`."
+    },
+    {
+      "name": "scorerift_threshold",
+      "query": "What is the divergence threshold that triggers alerts in ScoreRift?",
+      "expected": "0.15",
+      "found_in_context": true,
+      "answer_correct": true,
+      "context_latency_s": 3.457,
+      "proxy_latency_s": 13.615,
+      "ellipticity": 0.5942,
+      "status": "sparse",
+      "genes_expressed": 12,
+      "answer_preview": "0.15"
+    },
+    {
+      "name": "biged_skills_count",
+      "query": "How many skills does the BigEd fleet have?",
+      "expected": "125",
+      "found_in_context": true,
+      "answer_correct": false,
+      "context_latency_s": 6.261,
+      "proxy_latency_s": 14.008,
+      "ellipticity": 0.6288,
+      "status": "sparse",
+      "genes_expressed": 12,
+      "answer_preview": "The provided context does not specify the exact number of skills in the BigEd fleet. The documentation focuses on the system's architecture, components (e.g., `biged-bridge`, `worker.rs`, and integrat"
+    },
+    {
+      "name": "bookkeeper_monetary",
+      "query": "What type should be used for monetary values in BookKeeper instead of float?",
+      "expected": "Decimal",
+      "found_in_context": true,
+      "answer_correct": true,
+      "context_latency_s": 4.372,
+      "proxy_latency_s": 14.177,
+      "ellipticity": 0.6169,
+      "status": "sparse",
+      "genes_expressed": 12,
+      "answer_preview": "In BookKeeper, monetary values should be stored as **`decimal.Decimal`** (as TEXT in SQLite) to avoid the rounding errors inherent in floating-point arithmetic (IEEE 754). \n\n### Key Details from the C"
+    },
+    {
+      "name": "helix_pipeline_steps",
+      "query": "How many steps are in the Helix expression pipeline?",
+      "expected": "6",
+      "found_in_context": true,
+      "answer_correct": false,
+      "context_latency_s": 4.124,
+      "proxy_latency_s": 22.925,
+      "ellipticity": 0.603,
+      "status": "sparse",
+      "genes_expressed": 12,
+      "answer_preview": "The Helix expression pipeline consists of **5 steps**. These steps are explicitly outlined in the GENE block from `helix-context/BENCHMARK_NOTES.md` and include:  \n1. **Extract**  \n2. **Express**  \n3."
+    },
+    {
+      "name": "biged_rust_binary_size",
+      "query": "What is the binary size of the Rust BigEd build in MB?",
+      "expected": "11",
+      "found_in_context": true,
+      "answer_correct": false,
+      "context_latency_s": 6.266,
+      "proxy_latency_s": 13.202,
+      "ellipticity": 0.6686,
+      "status": "sparse",
+      "genes_expressed": 12,
+      "answer_preview": "The provided context does not explicitly mention the binary size of the Rust BigEd build in MB. The information shared focuses on project structure, dependencies, deployment setup, and functionality r"
+    },
+    {
+      "name": "genome_compression_target",
+      "query": "What is the target compression ratio for Helix Context?",
+      "expected": "5x",
+      "found_in_context": false,
+      "answer_correct": false,
+      "context_latency_s": 3.672,
+      "proxy_latency_s": 18.478,
+      "ellipticity": 0.5743,
+      "status": "sparse",
+      "genes_expressed": 12,
+      "answer_preview": "The provided information does not explicitly state a target compression ratio for Helix Context. The relevant GENE blocks mention compression ratios in the context of data reduction (e.g., \"566 items "
+    },
+    {
+      "name": "scorerift_preset_dimensions",
+      "query": "How many dimensions does the Python preset in ScoreRift check?",
+      "expected": "8",
+      "found_in_context": true,
+      "answer_correct": true,
+      "context_latency_s": 3.786,
+      "proxy_latency_s": 15.025,
+      "ellipticity": 0.5657,
+      "status": "sparse",
+      "genes_expressed": 12,
+      "answer_preview": "The number of dimensions checked by the Python preset in ScoreRift is determined by the `ClaimDimension` enum in the `tba_claim_schema.py` file, which lists 8 dimensions: SECURITY, PERFORMANCE, CORREC"
+    },
+    {
+      "name": "helix_ribosome_budget",
+      "query": "How many tokens are allocated for the ribosome decoder prompt?",
+      "expected": "3000",
+      "found_in_context": true,
+      "answer_correct": false,
+      "context_latency_s": 4.368,
+      "proxy_latency_s": 23.147,
+      "ellipticity": 0.5602,
+      "status": "sparse",
+      "genes_expressed": 12,
+      "answer_preview": "The number of tokens allocated for the ribosome decoder prompt is **3**. This is indicated by the line `budget=3` in the ANSWER SLATE, which specifies the token allocation for the ribosome decoder pro"
+    },
+    {
+      "name": "biged_default_model",
+      "query": "What is the default local model used by BigEd for conductor tasks?",
+      "expected": "qwen3",
+      "found_in_context": true,
+      "answer_correct": true,
+      "context_latency_s": 6.334,
+      "proxy_latency_s": 24.605,
+      "ellipticity": 0.6539,
+      "status": "sparse",
+      "genes_expressed": 12,
+      "answer_preview": "The default local model used by BigEd for conductor tasks is **Ollama**, as it is explicitly required for LLM (Large Language Model) mode in the Factorio module and is part of the system's setup. Whil"
+    }
+  ],
+  "summary": {
+    "context_retrieval_rate": 0.9,
+    "answer_accuracy_rate": 0.5,
+    "avg_context_latency_s": 4.669
+  }
+}
