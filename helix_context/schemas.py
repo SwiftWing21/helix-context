@@ -145,6 +145,13 @@ class ContextHealth(BaseModel):
     genes_available: int = 0            # Total genes in genome
     genes_expressed: int = 0            # Genes expressed for this query
     status: str = "unmeasured"          # aligned | sparse | stale | denatured
+    # Step 1b weighing surface (2026-04-17): pre-delivery confidence the
+    # consumer can use for know-vs-go decisions. Separate from ellipticity
+    # (which is retrospective "did we deliver good context"). These measure
+    # "how confident was the coordinate resolution itself."
+    coordinate_crispness: float = 0.0   # Top-K score dominance: (s[0]-s[k])/(s[0]+ε)
+    neighborhood_density: float = 0.0   # Fraction of top-K with score >= 0.3 * top
+    resolution_confidence: float = 0.0  # Composite: sqrt(crispness * coverage)
 
 
 class ContextWindow(BaseModel):

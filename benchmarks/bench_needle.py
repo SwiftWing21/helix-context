@@ -298,6 +298,12 @@ def find_needle(client, needle):
         "ellipticity": health.get("ellipticity", 0),
         "status": health.get("status", "unknown"),
         "genes_expressed": health.get("genes_expressed", 0),
+        # Step 1b weighing surface (2026-04-17): coordinate-resolution
+        # confidence that tells the consumer whether to act on the pointer
+        # or go fetch. Separate from ellipticity (retrospective).
+        "coordinate_crispness": health.get("coordinate_crispness", 0),
+        "neighborhood_density": health.get("neighborhood_density", 0),
+        "resolution_confidence": health.get("resolution_confidence", 0),
         "answer_preview": answer_text[:200] if answer_text else "",
     }
 
@@ -325,9 +331,12 @@ def main():
 
         icon_ctx = "+" if r["found_in_context"] else "-"
         icon_ans = "+" if r["answer_correct"] else "-"
-        print(f"  ctx[{icon_ctx}] ans[{icon_ans}]  "
+        icon_gold = "+" if r.get("gold_delivered") else "-"
+        conf = r.get("resolution_confidence", 0)
+        print(f"  ctx[{icon_ctx}] ans[{icon_ans}] gold[{icon_gold}]  "
               f"{r['context_latency_s']:>5.1f}s  "
               f"e={r.get('ellipticity', 0):.2f}  "
+              f"conf={conf:.2f}  "
               f"{r['name']}: \"{r['expected']}\"")
 
         if r["found_in_context"]:
@@ -345,6 +354,38 @@ def main():
     print(f"False-positive substring:    {false_positives}/{len(NEEDLES)} "
           f"(old-scoring would count these as hits)")
 
+    # Weighing surface (Step 1b, 2026-04-17): know-vs-go quality
+    # correctly_known_miss = gold missing AND helix's resolution_confidence
+    # is below threshold. High rate means helix knows when it doesn't know.
+    # silent_miss = gold missing AND confidence above threshold (dangerous).
+    # overconfident_false_positive = substring false-positive AND confidence high.
+    confidence_threshold = 0.30  # empirical; tune against distribution below
+    misses = [r for r in results if not r.get("gold_delivered")]
+    known_miss = sum(
+        1 for r in misses
+        if r.get("resolution_confidence", 0) < confidence_threshold
+    )
+    silent_miss = len(misses) - known_miss
+    avg_conf_hit = (
+        sum(r.get("resolution_confidence", 0) for r in results if r.get("gold_delivered"))
+        / max(gold_delivered, 1)
+    )
+    avg_conf_miss = (
+        sum(r.get("resolution_confidence", 0) for r in misses) / max(len(misses), 1)
+    )
+    print(
+        f"Correctly-known miss:        {known_miss}/{len(misses)} "
+        f"(confidence < {confidence_threshold} when gold absent)"
+    )
+    print(
+        f"Silent miss (danger):        {silent_miss}/{len(misses)} "
+        f"(confident but wrong)"
+    )
+    print(
+        f"Avg resolution_confidence:   hit={avg_conf_hit:.3f}  miss={avg_conf_miss:.3f}  "
+        f"(want hit >> miss)"
+    )
+
     avg_latency = sum(r["context_latency_s"] for r in results) / len(results)
     print(f"Avg context latency: {avg_latency:.1f}s")
 
@@ -359,6 +400,11 @@ def main():
             "answer_accuracy_rate": found_answer / len(NEEDLES),
             "gold_delivered_rate": gold_delivered / len(NEEDLES),
             "false_positive_substring_count": false_positives,
+            "correctly_known_miss_count": known_miss,
+            "silent_miss_count": silent_miss,
+            "avg_resolution_confidence_hit": round(avg_conf_hit, 4),
+            "avg_resolution_confidence_miss": round(avg_conf_miss, 4),
+            "confidence_threshold": confidence_threshold,
             "avg_context_latency_s": round(avg_latency, 3),
             "scoring": "gold_source_in_top_K_and_body_substring",
         },

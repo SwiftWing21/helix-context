@@ -1795,6 +1795,41 @@ class HelixContextManager:
         else:
             status = "denatured"
 
+        # Weighing surface (Step 1b, 2026-04-17) — pre-delivery coordinate
+        # resolution confidence. ellipticity asks "did we deliver good
+        # context"; these ask "how confident was the LOCATE step itself."
+        # The know-vs-go signal the agent consumes to decide whether the
+        # returned pointer is worth acting on.
+        #
+        # First pass was a null result: crispness × coverage correlates
+        # poorly with ground-truth gold_delivered because both measure
+        # internal consistency of what we retrieved, not whether the
+        # retrieval was the RIGHT coordinate. Shipping the instrument
+        # anyway so the bench can keep iterating on better signals.
+        # See benchmarks/results/needle_step1b_conf_null_2026-04-17.json.
+        crispness = 0.0
+        neighborhood = 0.0
+        try:
+            scores_map = getattr(self.genome, "last_query_scores", None) or {}
+            if candidates and scores_map:
+                ordered = sorted(
+                    (scores_map.get(g.gene_id, 0.0) for g in candidates),
+                    reverse=True,
+                )
+                if ordered:
+                    top = ordered[0]
+                    tail_idx = min(len(ordered) - 1, max_genes - 1)
+                    tail = ordered[tail_idx] if tail_idx > 0 else 0.0
+                    if top > 1e-9:
+                        crispness = max(0.0, (top - tail) / (top + 1e-9))
+                        threshold = 0.3 * top
+                        n_strong = sum(1 for s in ordered if s >= threshold)
+                        neighborhood = n_strong / max(len(ordered), 1)
+        except Exception:
+            log.debug("coordinate confidence calc failed", exc_info=True)
+
+        resolution_conf = math.sqrt(max(0.0, crispness) * max(0.0, coverage))
+
         # Telemetry: surface per-query health so dashboards can watch
         # the retrieval-quality distribution over time. No-op if OTel
         # is disabled.
@@ -1821,6 +1856,9 @@ class HelixContextManager:
             genes_available=total_genes,
             genes_expressed=genes_expressed,
             status=status,
+            coordinate_crispness=round(crispness, 4),
+            neighborhood_density=round(neighborhood, 4),
+            resolution_confidence=round(resolution_conf, 4),
         )
 
     # -- Internal: compaction ------------------------------------------
