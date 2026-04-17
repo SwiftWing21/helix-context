@@ -19,6 +19,7 @@ Usage:
 
 import json
 import os
+import re
 import sys
 import time
 
@@ -28,6 +29,14 @@ HELIX_URL = os.environ.get("HELIX_URL", "http://127.0.0.1:11437")
 
 # Needles: specific facts that exist in the ingested content
 # Each has a query and the expected answer substring
+# Each needle has `gold_source`: a list of case-insensitive path
+# substrings identifying the source file(s) that contain the answer.
+# `found_in_context` checks that one of these sources is in the
+# delivered gene set AND its block body contains an accept substring.
+# Payload-wide substring matches are retained as `false_positive_substring`
+# diagnostics. Waude diagnostic 2026-04-17 showed the old pure-substring
+# check inflated delivery by counting URL port numbers and compression
+# metadata as hits.
 NEEDLES = [
     {
         "name": "helix_port",
@@ -35,6 +44,7 @@ NEEDLES = [
         "expected": "11437",
         "accept": ["11437"],
         "source": "helix-context/helix.toml",
+        "gold_source": ["helix-context/helix.toml"],
     },
     {
         "name": "scorerift_threshold",
@@ -42,6 +52,7 @@ NEEDLES = [
         "expected": "0.15",
         "accept": ["0.15", ".15"],
         "source": "two-brain-audit/README.md",
+        "gold_source": ["two-brain-audit/README.md"],
     },
     {
         "name": "biged_skills_count",
@@ -49,6 +60,7 @@ NEEDLES = [
         "expected": "125",
         "accept": ["125", "129"],  # count changes between versions
         "source": "Education/CLAUDE.md",
+        "gold_source": ["Education/CLAUDE.md"],
     },
     {
         "name": "bookkeeper_monetary",
@@ -56,6 +68,7 @@ NEEDLES = [
         "expected": "Decimal",
         "accept": ["decimal", "Decimal"],
         "source": "BookKeeper/CLAUDE.md",
+        "gold_source": ["BookKeeper/CLAUDE.md"],
     },
     {
         "name": "helix_pipeline_steps",
@@ -63,6 +76,7 @@ NEEDLES = [
         "expected": "6",
         "accept": ["6", "six"],
         "source": "helix-context/README.md",
+        "gold_source": ["helix-context/CLAUDE.md", "helix-context/README.md"],
     },
     {
         "name": "biged_rust_binary_size",
@@ -70,6 +84,7 @@ NEEDLES = [
         "expected": "11",
         "accept": ["11", "11mb", "11 mb"],
         "source": "Education/biged-rs/README.md",
+        "gold_source": ["Education/biged-rs/README.md"],
     },
     {
         "name": "genome_compression_target",
@@ -77,6 +92,7 @@ NEEDLES = [
         "expected": "5x",
         "accept": ["5x", "5:1", "5 to 1"],
         "source": "helix-context design spec",
+        "gold_source": ["helix-context/README.md", "helix-context/docs"],
     },
     {
         "name": "scorerift_preset_dimensions",
@@ -84,6 +100,7 @@ NEEDLES = [
         "expected": "8",
         "accept": ["8", "eight"],
         "source": "two-brain-audit/README.md",
+        "gold_source": ["two-brain-audit/README.md"],
     },
     {
         "name": "helix_ribosome_budget",
@@ -91,6 +108,7 @@ NEEDLES = [
         "expected": "3000",
         "accept": ["3000", "3k", "3,000"],
         "source": "helix-context design spec",
+        "gold_source": ["helix-context/helix.toml", "helix-context/README.md"],
     },
     {
         "name": "biged_default_model",
@@ -98,8 +116,90 @@ NEEDLES = [
         "expected": "qwen3",
         "accept": ["qwen3", "qwen3:4b", "qwen"],
         "source": "Education/CLAUDE.md",
+        "gold_source": ["Education/CLAUDE.md"],
     },
 ]
+
+
+# ── Gold-gene delivery check (Waude diagnostic 2026-04-17) ────────────
+
+GENE_BLOCK_RE = re.compile(
+    r'<GENE src="([^"]+)"[^>]*>(.*?)</GENE>', re.DOTALL,
+)
+
+
+def parse_delivered_genes(content: str):
+    """Extract (src, body) tuples from the delivered /context payload.
+
+    Helix embeds each expressed gene as ``<GENE src="path/to/file"
+    facts="...">BODY</GENE>``. Parsing these gives an honest list of
+    what was actually delivered, rather than relying on substring
+    match against the whole payload (which picks up URL ports and
+    compression metadata — see waude_diagnostic_2026-04-17.md).
+    """
+    return GENE_BLOCK_RE.findall(content or "")
+
+
+def _body_contains_accept(body: str, accept) -> bool:
+    """Word-boundary match to exclude substring-in-URL false positives.
+
+    ``\\b11\\b`` matches "11 MB" but NOT "localhost:11434". Plain
+    substring match was the 2026-04-16 bench bug — it counted
+    ``11434`` as an "11" hit.
+    """
+    for a in accept:
+        pattern = rf"\b{re.escape(a)}\b"
+        if re.search(pattern, body, re.IGNORECASE):
+            return True
+    return False
+
+
+def check_gold_delivery(content: str, gold_sources, accept):
+    """Honest delivery check for a needle.
+
+    Returns a dict with two independent dimensions:
+      - ``gold_delivered``: gold source file is in delivered top-K
+        (the retrieval-rank metric — addresses D-category failures
+        directly, per Waude diagnostic 2026-04-17)
+      - ``gold_has_answer``: gold-source block body contains accept
+      - ``body_has_answer``: ANY delivered block body contains accept
+        with word boundaries (what the consumer actually sees; more
+        honest than raw substring match because it excludes URL
+        ports and metadata headers)
+      - ``false_positive_substring``: raw payload substring match
+        fires BUT no gene body has a word-boundary match (i.e.,
+        the match is pure metadata/header/URL noise)
+    """
+    blocks = parse_delivered_genes(content)
+
+    def src_matches(src: str) -> bool:
+        src_norm = src.replace("\\", "/").lower()
+        return any(
+            g.replace("\\", "/").lower() in src_norm for g in gold_sources
+        )
+
+    gold_blocks = [(src, body) for src, body in blocks if src_matches(src)]
+    gold_delivered = len(gold_blocks) > 0
+
+    gold_has_answer = any(
+        _body_contains_accept(body, accept) for _, body in gold_blocks
+    )
+    body_has_answer = any(
+        _body_contains_accept(body, accept) for _, body in blocks
+    )
+
+    old_substring_hit = any(a.lower() in (content or "").lower() for a in accept)
+    false_positive = old_substring_hit and not body_has_answer
+
+    return {
+        "gold_delivered": gold_delivered,
+        "gold_has_answer": gold_has_answer,
+        "body_has_answer": body_has_answer,
+        "old_substring_hit": old_substring_hit,
+        "false_positive_substring": false_positive,
+        "n_gold_blocks": len(gold_blocks),
+        "n_delivered_blocks": len(blocks),
+    }
 
 
 def find_needle(client, needle):
@@ -138,9 +238,30 @@ def find_needle(client, needle):
     content = entry.get("content", "")
     health = entry.get("context_health", {})
 
-    # Check if any accepted answer appears in the expressed context
+    # Gold-gene delivery check (Waude diagnostic 2026-04-17): require
+    # the answer's source file to be in the delivered gene set AND
+    # that block's body to contain an accept substring. Fall back to
+    # payload substring if a needle has no gold_source defined.
     accept = needle.get("accept", [needle["expected"]])
-    found_in_context = any(a.lower() in content.lower() for a in accept)
+    gold_sources = needle.get("gold_source", [])
+    if gold_sources:
+        gold = check_gold_delivery(content, gold_sources, accept)
+        # Primary metric: does any delivered gene BODY contain the
+        # answer with word-boundary match. This is what the consumer
+        # actually sees, minus metadata/URL false positives.
+        found_in_context = gold["body_has_answer"]
+        gold_delivered = gold["gold_delivered"]
+        gold_has_answer = gold["gold_has_answer"]
+        false_positive = gold["false_positive_substring"]
+        n_gold_blocks = gold["n_gold_blocks"]
+        n_delivered_blocks = gold["n_delivered_blocks"]
+    else:
+        found_in_context = any(a.lower() in content.lower() for a in accept)
+        gold_delivered = found_in_context
+        gold_has_answer = found_in_context
+        false_positive = False
+        n_gold_blocks = 0
+        n_delivered_blocks = len(parse_delivered_genes(content))
 
     # Step 2: Full proxy query for answer accuracy
     t1 = time.time()
@@ -167,6 +288,11 @@ def find_needle(client, needle):
         "expected": needle["expected"],
         "found_in_context": found_in_context,
         "answer_correct": answer_correct,
+        "gold_delivered": gold_delivered,
+        "gold_has_answer": gold_has_answer,
+        "false_positive_substring": false_positive,
+        "n_gold_blocks": n_gold_blocks,
+        "n_delivered_blocks": n_delivered_blocks,
         "context_latency_s": round(context_latency, 3),
         "proxy_latency_s": round(proxy_latency, 3),
         "ellipticity": health.get("ellipticity", 0),
@@ -210,8 +336,14 @@ def main():
             found_answer += 1
 
     print(f"\n=== Results ===")
-    print(f"Context retrieval:  {found_context}/{len(NEEDLES)} ({found_context/len(NEEDLES)*100:.0f}%)")
-    print(f"Answer accuracy:    {found_answer}/{len(NEEDLES)} ({found_answer/len(NEEDLES)*100:.0f}%)")
+    print(f"Context retrieval (honest):  {found_context}/{len(NEEDLES)} ({found_context/len(NEEDLES)*100:.0f}%)")
+    print(f"Answer accuracy:             {found_answer}/{len(NEEDLES)} ({found_answer/len(NEEDLES)*100:.0f}%)")
+
+    gold_delivered = sum(1 for r in results if r.get("gold_delivered"))
+    false_positives = sum(1 for r in results if r.get("false_positive_substring"))
+    print(f"Gold source in top-K:        {gold_delivered}/{len(NEEDLES)} ({gold_delivered/len(NEEDLES)*100:.0f}%)")
+    print(f"False-positive substring:    {false_positives}/{len(NEEDLES)} "
+          f"(old-scoring would count these as hits)")
 
     avg_latency = sum(r["context_latency_s"] for r in results) / len(results)
     print(f"Avg context latency: {avg_latency:.1f}s")
@@ -225,7 +357,10 @@ def main():
         "summary": {
             "context_retrieval_rate": found_context / len(NEEDLES),
             "answer_accuracy_rate": found_answer / len(NEEDLES),
+            "gold_delivered_rate": gold_delivered / len(NEEDLES),
+            "false_positive_substring_count": false_positives,
             "avg_context_latency_s": round(avg_latency, 3),
+            "scoring": "gold_source_in_top_K_and_body_substring",
         },
     }
 
