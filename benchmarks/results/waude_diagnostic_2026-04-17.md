@@ -92,6 +92,58 @@ accept string to appear in a delivered-content window of ~60 chars
 that also contains a query term, not globally. That alone would
 re-rate the 2026-04-16 baseline from 9/10 → ~6-7/10 delivery.
 
+## Follow-up from Waude council (appended 2026-04-17)
+
+Waude reviewed the finding and flagged that my "cleaner experiment"
+take above is partially wrong. Revised read:
+
+1. **Batch-N is not a misallocation.** For D-category failures, raising
+   top-K *would* pull the gold gene into the delivered set (currently
+   invisible to the consumer). Batch-N trades precision for recall and
+   directly addresses D.
+
+2. **Consumer correctness is actually high.** Given real delivery
+   ≈ 6/10 (not 9/10), the model got 5/6 ≈ 83% of delivered queries right.
+   Opus is fine. The "consumer is the new bottleneck" framing from
+   earlier sessions was wrong on this bench.
+
+3. **Query-aware compression (step 2) doesn't touch D at all.**
+   Compression only runs on retrieved genes. If the gold gene isn't in
+   top-K, compression can't help. Re-sequence: query extraction
+   hardening (step 1) is the single intervention that addresses
+   D-category.
+
+4. **The bench itself has a bug.** `found_in_context = substring in
+   payload` counts metadata, URL ports, and hash prefixes as hits. Every
+   delivery number from this bench is suspect until the check becomes
+   "gold gene (by source path or gene_id) in top-K."
+
+### Revised sequencing (from Waude)
+
+- **Step 0**: Fix needle bench scoring — gold-gene-in-top-K, not
+  payload substring. Re-run baseline. Expect the real number to be
+  ~60-70%, not 90%.
+- **Step 0.5**: Re-baseline SNOW on current 7.8k-gene genome as locked
+  reference (SNOW already uses gene-ID scoring, so it's honest —
+  27.7% oracle miss from today is the real number).
+- **Step 1**: Query extraction hardening. Only now is the instrument
+  honest enough to measure the lift.
+- **Step 2**: Decide based on data. Compression work only lands if
+  delivery still has gap after step 1.
+
+### Pattern — query-side signal is too weak to discriminate
+
+Same failure mode appearing across multiple observations:
+- Needle-bench substring artifact (this diagnostic)
+- SPARSE context_health warnings (Codex reports)
+- 18k-vs-7.8k-gene scoping gap
+- ROADMAP.md outranking helix_status.py on status queries
+
+In all of these, coincidental token overlap beats semantic relevance
+because the query-side signal is too weak to discriminate. Query
+extraction hardening addresses the root cause across all of them —
+rare property in a fix.
+
 ## Artifacts
 
 - `/tmp/waude_diagnostic.json` — raw /context outputs per bug-zone query
