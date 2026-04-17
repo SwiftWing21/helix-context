@@ -256,3 +256,4 @@ def upsert_fingerprint(
             key_values_json, 1 if is_parent else 0, sequence_idx, time.time(),
         ),
     )
+    conn.commit()
