@@ -3,8 +3,8 @@
 A standalone supervisor + dashboard that solves the "who starts helix"
 problem and gives a live view of what's actually running.
 
-**Status:** Design spec — not yet implemented.
-**Target version:** `helix-context v0.4.0b2` (TBD — follows session registry).
+**Status:** Implemented in the repo and shipped as `helix-launcher`.
+**Maturity:** Beta; this document is now the architecture/reference doc for the shipped launcher.
 **Depends on:** session registry (for party/participant counts on the dashboard).
 **Related:** [`SESSION_REGISTRY.md`](SESSION_REGISTRY.md), [`RESTART_PROTOCOL.md`](RESTART_PROTOCOL.md).
 
@@ -12,9 +12,9 @@ problem and gives a live view of what's actually running.
 
 ## Motivation
 
-Today, running a helix-context server means typing `python -m uvicorn
-helix_context.server:app --host 127.0.0.1 --port 11437` into a terminal
-and hoping nothing kills the shell. The gaps:
+Without the launcher, running a helix-context server means typing
+`python -m uvicorn helix_context.server:app --host 127.0.0.1 --port 11437`
+into a terminal and hoping nothing kills the shell. The gaps:
 
 1. **No supervisor.** If the helix process dies — OOM, crash, deliberate
    kill — nothing brings it back. Empirically confirmed 2026-04-10:

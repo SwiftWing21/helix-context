@@ -18,10 +18,10 @@ which each gene was authored):
 
 | Layer | What it represents | Example | Why we need it separately |
 |---|---|---|---|
-| **org** | tenant / team / company | `swiftwing` | Compliance, billing, cross-device aggregation |
-| **device** (party) | physical machine | `gandalf` | Cross-machine vs cross-account separation |
-| **user** (participant) | human | `max` | "Who created this?" — the human in the loop |
-| **agent** | AI persona | `laude`, `conductor` | "Which AI did the work?" — distinguishes Laude vs Taude vs manual |
+| **org** | trust root / tenant / team | `swiftwing` | Compliance, billing, shared authorization scope |
+| **device** (party) | physical substrate / execution host | `gandalf` | Cross-machine vs cross-account separation |
+| **user** (participant) | human principal | `max` | "Who created this?" — the human in the loop |
+| **agent** | software actor / AI persona | `laude`, `conductor` | "Which AI did the work?" — distinguishes Laude vs Taude vs manual |
 | **+ tz** (forensic) | IANA timezone at write | `America/Los_Angeles` | Travel detection, DST drift, jurisdiction context |
 
 Each gene's `gene_attribution` row carries all four identity axes plus
@@ -84,6 +84,11 @@ forensics:
 - *"What did Laude specifically build?"* — filter by agent
 - *"What did Laude on gandalf, on max's behalf, in SwiftWing, do?"* — composite
 
+Terminology note: the canonical schema names remain `org`, `party`,
+`participant`, and `agent`. In prose we may gloss them as trust root,
+physical substrate, human principal, and software actor respectively.
+See [`ROSETTA.md`](ROSETTA.md) for the translation layer.
+
 ## Schema
 
 ```sql
@@ -144,10 +149,10 @@ What changes across federation tiers is **the source of those IDs**:
 
 | Tier | org_id | party_id | participant_id | agent_id |
 |---|---|---|---|---|
-| **Solo / single-persona (today)** | `'local'` | hostname | OS user UUID | NULL or HELIX_AGENT |
-| **Multi-persona dev box** | `HELIX_ORG` env | hostname | OS user UUID | `HELIX_AGENT` per session |
+| **Solo / single-persona (today)** | `'local'` trust root | hostname / device | OS user UUID | NULL or `HELIX_AGENT` |
+| **Multi-persona dev box** | `HELIX_ORG` env | hostname / device | OS user UUID | `HELIX_AGENT` per session |
 | **Small team** | `HELIX_ORG` env | `HELIX_DEVICE` env | `HELIX_USER` env | `HELIX_AGENT` env |
-| **Enterprise SSO** | OAuth org claim | hostname / SaaS gateway | OAuth user claim | request header / agent token |
+| **Enterprise SSO** | OAuth org claim / tenant root | hostname / SaaS gateway | OAuth user claim | request header / agent token |
 
 Because the schema is invariant, every gene attributed at the local tier
 remains validly attributed when SSO comes online. The auth edge replaces

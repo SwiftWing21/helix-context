@@ -65,7 +65,7 @@ they cannot:
    the retrieval budget preferred older, larger matches.
 
 The session registry solves all three with three additive concepts: a **party**
-layer for trust identity, a **participant** layer for live actors, and an
+layer for stable execution-side identity, a **participant** layer for live actors, and an
 **authored-genes** view that bypasses BM25 for recency-sorted retrieval.
 
 ## The layering
@@ -78,14 +78,22 @@ parties       atomic principals (humans, tenants, org service identities) — st
 collectives   recursive groupings with access structures (orgs, communities, consortiums)
 ```
 
-**Party** = a trust identity. In the single-user case today, every Claude panel
-a user runs is a participant under the **one** party that represents the user.
-In a future multi-tenant / federation world, a party is a tenant or a
-collaborating peer.
+**Party** = the stable substrate-level principal for session presence. In the
+single-user case today, every Claude panel a user runs is a participant under
+the **one** party representing that device or host context. In future
+federation, party can still represent the execution-side principal even when
+the org layer above it carries the broader trust root.
 
-**Participant** = a live AI actor acting under a party. A Claude Code panel is
-a participant. An `Agent`-tool sub-agent is a participant (under the same party
+**Participant** = a live actor under a party. A Claude Code panel is a
+participant. An `Agent`-tool sub-agent is a participant (under the same party
 as its spawner). A future swarm member is a participant.
+
+Terminology note: in the 4-layer authored-ingest model, `participant` refers
+to the human principal and `agent` to the software actor working on that
+human's behalf. The session registry predates that fuller split, so older
+registry prose may describe a live Claude session itself as a participant.
+That historical wording remains readable; see [`ROSETTA.md`](ROSETTA.md) and
+[`FEDERATION_LOCAL.md`](FEDERATION_LOCAL.md) for the current crosswalk.
 
 **Why this layering?** Shamir Secret Sharing and threshold-cryptography
 literature (see Discussion #5) operate across *principals*, not across an

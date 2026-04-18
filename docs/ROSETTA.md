@@ -18,6 +18,32 @@ terms surface in the codebase, add them here.
 
 ---
 
+## Identity vocabulary
+
+The biology rename is not the only translation Helix needs. The identity
+layer also has a few near-synonyms in active use across design notes,
+code comments, and handoffs. The canonical schema terms stay:
+
+- `org`
+- `party`
+- `participant`
+- `agent`
+
+But these are the intended meanings:
+
+| Canonical term | Preferred meaning | Common equivalents we still want readers to understand | Notes |
+|---|---|---|---|
+| `org` | trust root / trust domain / tenant | org, team, company, enterprise owner, auth root | Prefer the stable owner or authorization root, not a raw credential like an API key. |
+| `party` | physical substrate / device | party, host, machine, handset, workstation | `party_id` remains the schema term. In local-first federation this is usually a device or execution host. |
+| `participant` | human principal | participant, user, human, operator | In authored-ingest attribution this is the human identity on whose behalf work happens. |
+| `agent` | software actor | agent, AI persona, software actor, model persona | The runtime AI layer acting on behalf of the participant. |
+
+This is intentionally a Rosetta layer, not a rename directive. New docs
+should prefer the canonical schema names while making the meaning clear
+in prose, for example: "party (device)" or "agent (software actor)".
+
+---
+
 ## Mapping table
 
 The table is bidirectional: scan the left column to translate legacy

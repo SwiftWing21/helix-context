@@ -1,7 +1,7 @@
 # Helix-Context Retrieval Dimensions
 
-> **Last updated:** 2026-04-11 (commit `059d902`)
-> **Genome:** 17,623 genes (12,401 OPEN / 1,895 EUCHRO / 3,327 HETERO)
+> **Last reviewed:** 2026-04-17 (working tree)
+> **Genome snapshot:** 19,738 genes (13,710 OPEN / 1,949 EUCHRO / 4,079 HETERO)
 >
 > **Status: LLM-free pipeline as of 2026-04-09 (CPU pipeline commit) +
 > 2026-04-13 (Sprints 1-4).** Every dimension below — D1 through D9,
@@ -21,7 +21,7 @@
                      exists    flowing    retrieval    measured
                     ────────  ────────   ──────────   ────────
 
- ACTIVE (6)
+ ACTIVE (7)
  ───────────────────────────────────────────────────────────────
 
  D1  Semantic        [████]    [████]     [████]       [████]
@@ -48,24 +48,22 @@
      frequency       cymatics   harmonic_  Step 3       post-cymatics
      resonance       .py        links      resonance    N=50 pending
 
+ D9  Temporal        [████]    [████]     [▓▓▓░]       [░░░░]
+     context (TCM)   tcm.py     per-session Step 3.25   forward-recall
+                     +session   drift vec   tiebreaker  bench pending
 
- IN PROGRESS (3)
+
+ PARTIAL / MIXED (2)
  ───────────────────────────────────────────────────────────────
 
- D7  Gene            [████]    [░░░░]     [░░░░]       [░░░░]
-     attribution     gene_attr  0 rows     not a        blocked on
-                     +parties   schema     scoring      registry
-                     +particip  only       signal yet   data flow
+ D7  Gene            [████]    [▓▓▓░]     [▓▓▓░]       [░░░░]
+     attribution     gene_attr  live rows  party gate   scoring bonus
+                     +registry  + /ingest   + citations still pending
 
- D8  Co-activation   [████]    [▓▓▓░]     [░░░░]       [░░░░]
-     graph           entity_    entity_gr  not read     blocked on
-                     graph +    harmonic_  at query     ray-trace
-                     harmonic   links(94)  time         wiring
-
- D9  Temporal        [░░░░]    [░░░░]     [░░░░]       [░░░░]
-     context (TCM)   not built  —          —            —
-                     assigned                           Howard &
-                                                        Kahana 2002
+ D8  Co-activation   [████]    [████]     [▓▓▓░]       [░░░░]
+     graph           entity_    entity_gr  harmonic +   SR/entity
+                     graph +    + 227k     ray-trace    graph bench
+                     harmonic   links      live; SR off pending
 
 
  LEGEND
@@ -73,6 +71,12 @@
   [████]  Done / active        [▓▓▓░]  Partial data
   [░░░░]  Not started
 ```
+
+Auxiliary live tiers not counted as separate D-lanes:
+
+- `path_key_index` Tier 0 compound retrieval is live and fires before D1/D2 fusion.
+- `filename_anchor` exists as a dark-shipped lexical boost, but remains off in the default `helix.toml`.
+- `SR` exists as a graph-expansion path under D8, but remains dark-shipped in the default `helix.toml`.
 
 ---
 
@@ -88,6 +92,11 @@ Three sub-tiers in a fusion pipeline:
 | Tier 2 | SPLADE sparse term expansion | `splade_terms` |
 | Tier 3/3.5 | ΣĒMA 20-dim cosine similarity | `genes.embedding` |
 | Cold fallthrough | ΣĒMA cosine on heterochromatin | `genes WHERE chromatin=2` |
+
+Related live adjuncts, not counted as separate dimensions:
+
+- `path_key_index` Tier 0 compound retrieval (`path_token` + `kv_key`)
+- optional `filename_anchor` lexical boost (dark-shipped by default)
 
 ### D2 — Promoter Tagging
 
@@ -130,32 +139,58 @@ Maps retrieval onto wave physics. CPU-based (~5 ms) replacement for LLM re_rank 
 | Co-activation | Harmonic coupling | Weighted spectral edges (`harmonic_links`) |
 | Splice | Bandwidth filtering | Q-factor from `splice_aggressiveness` |
 
-Integrated at Step 3 of `context_manager._express()`: `cymatics.resonance_rank()` preferred, LLM fallback.
+Integrated at Step 3 of `context_manager._express()` as a blended score bonus.
+Current live path uses `query_spectrum()` + `flux_score_dispatch()` to add a
+small bonus and re-sort candidates. The old "LLM fallback" language is legacy.
 
-### D7 — Gene Attribution (in progress)
+### D7 — Gene Attribution (partial, live data path)
 
-Schema deployed (`gene_attribution`, `participants`, `parties`). Zero data rows — registry ingestion path not wired. Two planned consumers:
+Schema and data flow are now live: `/ingest` can resolve or accept explicit
+`org_id`, `party_id`, `participant_handle`, and `agent_handle`, and writes
+`gene_attribution` rows when identity is known.
 
-1. **Per-party scoping** — security-critical cross-tenant isolation
-2. **Authorship-class scoring** — genes from user's own party get relevance bonus
+Current consumers:
+
+1. **Per-party scoping** — `query_genes(..., party_id=...)` excludes genes attributed to other parties while still allowing unattributed legacy genes through.
+2. **Citation enrichment** — `/context` citations can emit `authored_by_party` and `authored_by_handle`.
+
+Still pending:
+
+1. **Authorship-class scoring** — same-party or same-agent relevance bonus is not live yet.
 
 ### D8 — Co-Activation Graph (partial data)
 
-Three data sources, none currently read at query time:
+Three data sources exist, and part of the graph stack is now read at query time:
 
 | Source | Location | Rows |
 |---|---|---|
 | Legacy co-activation | `epigenetics.co_activated_with` | Per-gene JSON |
 | Entity graph | `entity_graph` table | Varies |
-| Cymatics harmonics | `harmonic_links` table | 94+ |
+| Cymatics harmonics | `harmonic_links` table | 227k+ in current genome |
 
-Candidate wiring approaches: ScoreRift ray-trace port, or simpler harmonic-link boost.
+Current live wiring:
 
-### D9 — Temporal Context Model (not built)
+- Tier 5 harmonic boost in `query_genes()`
+- Step 3.20 harmonic-bin boost via `ray_trace.harmonic_bin_boost()`
 
-Howard & Kahana 2002 temporal context evolution equation as a per-session drift vector.
-Reframed as a **trajectory layer** operating across all retrieval dimensions, not a 9th
-retrieval dimension competing with D1–D8 for ranking weight.
+Still partial:
+
+- `entity_graph` is populated but not a first-class read path in retrieval fusion
+- SR (`sr_boost`) exists under D8 but is dark-shipped by default
+- seeded edges exist but are dark-shipped by default
+
+### D9 — Temporal Context Model (built, lightly wired)
+
+Howard & Kahana 2002 temporal context evolution equation now exists as a
+per-session drift vector. It is not a primary recall tier inside
+`query_genes()`; instead, it acts as a trajectory layer that lightly
+reorders already-retrieved candidates.
+
+Current live wiring:
+
+- per-session TCM state is initialized in `HelixContextManager`
+- Step 3.25 applies `tcm_bonus(...)` as a tiebreaker over current candidates
+- optional theta-biased ray tracing can use TCM velocity, but that flag is off by default
 
 Reference: Howard, M. W., & Kahana, M. J. (2002). *A distributed representation of temporal context.* J. Math. Psych. 46(3), 269-299.
 
@@ -167,6 +202,6 @@ Reference: Howard, M. W., & Kahana, M. J. (2002). *A distributed representation 
 |---|---|---|---|
 | D4 | N=50 access_rate ON vs OFF | ≥1pp retrieval | Worse than monotonic |
 | D6 | N=50 post-cymatics | ≥0pp (non-regression) + latency win | Retrieval degrades vs LLM re_rank |
-| D7 | Wire data flow, test party isolation | No cross-party leakage | (Must ship — security requirement) |
-| D8 | Ray-trace or harmonic boost, N=50 | ≥2pp retrieval | <1pp — graph not load-bearing |
+| D7 | Party scoping + attribution correctness | No cross-party leakage; citations correctly attributed | Wrongly-scoped or misattributed data |
+| D8 | Harmonic/ray-trace/SR A/B | ≥2pp retrieval or clear robustness gain | <1pp and no failure-mode reduction |
 | D9 | TCM forward-recall asymmetry | Asymmetry visible in benchmark | No asymmetry — wrong or N/A |
