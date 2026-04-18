@@ -35,9 +35,22 @@ Repository = "https://github.com/SwiftWing21/helix-context"
 Issues = "https://github.com/SwiftWing21/helix-context/issues"
 
 [project.optional-dependencies]
+# Every extra below is gated on a feature helix exposes at runtime. Core
+# (`pip install helix-context`) gives a working HTTP server + /context
+# + /context/packet with genome-local retrieval. Add extras as you turn
+# on specific features.
 accel = ["orjson>=3.9"]
 embeddings = ["numpy", "sentence-transformers"]
 cpu = ["spacy>=3.7"]
+# MCP SDK — required for `python -m helix_context.mcp_server` (Claude Code,
+# Cursor, Claude Desktop integration). Core install does NOT pull this;
+# add the extra if you're a MCP host operator.
+mcp = ["mcp>=1.0"]
+# NLI / DeBERTa cross-encoder backends — only needed when
+# `[ribosome] backend = "deberta"` or relation-graph NLI is enabled.
+# `embeddings` already transitively pulls torch via sentence-transformers,
+# so this is just the standalone path.
+nli = ["torch>=2.0", "transformers>=4.30"]
 # OpenTelemetry observability — traces + metrics + logs via OTLP gRPC.
 # Required only when `HELIX_OTEL_ENABLED=1`; core helix runs without them.
 otel = [
@@ -63,11 +76,22 @@ scorerift = ["scorerift"]
 # (https://github.com/chopratejas/headroom, Apache-2.0). See NOTICE.
 codec = ["headroom-ai[proxy,code]>=0.5.21"]
 dev = ["pytest", "pytest-asyncio"]
+# `all` covers the full feature surface minus contributor-only extras
+# (dev) and the LGPL launcher-tray variant. Dep bulk dominated by
+# sentence-transformers + torch + spacy + tree-sitter + headroom-ai.
 all = [
     "orjson>=3.9",
     "numpy",
     "sentence-transformers",
     "spacy>=3.7",
+    "mcp>=1.0",
+    "torch>=2.0",
+    "transformers>=4.30",
+    "opentelemetry-sdk>=1.27",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.27",
+    "opentelemetry-instrumentation-fastapi>=0.48b0",
+    "jinja2>=3.1",
+    "psutil>=5.9",
     "tree-sitter>=0.23",
     "tree-sitter-python>=0.23",
     "tree-sitter-rust>=0.23",
