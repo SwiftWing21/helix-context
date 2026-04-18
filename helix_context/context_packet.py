@@ -13,6 +13,7 @@ from pathlib import PurePath
 from typing import Optional
 
 from .accel import extract_query_signals
+from .genome import path_tokens
 from .schemas import ContextItem, ContextPacket, Gene, RefreshTarget
 
 _HALF_LIFE_SECONDS = {
@@ -201,6 +202,50 @@ def _item_citations(gene: Gene, meta: dict) -> list[str]:
     return citations
 
 
+def _coordinate_confidence(query: str, genes: list[Gene]) -> float:
+    """Path-token overlap between query and delivered gene source paths.
+
+    Step 1b-iter2 signal (2026-04-18): measures whether retrieval landed
+    in the coordinate region the query names, independent of content
+    freshness. Folder-grain, not file-grain. Hit mean 1.00 vs miss mean
+    0.52 on the 10-needle bench.
+    """
+    if not genes:
+        return 0.0
+    domains, entities = extract_query_signals(query)
+    q_set = {t.lower() for t in (domains + entities) if t}
+    if not q_set:
+        return 0.0
+    hits = 0
+    for g in genes:
+        sid = getattr(g, "source_id", None)
+        if sid and (path_tokens(sid) & q_set):
+            hits += 1
+    return hits / len(genes)
+
+
+_COORDINATE_CONFIDENCE_FLOOR = 0.30
+
+
+def _apply_coordinate_confidence(
+    status: str, task_type: str, coordinate_confidence: float,
+) -> str:
+    """Downgrade status when coordinate confidence is below the floor.
+
+    Freshness answers "is what we resolved to trustworthy?" — but if the
+    resolution itself landed in the wrong region, freshness is a category
+    error. Low coordinate confidence forces a refresh cue regardless of
+    how fresh the delivered content is.
+    """
+    if coordinate_confidence >= _COORDINATE_CONFIDENCE_FLOOR:
+        return status
+    if task_type in _HIGH_RISK_TASKS:
+        return "needs_refresh"
+    if status == "verified":
+        return "stale_risk"
+    return status
+
+
 def _build_item(
     gene: Gene,
     *,
@@ -208,6 +253,7 @@ def _build_item(
     meta: dict,
     task_type: str,
     now_ts: float,
+    coordinate_confidence: float = 1.0,
 ) -> tuple[ContextItem, str]:
     freshness_known = meta.get("last_verified_at") is not None
     freshness_score = _freshness_score(
@@ -229,6 +275,7 @@ def _build_item(
         invalidated_at=meta.get("invalidated_at"),
         freshness_known=freshness_known,
     )
+    status = _apply_coordinate_confidence(status, task_type, coordinate_confidence)
 
     item = ContextItem(
         kind="gene",
@@ -316,6 +363,16 @@ def build_context_packet(
     if effective_main_conn is None:
         packet.notes.append("source_index unavailable; using gene-local metadata only")
 
+    # Step 1b-iter2: coordinate_confidence downgrades status when
+    # retrieval lands outside the coordinate region the query names.
+    coordinate_confidence = _coordinate_confidence(query, genes)
+    if coordinate_confidence < _COORDINATE_CONFIDENCE_FLOOR:
+        packet.notes.append(
+            f"coordinate_confidence={coordinate_confidence:.2f} below "
+            f"{_COORDINATE_CONFIDENCE_FLOOR:.2f} floor — retrieval may not "
+            "have located the right coordinate region"
+        )
+
     for gene in genes:
         source_row = _lookup_source_row(effective_main_conn, gene.gene_id)
         meta = _effective_meta(gene, source_row)
@@ -325,6 +382,7 @@ def build_context_packet(
             meta=meta,
             task_type=task_type,
             now_ts=now_ts,
+            coordinate_confidence=coordinate_confidence,
         )
         if status == "verified":
             packet.verified.append(item)

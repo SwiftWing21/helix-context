@@ -161,7 +161,15 @@ class ContextHealth(BaseModel):
     # "how confident was the coordinate resolution itself."
     coordinate_crispness: float = 0.0   # Top-K score dominance: (s[0]-s[k])/(s[0]+ε)
     neighborhood_density: float = 0.0   # Fraction of top-K with score >= 0.3 * top
-    resolution_confidence: float = 0.0  # Composite: sqrt(crispness * coverage)
+    resolution_confidence: float = 0.0  # Composite: pathcov * sqrt(coverage) — iter2
+    # Step 1b-iter2 (2026-04-18): three signal candidates measured against
+    # gold_delivered on the 10-needle bench. First iteration's crispness
+    # and neighborhood were anti-correlated with ground truth — these are
+    # the alternates. path_token_coverage is the discriminator (delta +0.48).
+    top_score_raw: float = 0.0          # Absolute top-1 score (scale-sensitive)
+    top_dominance: float = 0.0          # top / mean(all scored) — how much #1 dominates
+    path_token_coverage: float = 0.0    # Fraction of delivered genes whose source_path
+                                        # tokens overlap the extracted query signals
 
 
 class ContextWindow(BaseModel):

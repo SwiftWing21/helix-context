@@ -1809,9 +1809,13 @@ class HelixContextManager:
         # See benchmarks/results/needle_step1b_conf_null_2026-04-17.json.
         crispness = 0.0
         neighborhood = 0.0
+        top_score_raw = 0.0
+        top_dominance = 0.0
+        path_token_coverage = 0.0
         try:
             scores_map = getattr(self.genome, "last_query_scores", None) or {}
             if candidates and scores_map:
+                all_scored = sorted(scores_map.values(), reverse=True)
                 ordered = sorted(
                     (scores_map.get(g.gene_id, 0.0) for g in candidates),
                     reverse=True,
@@ -1825,10 +1829,43 @@ class HelixContextManager:
                         threshold = 0.3 * top
                         n_strong = sum(1 for s in ordered if s >= threshold)
                         neighborhood = n_strong / max(len(ordered), 1)
+                    top_score_raw = float(top)
+                    pool = all_scored if len(all_scored) > len(ordered) else ordered
+                    if pool:
+                        mean_score = sum(pool) / len(pool)
+                        if mean_score > 1e-9:
+                            top_dominance = top / mean_score
         except Exception:
             log.debug("coordinate confidence calc failed", exc_info=True)
 
-        resolution_conf = math.sqrt(max(0.0, crispness) * max(0.0, coverage))
+        # Path-token coverage (Step 1b-iter2, 2026-04-18): does the
+        # delivered top-K actually *live* in the coordinate region the
+        # query names? Pathway-layer signal — measures retrieval
+        # location, not content overlap. See
+        # benchmarks/results/needle_step1b_iter2_pathcov_2026-04-18.json.
+        try:
+            if candidates and query_terms:
+                from .genome import path_tokens
+                q_set = {t.lower() for t in query_terms if t}
+                hits = 0
+                for g in candidates:
+                    sid = getattr(g, "source_id", None)
+                    if not sid:
+                        continue
+                    toks = path_tokens(sid)
+                    if toks & q_set:
+                        hits += 1
+                path_token_coverage = hits / max(len(candidates), 1)
+        except Exception:
+            log.debug("path token coverage calc failed", exc_info=True)
+
+        # Composite v2: path_token_coverage is the only signal from
+        # iter1+iter2 that discriminates hit-vs-miss on the 10-needle
+        # bench (delta +0.48). Crispness/neighborhood were anti-correlated;
+        # neighborhood saturated; top_dominance was inverted. Pathcov leads
+        # with coverage as a floor to prevent empty-context scoring 1.0.
+        coverage_floor = max(coverage, 0.05)
+        resolution_conf = path_token_coverage * math.sqrt(coverage_floor)
 
         # Telemetry: surface per-query health so dashboards can watch
         # the retrieval-quality distribution over time. No-op if OTel
@@ -1859,6 +1896,9 @@ class HelixContextManager:
             coordinate_crispness=round(crispness, 4),
             neighborhood_density=round(neighborhood, 4),
             resolution_confidence=round(resolution_conf, 4),
+            top_score_raw=round(top_score_raw, 4),
+            top_dominance=round(top_dominance, 4),
+            path_token_coverage=round(path_token_coverage, 4),
         )
 
     # -- Internal: compaction ------------------------------------------
