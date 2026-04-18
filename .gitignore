@@ -11,14 +11,26 @@ genome.db
 genome.db-wal
 genome.db-shm
 genome-bench-*.db
+genome_bench_*.db
+genome_bench_*.db-shm
+genome_bench_*.db-wal
 genome_cpu.db
 genome_cpu.db-wal
 genome_cpu.db-shm
 genome.db.pre-*.bak
 genome.db.pre-*.bak-shm
 genome.db.pre-*.bak-wal
+genome_*.db
+genome_*.db-shm
+genome_*.db-wal
+helix.db
+helix.db-shm
+helix.db-wal
 *.SAFETY_COPY
 helix.log
+metrics.json
+overnight_logs/
+genomes/
 
 # Benchmark incremental traces (one line per needle)
 benchmarks/*.incremental.jsonl
@@ -27,6 +39,27 @@ benchmarks/*.monitor.jsonl
 # Benchmark stdout captures and runtime logs (ephemeral; archive selectively if needed)
 benchmarks/*.log
 benchmarks/*.stdout.log
+# Local benchmark scratch/results that are regenerated frequently
+benchmarks/_fingerprint_*.json
+benchmarks/compact_sweep_*.json
+benchmarks/compression_fresh_genome.json
+benchmarks/dimensional_lock_results.json
+benchmarks/docs_tidy_diff.md
+benchmarks/docs_tidy_*.json
+benchmarks/forward_recall_*.json
+benchmarks/needle_10_*.json
+benchmarks/needle_20_*.json
+benchmarks/needle_250_*.json
+benchmarks/needle_50_results.json
+benchmarks/needle_50_pre_tagger_fix.json
+benchmarks/needle_50_post_tagger_fix.json
+benchmarks/needle_50_v2_*.json
+benchmarks/needle_50_v2_slice3_gate_*.json
+benchmarks/needle_50_8b_dynamic_results.json
+benchmarks/needle_50_8b_post_sweep.json
+benchmarks/needle_1000_results_error.json
+benchmarks/needles_50_for_claude.json
+benchmarks/snow/results/snow_*.json
 
 # IDE
 .vscode/
