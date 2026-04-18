@@ -1,5 +1,31 @@
 # Index-Mode Endpoint — Helix as Pathway, Not Store
 
+**Status:** Superseded 2026-04-17 by GT's build spec at
+`docs/specs/2026-04-17-agent-context-index-build-spec.md` (commit
+`f10fc8a`), which landed context-packet API + schemas + implementation
++ tests in one go. This sketch is kept for the framing sections (what
+stays in Helix vs caller, confidence-propagation from Step 1b) that
+the authoritative spec doesn't duplicate. Read the build spec first;
+come back here if you want the reframe context.
+
+**How the two relate:**
+- GT's `/context/packet` ≈ this doc's `/index` + freshness labeling.
+  GT chose endpoint naming, byte-range shape (gene-grained via
+  `support_span`), and the `verified/stale_risk/needs_refresh` verdict
+  set. All my open questions are answered there.
+- This doc's Step 1b confidence fields (`coordinate_crispness`,
+  `neighborhood_density`, `resolution_confidence`) stay on
+  `ContextHealth` and are orthogonal to the packet's `live_truth_score`
+  — one measures "how confident was the coordinate resolution,"
+  the other measures "how fresh/authoritative is what we resolved to."
+  Both are load-bearing; they compose.
+- The packet builder doesn't currently read Step 1b confidence; that's
+  a future integration point (weighing ⊗ freshness = true know-vs-go).
+
+**Original sketch below preserved as historical framing:**
+
+---
+
 **Status:** Design sketch, 2026-04-17. Not a commitment. Drafted by
 Laude after the SIKE pathway-layer reframe (see
 `~/.claude/.../project_helix_weighs_not_retrieves.md`) and Step 1b
