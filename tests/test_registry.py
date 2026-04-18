@@ -1010,13 +1010,19 @@ class TestIngestAttribution:
         assert data.get("attributed", 0) >= 1
 
     def test_ingest_without_participant_id_skips_attribution(self, client):
+        # local_federation=False opts out of trust-on-first-use env-based
+        # attribution (default since the 4-layer federation work landed —
+        # see _local_attribution_defaults in server.py). With the opt-out
+        # + no explicit id, the server resolves no participant/party,
+        # so the `attributed` field is suppressed from the response per
+        # the server.py:580-583 guard.
         resp = client.post("/ingest", json={
             "content": "untagged note",
             "content_type": "text",
+            "local_federation": False,
         })
         assert resp.status_code == 200
         data = resp.json()
-        # No `attributed` field in response when no id was provided.
         assert "attributed" not in data
 
 
