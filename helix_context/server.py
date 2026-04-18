@@ -1413,7 +1413,12 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
     # -- Debug: context-pipeline dry run (no splice) --------------------
 
     @app.get("/debug/preview")
-    async def preview_endpoint(query: str, max_genes: int = 12, profile: str = "balanced"):
+    async def preview_endpoint(
+        query: str,
+        max_genes: int = 12,
+        profile: str = "balanced",
+        score_floor: float = 0.0,
+    ):
         """Dry-run the retrieval pipeline up to candidate selection.
 
         Runs the cheap part of the /context pipeline -- query extraction
@@ -1425,6 +1430,11 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
         Useful for debugging "why isn't my query surfacing gene X?"
         without paying the full /context cost. Much cheaper than
         /context itself; no ribosome calls.
+
+        ``score_floor`` mirrors the /fingerprint knob: candidates whose
+        post-refiner score falls below the threshold are filtered out.
+        Accounting fields describe what was filtered vs truncated,
+        defined only over the evaluated candidate set.
         """
         profile = str(profile or "balanced").strip().lower()
         if profile not in {"fast", "balanced", "quality"}:
@@ -1432,6 +1442,20 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
                 {"error": "Invalid profile", "allowed": ["fast", "balanced", "quality"]},
                 status_code=400,
             )
+
+        if score_floor < 0:
+            return JSONResponse(
+                {"error": "score_floor must be >= 0"},
+                status_code=400,
+            )
+
+        # Same eval-budget logic as /fingerprint: expand the retrieval
+        # window when a floor is in play so truncated_by_cap is
+        # meaningful. Keep current behavior when floor is 0.
+        if score_floor > 0:
+            eval_budget = min(max(max_genes * 3, 50), 200)
+        else:
+            eval_budget = max_genes
 
         expand_query = profile in {"balanced", "quality"}
         use_harmonic = profile == "quality"
@@ -1449,7 +1473,7 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             candidates = helix._express(
                 domains=domains,
                 entities=entities,
-                max_genes=max_genes,
+                max_genes=eval_budget,
                 query_text=query,
                 use_harmonic=use_harmonic,
                 use_sr=use_sr,
@@ -1457,7 +1481,7 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             candidates, refiner_contrib = helix._apply_candidate_refiners(
                 query,
                 candidates,
-                max_genes,
+                eval_budget,
                 use_cymatics=use_cymatics,
                 use_harmonic_bin=use_harmonic_bin,
                 use_tcm=use_tcm,
@@ -1475,16 +1499,28 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             getattr(helix.genome, "last_tier_contributions", {}) or {},
             refiner_contrib,
         )
+
+        def _final_score(gene_id: str) -> float:
+            tcm_bonus = refiner_contrib.get(gene_id, {}).get("tcm", 0.0)
+            return float(scores.get(gene_id, 0.0) + tcm_bonus)
+
+        evaluated_total = len(candidates)
+        above_floor = [g for g in candidates if _final_score(g.gene_id) >= score_floor]
+        above_floor_total = len(above_floor)
+        truncated = above_floor[:max_genes]
+        returned = len(truncated)
+        filtered_by_floor = evaluated_total - above_floor_total
+        truncated_by_cap = above_floor_total - returned
+
         result = []
-        for rank, g in enumerate(candidates):
+        for rank, g in enumerate(truncated):
             path = None
             if g.promoter and g.promoter.metadata:
                 path = g.promoter.metadata.get("path")
-            tcm_bonus = refiner_contrib.get(g.gene_id, {}).get("tcm", 0.0)
             result.append({
                 "rank": rank,
                 "gene_id": g.gene_id,
-                "score": round(float(scores.get(g.gene_id, 0.0) + tcm_bonus), 4),
+                "score": round(_final_score(g.gene_id), 4),
                 "preview": (g.content or "")[:160],
                 "path": path,
                 "domains": list(g.promoter.domains) if g.promoter else [],
@@ -1495,6 +1531,26 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
                     for k, v in sorted(merged_tiers.get(g.gene_id, {}).items())
                 },
             })
+
+        if returned == 0 and evaluated_total > 0 and score_floor > 0:
+            response_hint = (
+                f"All {evaluated_total} evaluated candidates fell below "
+                f"score_floor={score_floor}; consider lowering it or "
+                f"refining the query."
+            )
+        elif truncated_by_cap > 0:
+            response_hint = (
+                f"{truncated_by_cap} additional candidates cleared the floor "
+                f"but were truncated by max_genes={max_genes}; raise "
+                f"max_genes to see more."
+            )
+        elif filtered_by_floor > 0:
+            response_hint = (
+                f"{filtered_by_floor} evaluated candidates fell below "
+                f"score_floor={score_floor}."
+            )
+        else:
+            response_hint = "No filtering or truncation applied."
 
         return {
             "query": query,
@@ -1507,6 +1563,14 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             "candidates": result,
             "fingerprints": result,
             "count": len(result),
+            "max_genes": max_genes,
+            "score_floor": score_floor,
+            "evaluated_total": evaluated_total,
+            "above_floor_total": above_floor_total,
+            "returned": returned,
+            "filtered_by_floor": filtered_by_floor,
+            "truncated_by_cap": truncated_by_cap,
+            "response_hint": response_hint,
             "note": "Splice step skipped; these are pre-splice candidates.",
         }
 

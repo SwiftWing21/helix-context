@@ -688,6 +688,88 @@ class TestDebugIntrospectionEndpoints:
         candidates = resp.json()["candidates"]
         assert any(c.get("path") == "src/auth.py" for c in candidates)
 
+    def _inject_fake_preview_candidates(self, client, monkeypatch, scored):
+        """Same pattern as fingerprint helper — mock _express + refiners."""
+        from helix_context.schemas import Gene, PromoterTags
+
+        genes = [
+            Gene(
+                gene_id=gid,
+                content=f"content-{gid}",
+                complement=f"summary-{gid}",
+                codons=[],
+                promoter=PromoterTags(domains=[], entities=[], intent="", summary=""),
+                source_id=f"src/{gid}.py",
+            )
+            for gid, _ in scored
+        ]
+        score_map = {gid: float(score) for gid, score in scored}
+
+        helix = client.app.state.helix
+
+        def _fake_express(domains, entities, max_genes, **_kw):
+            helix.genome.last_query_scores = dict(score_map)
+            helix.genome.last_tier_contributions = {
+                gid: {"fts5": score} for gid, score in score_map.items()
+            }
+            return list(genes)
+
+        def _fake_refiners(query, candidates, max_genes, **_kw):
+            return list(candidates), {gid: {} for gid, _ in scored}
+
+        monkeypatch.setattr(helix, "_express", _fake_express)
+        monkeypatch.setattr(helix, "_apply_candidate_refiners", _fake_refiners)
+
+    def test_preview_score_floor_default_preserves_behavior(
+        self, client, monkeypatch
+    ):
+        self._inject_fake_preview_candidates(
+            client, monkeypatch,
+            [("g1", 10.0), ("g2", 5.0), ("g3", 1.0)],
+        )
+        resp = client.get("/debug/preview?query=anything&max_genes=10")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["score_floor"] == 0.0
+        assert data["returned"] == 3
+        assert data["filtered_by_floor"] == 0
+        assert data["truncated_by_cap"] == 0
+
+    def test_preview_score_floor_and_cap_accounting(
+        self, client, monkeypatch
+    ):
+        # Same deterministic shape as the /fingerprint test:
+        # evaluated=5, above_floor=3, returned=2, filtered=2, truncated=1
+        self._inject_fake_preview_candidates(
+            client, monkeypatch,
+            [
+                ("g1", 10.0),
+                ("g2", 8.0),
+                ("g3", 6.0),
+                ("g4", 2.0),
+                ("g5", 1.0),
+            ],
+        )
+        resp = client.get(
+            "/debug/preview?query=anything&max_genes=2&score_floor=5.0"
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["evaluated_total"] == 5
+        assert data["above_floor_total"] == 3
+        assert data["returned"] == 2
+        assert data["filtered_by_floor"] == 2
+        assert data["truncated_by_cap"] == 1
+        assert "truncated by max_genes=2" in data["response_hint"]
+        returned_ids = [c["gene_id"] for c in data["candidates"]]
+        assert returned_ids == ["g1", "g2"]
+
+    def test_preview_negative_score_floor_rejected(self, client):
+        resp = client.get(
+            "/debug/preview?query=anything&score_floor=-1.0"
+        )
+        assert resp.status_code == 400
+
     def test_fingerprint_returns_navigation_payload(self, client):
         client.post("/ingest", json={
             "content": "Authentication module uses JWT refresh tokens.",
