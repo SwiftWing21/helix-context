@@ -39,27 +39,12 @@ benchmarks/*.monitor.jsonl
 # Benchmark stdout captures and runtime logs (ephemeral; archive selectively if needed)
 benchmarks/*.log
 benchmarks/*.stdout.log
-# Local benchmark scratch/results that are regenerated frequently
+# Local benchmark scratch and explicit error outputs
 benchmarks/_fingerprint_*.json
-benchmarks/compact_sweep_*.json
-benchmarks/compression_fresh_genome.json
-benchmarks/dimensional_lock_results.json
 benchmarks/docs_tidy_diff.md
 benchmarks/docs_tidy_*.json
-benchmarks/forward_recall_*.json
-benchmarks/needle_10_*.json
-benchmarks/needle_20_*.json
-benchmarks/needle_250_*.json
-benchmarks/needle_50_results.json
-benchmarks/needle_50_pre_tagger_fix.json
-benchmarks/needle_50_post_tagger_fix.json
-benchmarks/needle_50_v2_*.json
-benchmarks/needle_50_v2_slice3_gate_*.json
-benchmarks/needle_50_8b_dynamic_results.json
-benchmarks/needle_50_8b_post_sweep.json
-benchmarks/needle_1000_results_error.json
-benchmarks/needles_50_for_claude.json
-benchmarks/snow/results/snow_*.json
+benchmarks/*error*.json
+benchmarks/snow/results/*error*.json
 
 # IDE
 .vscode/
