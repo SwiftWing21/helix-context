@@ -36,6 +36,7 @@ from .headroom_bridge import compress_text
 from . import legibility
 from . import session_delivery as _session_delivery
 from .ribosome import ClaudeBackend, LiteLLMBackend, Ribosome, OllamaBackend
+from .provenance import apply_provenance
 from .schemas import (
     ChromatinState,
     ContextHealth,
@@ -428,6 +429,11 @@ class HelixContextManager:
             # Store source file path for change-based decay
             if source_path:
                 gene.source_id = source_path
+                # Phase 1 of agent-context-index spec: populate provenance
+                # (source_kind, volatility_class, observed_at,
+                # last_verified_at) at ingest so the packet builder has
+                # real freshness data without needing a backfill sweep.
+                apply_provenance(gene, source_path)
             # Attach ΣĒMA vector
             if sema_vectors is not None and i < len(sema_vectors):
                 gene.embedding = sema_vectors[i]
@@ -521,6 +527,7 @@ class HelixContextManager:
             is_fragment=False,
             source_id=source_path,
         )
+        apply_provenance(parent, source_path)
         # apply_gate=False: parents are metadata aggregators, not content —
         # they should not be density-gated into heterochromatin.
         self.genome.upsert_gene(parent, apply_gate=False)

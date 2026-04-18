@@ -36,7 +36,7 @@ from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from .config import HelixConfig, load_config
-from .context_packet import build_context_packet
+from .context_packet import build_context_packet, get_refresh_targets
 from .context_manager import HelixContextManager
 from .registry import DEFAULT_HEARTBEAT_INTERVAL_S, DEFAULT_TTL_S, Registry
 
@@ -948,6 +948,48 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
         payload = packet.model_dump()
         payload["response_mode"] = "packet"
         return payload
+
+    @app.post("/context/refresh-plan")
+    async def context_refresh_plan_endpoint(request: Request):
+        """Just the refresh-before-action plan for an agent-safe task.
+
+        Thin convenience over ``/context/packet``: returns only the
+        ``refresh_targets`` list without the full evidence items. Useful
+        when the caller already has the content cached and only needs
+        to decide which sources to reread.
+        """
+        import time as _time
+
+        t0 = _time.time()
+        helix._last_activity_ts = t0
+
+        data = await request.json()
+        query = data.get("query", "")
+        task_type = data.get("task_type", "edit")
+        max_genes = data.get("max_genes", 8)
+
+        if not query or not str(query).strip():
+            return JSONResponse({"error": "No query provided"}, status_code=400)
+
+        try:
+            max_genes = int(max_genes)
+        except (TypeError, ValueError):
+            max_genes = 8
+        max_genes = max(1, min(max_genes, 32))
+
+        targets = get_refresh_targets(
+            str(query),
+            task_type=str(task_type or "edit"),
+            genome=helix.genome,
+            max_genes=max_genes,
+            now_ts=t0,
+        )
+        return {
+            "query": str(query),
+            "task_type": str(task_type or "edit"),
+            "refresh_targets": [t.model_dump() for t in targets],
+            "response_mode": "refresh_plan",
+        }
 
     @app.post("/fingerprint")
     async def fingerprint_endpoint(request: Request):

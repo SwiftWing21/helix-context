@@ -8,6 +8,10 @@ proxies each call to helix's HTTP API. Lets Claude Code / Claude Desktop
 Tools exposed:
     Retrieval / genome:
       helix_context         — main retrieval (the big one)
+      helix_context_packet  — agent-safe packet with freshness labels +
+                               refresh plan (per agent-context-index
+                               build spec, 2026-04-17)
+      helix_refresh_targets — just the reread plan for an edit/ops task
       helix_stats           — genome health + size
       helix_ingest          — add content to the genome
       helix_resonance       — four-primitive introspection chart (ΣĒMA +
@@ -277,6 +281,70 @@ def helix_context(
     if downstream_model:
         body["downstream_model"] = downstream_model
     return _http("POST", "/context", body)
+
+
+# ── Tool: helix_context_packet ───────────────────────────────────────
+# Agent-safe retrieval per docs/specs/2026-04-17-agent-context-index-
+# build-spec.md. Returns evidence labeled verified / stale_risk /
+# needs_refresh plus explicit refresh_targets, instead of raw content.
+# Use this when the agent needs to decide whether to act on retrieved
+# evidence OR reread the source first.
+
+@mcp.tool()
+def helix_context_packet(
+    query: str,
+    task_type: str = "explain",
+    max_genes: int = 8,
+) -> Dict[str, Any]:
+    """Freshness-labeled evidence packet for agent-safe actions.
+
+    Returns a packet with three evidence buckets and a refresh plan:
+        verified         — fresh, authoritative, coordinate-aligned
+        stale_risk       — relevant but aging or weakly grounded
+        refresh_targets  — concrete sources to reread before action
+
+    task_type: "plan" | "explain" | "review" | "edit" | "debug" | "ops"
+        | "quote". Higher-risk types are stricter on freshness and
+        coordinate confidence — "edit" and "ops" will flag marginal
+        evidence that "explain" would accept.
+    max_genes: retrieval top-K (1-32). Default 8.
+
+    Composition: freshness_score × authority × specificity gives
+    live_truth; coordinate_confidence gates for "did we resolve to the
+    right place." Notes include coordinate_confidence warnings when
+    the retrieval may be off-target.
+    """
+    body: Dict[str, Any] = {
+        "query": query,
+        "task_type": task_type,
+        "max_genes": max_genes,
+    }
+    return _http("POST", "/context/packet", body)
+
+
+# ── Tool: helix_refresh_targets ──────────────────────────────────────
+
+@mcp.tool()
+def helix_refresh_targets(
+    query: str,
+    task_type: str = "edit",
+    max_genes: int = 8,
+) -> Dict[str, Any]:
+    """Just the reread plan for a high-risk action.
+
+    Returns refresh_targets only — skips the evidence buckets. Use this
+    when the caller already has content cached and only needs to know
+    which sources are stale enough that rereading is required before
+    the action completes.
+
+    Defaults to task_type="edit" because that's the usual caller.
+    """
+    body: Dict[str, Any] = {
+        "query": query,
+        "task_type": task_type,
+        "max_genes": max_genes,
+    }
+    return _http("POST", "/context/refresh-plan", body)
 
 
 # ── Tool: helix_stats ────────────────────────────────────────────────

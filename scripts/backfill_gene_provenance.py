@@ -41,76 +41,18 @@ import os
 import sqlite3
 import sys
 import time
-from pathlib import PurePosixPath
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 try:
     sys.stdout.reconfigure(encoding="utf-8")
 except Exception:
     pass
 
+from helix_context.provenance import infer_source_kind, infer_volatility
+
 DEFAULT_GENOME = "F:/Projects/helix-context/genomes/main/genome.db"
-
-# Extension → source_kind. Mapping is conservative — unknown extensions
-# fall through to "doc" (safest default for retrieval behavior since
-# doc has a stable half-life).
-_EXT_TO_KIND: dict[str, str] = {
-    # code
-    ".py": "code", ".pyi": "code", ".rs": "code", ".ts": "code",
-    ".tsx": "code", ".js": "code", ".jsx": "code", ".mjs": "code",
-    ".go": "code", ".java": "code", ".rb": "code", ".cpp": "code",
-    ".cc": "code", ".c": "code", ".h": "code", ".hpp": "code",
-    ".swift": "code", ".kt": "code", ".scala": "code", ".sh": "code",
-    ".bash": "code", ".zsh": "code", ".ps1": "code", ".bat": "code",
-    ".sql": "code", ".lua": "code",
-    # config
-    ".toml": "config", ".yaml": "config", ".yml": "config",
-    ".ini": "config", ".cfg": "config", ".env": "config",
-    ".conf": "config", ".properties": "config", ".config": "config",
-    # data-ish config that's often hand-edited
-    ".json": "config",
-    # doc
-    ".md": "doc", ".mdx": "doc", ".rst": "doc", ".adoc": "doc",
-    ".txt": "doc", ".tex": "doc",
-    # notebook (document-ish)
-    ".ipynb": "doc",
-    # log
-    ".log": "log", ".out": "log",
-    # db
-    ".db": "db", ".sqlite": "db", ".sqlite3": "db",
-    # tabular data
-    ".csv": "db", ".tsv": "db", ".parquet": "db", ".arrow": "db",
-}
-
-# source_kind → volatility_class. Matches GT's spec half-lives:
-# stable=7d, medium=12h, hot=15min.
-_KIND_TO_VOLATILITY: dict[str, str] = {
-    "code": "stable",
-    "config": "hot",       # configs are the ops-sensitive ones
-    "doc": "stable",
-    "log": "hot",
-    "db": "medium",
-    "benchmark": "medium",
-    "tool_output": "hot",
-    "session_note": "medium",
-    "user_assertion": "medium",
-}
-
-
-def infer_source_kind(source_id: str | None) -> str | None:
-    """Return the inferred source_kind or None if source_id is empty."""
-    if not source_id:
-        return None
-    # Strip query strings, fragments, line-range suffixes
-    path = str(source_id).split("?", 1)[0].split("#", 1)[0]
-    # Windows-safe extension split
-    suffix = PurePosixPath(path.replace("\\", "/")).suffix.lower()
-    return _EXT_TO_KIND.get(suffix, "doc")
-
-
-def infer_volatility(source_kind: str | None) -> str:
-    if not source_kind:
-        return "medium"
-    return _KIND_TO_VOLATILITY.get(source_kind, "medium")
 
 
 def pick_last_verified_at(
@@ -180,12 +122,18 @@ def backfill(
             skipped_no_source += 1
             continue
 
+        inferred_kind = infer_source_kind(source_id)
+        if inferred_kind is None:
+            # Non-path identifier (e.g. "__session__", "agent:laude") —
+            # leave provenance NULL rather than guessing file semantics.
+            skipped_no_source += 1
+            continue
+
         has_any = any(v is not None for v in (cur_kind, cur_vol, cur_last_verified))
         if has_any and not force:
             skipped_existing += 1
             continue
 
-        inferred_kind = infer_source_kind(source_id) or "doc"
         inferred_vol = infer_volatility(inferred_kind)
         epig_ts = _epigenetics_created_at(epig_blob)
         last_verified = pick_last_verified_at(observed_at, mtime, epig_ts, now_ts)
