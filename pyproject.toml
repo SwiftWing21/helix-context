@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "helix-context"
-version = "0.3.0b5"
-description = "Genome-based context compression for local LLMs"
+version = "0.4.0b1"
+description = "Coordinate index layer for LLM context — Helix weighs, doesn't retrieve"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "Apache-2.0"
