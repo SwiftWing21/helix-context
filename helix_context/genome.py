@@ -356,23 +356,50 @@ class Genome:
             is_fragment  INTEGER,
             embedding    TEXT,     -- JSON list[float] | NULL
             source_id    TEXT,
+            repo_root    TEXT,
+            source_kind  TEXT,
+            observed_at  REAL,
+            mtime        REAL,
+            content_hash TEXT,
+            volatility_class TEXT,
+            authority_class  TEXT,
+            support_span     TEXT,
+            last_verified_at REAL,
             version      INTEGER,
             supersedes   TEXT,
             key_values   TEXT     -- JSON list[str] | NULL
         )
         """)
 
+        existing_columns = {
+            row["name"]
+            for row in cur.execute("PRAGMA table_info(genes)").fetchall()
+        }
+
         # Auto-add key_values column if upgrading from older schema
-        try:
-            cur.execute("SELECT key_values FROM genes LIMIT 1")
-        except sqlite3.OperationalError:
+        if "key_values" not in existing_columns:
             cur.execute("ALTER TABLE genes ADD COLUMN key_values TEXT")
             log.info("Added key_values column to genes table")
+            existing_columns.add("key_values")
+
+        for column_name, column_def in (
+            ("repo_root", "TEXT"),
+            ("source_kind", "TEXT"),
+            ("observed_at", "REAL"),
+            ("mtime", "REAL"),
+            ("content_hash", "TEXT"),
+            ("volatility_class", "TEXT"),
+            ("authority_class", "TEXT"),
+            ("support_span", "TEXT"),
+            ("last_verified_at", "REAL"),
+        ):
+            if column_name not in existing_columns:
+                cur.execute(f"ALTER TABLE genes ADD COLUMN {column_name} {column_def}")
+                log.info("Added %s column to genes table", column_name)
+                existing_columns.add(column_name)
 
         # Auto-add compression_tier column (0=OPEN, 1=EUCHROMATIN, 2=HETEROCHROMATIN)
-        try:
-            cur.execute("SELECT compression_tier FROM genes LIMIT 1")
-        except sqlite3.OperationalError:
+        if "compression_tier" not in existing_columns:
             cur.execute("ALTER TABLE genes ADD COLUMN compression_tier INTEGER DEFAULT 0")
             log.info("Added compression_tier column to genes table")
 
@@ -1245,13 +1272,28 @@ class Genome:
             tier = 2
 
         cur = self.conn.cursor()
+        observed_at = (
+            gene.observed_at
+            if gene.observed_at is not None
+            else getattr(gene.epigenetics, "created_at", None)
+        )
+        content_hash = gene.content_hash
+        if content_hash is None and gene.content:
+            content_hash = hashlib.sha256(gene.content.encode("utf-8")).hexdigest()
+        last_verified_at = (
+            gene.last_verified_at
+            if gene.last_verified_at is not None
+            else observed_at
+        )
 
         cur.execute(
             "INSERT OR REPLACE INTO genes "
             "(gene_id, content, complement, codons, promoter, epigenetics, "
-            "chromatin, is_fragment, embedding, source_id, version, supersedes, "
-            "key_values, compression_tier) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "chromatin, is_fragment, embedding, source_id, repo_root, source_kind, "
+            "observed_at, mtime, content_hash, volatility_class, authority_class, "
+            "support_span, last_verified_at, version, supersedes, key_values, "
+            "compression_tier) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (
                 gene_id,
                 gene.content,
@@ -1263,6 +1305,15 @@ class Genome:
                 int(gene.is_fragment),
                 json_dumps(gene.embedding) if gene.embedding else None,
                 gene.source_id,
+                gene.repo_root,
+                gene.source_kind,
+                observed_at,
+                gene.mtime,
+                content_hash,
+                gene.volatility_class,
+                gene.authority_class,
+                gene.support_span,
+                last_verified_at,
                 gene.version,
                 gene.supersedes,
                 json_dumps(gene.key_values) if gene.key_values else None,
@@ -1471,6 +1522,8 @@ class Genome:
         entities: List[str],
         max_genes: int = 8,
         party_id: Optional[str] = None,
+        use_harmonic: bool = True,
+        use_sr: Optional[bool] = None,
     ) -> List[Gene]:
         """
         Find genes matching the given promoter signals.
@@ -1880,7 +1933,7 @@ class Genome:
         # For each candidate, add a score bonus from genes that are
         # harmonically linked to OTHER candidates (mutual reinforcement).
         # Weight: 1.0 per link, capped at 3.0 total bonus.
-        if gene_scores:
+        if use_harmonic and gene_scores:
             try:
                 _has_harmonic = cur.execute(
                     "SELECT COUNT(*) FROM sqlite_master "
@@ -1917,7 +1970,8 @@ class Genome:
         # gamma-discounted k-step horizon. See helix_context/sr.py and
         # docs/FUTURE/SUCCESSOR_REPRESENTATION.md. Feature-flagged
         # (retrieval.sr_enabled) so it can A/B before promotion.
-        if self._sr_enabled and gene_scores:
+        sr_enabled = self._sr_enabled if use_sr is None else bool(use_sr)
+        if sr_enabled and gene_scores:
             try:
                 from .sr import sr_boost
                 sr_bonus = sr_boost(
@@ -2211,6 +2265,12 @@ class Genome:
     # ── Row → Gene ──────────────────────────────────────────────────
 
     def _row_to_gene(self, row: sqlite3.Row) -> Gene:
+        def _opt(key: str, default=None):
+            try:
+                return row[key]
+            except (IndexError, KeyError):
+                return default
+
         # Guard against NULL/corrupt metadata fields
         try:
             promoter = parse_promoter(row["promoter"]) if row["promoter"] else PromoterTags()
@@ -2245,6 +2305,15 @@ class Genome:
             is_fragment=bool(row["is_fragment"]) if row["is_fragment"] is not None else False,
             embedding=json_loads(row["embedding"]) if row["embedding"] else None,
             source_id=row["source_id"],
+            repo_root=_opt("repo_root"),
+            source_kind=_opt("source_kind"),
+            observed_at=_opt("observed_at"),
+            mtime=_opt("mtime"),
+            content_hash=_opt("content_hash"),
+            volatility_class=_opt("volatility_class"),
+            authority_class=_opt("authority_class"),
+            support_span=_opt("support_span"),
+            last_verified_at=_opt("last_verified_at"),
             version=row["version"] if row["version"] is not None else 1,
             supersedes=row["supersedes"],
             key_values=key_values,
@@ -3231,6 +3300,12 @@ class Genome:
         list fields (codons) are handled.
         """
         try:
+            def _opt(key: str, default=None):
+                try:
+                    return row[key]
+                except (IndexError, KeyError):
+                    return default
+
             return Gene(
                 gene_id=row["gene_id"],
                 content=row["content"] or "",
@@ -3241,6 +3316,15 @@ class Genome:
                 chromatin=ChromatinState(row["chromatin"]),
                 embedding=json_loads(row["embedding"]) if row["embedding"] else None,
                 source_id=row["source_id"],
+                repo_root=_opt("repo_root"),
+                source_kind=_opt("source_kind"),
+                observed_at=_opt("observed_at"),
+                mtime=_opt("mtime"),
+                content_hash=_opt("content_hash"),
+                volatility_class=_opt("volatility_class"),
+                authority_class=_opt("authority_class"),
+                support_span=_opt("support_span"),
+                last_verified_at=_opt("last_verified_at"),
                 key_values=json_loads(row["key_values"]) if row["key_values"] else [],
             )
         except Exception:

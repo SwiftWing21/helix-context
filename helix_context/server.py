@@ -36,6 +36,7 @@ from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from .config import HelixConfig, load_config
+from .context_packet import build_context_packet
 from .context_manager import HelixContextManager
 from .registry import DEFAULT_HEARTBEAT_INTERVAL_S, DEFAULT_TTL_S, Registry
 
@@ -159,6 +160,67 @@ def _local_attribution_defaults() -> tuple[Optional[str], Optional[str], Optiona
         return s or None
 
     return _norm(user_handle), _norm(device), _norm(org), _norm(agent_handle)
+
+
+def _normalize_identity_token(value: Optional[str]) -> Optional[str]:
+    """Normalize request-supplied identity tokens to local-tier shape."""
+    if not value:
+        return None
+    normalized = str(value).strip().lower()[:64]
+    return normalized or None
+
+
+def _merge_tier_contributions(base: dict, extra: dict) -> dict:
+    """Merge per-gene tier contributions without mutating inputs."""
+    merged = {gid: dict(contribs) for gid, contribs in (base or {}).items()}
+    for gid, contribs in (extra or {}).items():
+        row = merged.setdefault(gid, {})
+        for tier, score in contribs.items():
+            row[tier] = row.get(tier, 0.0) + score
+    return merged
+
+
+def _probe_upstream(upstream_url: str, timeout_s: float = 1.0) -> Dict[str, object]:
+    """Best-effort readiness probe for the configured upstream model server.
+
+    Helix most often fronts Ollama, but we tolerate any OpenAI-compatible
+    upstream by probing a few common endpoints and treating any non-5xx
+    response as "reachable". This avoids false greens when the model server
+    is entirely down while still handling auth-gated upstreams honestly.
+    """
+    base_url = (upstream_url or "").rstrip("/")
+    if not base_url:
+        return {
+            "reachable": False,
+            "detail": "No upstream URL configured.",
+        }
+
+    probes = ("/api/tags", "/v1/models", "/health")
+    last_error: Optional[str] = None
+
+    try:
+        with httpx.Client(timeout=timeout_s, follow_redirects=True) as client:
+            for probe in probes:
+                try:
+                    resp = client.get(f"{base_url}{probe}")
+                except Exception as exc:
+                    last_error = f"{type(exc).__name__}: {exc}"
+                    continue
+
+                if resp.status_code < 500:
+                    return {
+                        "reachable": True,
+                        "probe": probe,
+                        "status_code": resp.status_code,
+                    }
+                last_error = f"HTTP {resp.status_code} on {probe}"
+    except Exception as exc:
+        last_error = f"{type(exc).__name__}: {exc}"
+
+    return {
+        "reachable": False,
+        "detail": last_error or "No upstream probe succeeded.",
+    }
 
 
 async def _background_checkpoint(helix: HelixContextManager) -> None:
@@ -423,6 +485,8 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
         party_id = data.get("party_id")
         org_id = data.get("org_id")
         agent_id = data.get("agent_id")
+        participant_handle = _normalize_identity_token(data.get("participant_handle"))
+        agent_handle_override = _normalize_identity_token(data.get("agent_handle"))
         agent_kind = data.get("agent_kind")  # e.g. "claude-code", "gemini"
         # Trust-on-first-use OS-level 4-layer federation: when the caller
         # doesn't supply explicit IDs, derive (org, device, user, agent)
@@ -440,17 +504,19 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             user_handle, default_device, default_org, agent_handle = (
                 _local_attribution_defaults()
             )
-            effective_party = party_id or default_device
-            effective_org = org_id or default_org
+            effective_user = participant_handle or user_handle
+            effective_party = _normalize_identity_token(party_id) or default_device
+            effective_org = _normalize_identity_token(org_id) or default_org
+            effective_agent = agent_handle_override or agent_handle
             try:
                 # 4-layer find-or-create chain. Ordering matters because
                 # each layer FK-references the one above:
                 #   org → party (device) → participant (user) → agent
                 if effective_org:
                     org_id = registry.local_org(effective_org)
-                if user_handle and effective_party:
+                if effective_user and effective_party:
                     participant_id = registry.local_participant(
-                        handle=user_handle,
+                        handle=effective_user,
                         party_id=effective_party,
                         org_id=org_id,
                         timezone=authored_tz,  # device home tz (last-write-wins)
@@ -458,19 +524,19 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
                     if not party_id:
                         party_id = effective_party
                 # Agent layer is optional — only created when
-                # HELIX_AGENT is set OR the caller passed agent_id
-                # explicitly. NULL agent_id at attribution time means
+                # an explicit agent handle resolves or the caller passed
+                # agent_id explicitly. NULL agent_id at attribution time means
                 # "manual ingest, no AI persona involved."
-                if agent_handle and participant_id and not agent_id:
+                if effective_agent and participant_id and not agent_id:
                     agent_id = registry.local_agent(
-                        handle=agent_handle,
+                        handle=effective_agent,
                         participant_id=participant_id,
                         kind=agent_kind,
                     )
             except Exception:
                 log.warning(
                     "OS-level federation failed (user=%s device=%s org=%s agent=%s)",
-                    user_handle, effective_party, effective_org, agent_handle,
+                    effective_user, effective_party, effective_org, effective_agent,
                     exc_info=True,
                 )
 
@@ -526,6 +592,9 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
 
         data = await request.json()
         query = data.get("query", "")
+        response_mode = str(
+            data.get("response_mode", data.get("format", "continue"))
+        ).strip().lower()
         decoder_override = data.get("decoder_mode")
         verbose = data.get("verbose", False)  # Agent-mode: include gene citations
         # Per-request cold-tier override (C.2 of B->C, 2026-04-10)
@@ -588,6 +657,28 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
 
         if not query:
             return JSONResponse({"error": "No query provided"}, status_code=400)
+        if response_mode not in {"continue", "packet"}:
+            return JSONResponse(
+                {"error": "Invalid response_mode", "allowed": ["continue", "packet"]},
+                status_code=400,
+            )
+
+        if response_mode == "packet":
+            try:
+                max_genes = int(data.get("max_genes", config.budget.max_genes_per_turn))
+            except (TypeError, ValueError):
+                max_genes = config.budget.max_genes_per_turn
+            max_genes = max(1, min(max_genes, 32))
+            packet = build_context_packet(
+                str(query),
+                task_type=str(data.get("task_type", "explain") or "explain"),
+                genome=helix.genome,
+                max_genes=max_genes,
+                now_ts=t0,
+            )
+            payload = packet.model_dump()
+            payload["response_mode"] = "packet"
+            return payload
 
         # Per-request decoder mode override
         if decoder_override and decoder_override in ("full", "condensed", "minimal", "none"):
@@ -825,6 +916,197 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
 
         return [response]
 
+    @app.post("/context/packet")
+    async def context_packet_endpoint(request: Request):
+        """Freshness-labeled evidence packet for agent-safe actions."""
+        import time as _time
+
+        t0 = _time.time()
+        helix._last_activity_ts = t0
+
+        data = await request.json()
+        query = data.get("query", "")
+        task_type = data.get("task_type", "explain")
+        max_genes = data.get("max_genes", 8)
+
+        if not query or not str(query).strip():
+            return JSONResponse({"error": "No query provided"}, status_code=400)
+
+        try:
+            max_genes = int(max_genes)
+        except (TypeError, ValueError):
+            max_genes = 8
+        max_genes = max(1, min(max_genes, 32))
+
+        packet = build_context_packet(
+            str(query),
+            task_type=str(task_type or "explain"),
+            genome=helix.genome,
+            max_genes=max_genes,
+            now_ts=t0,
+        )
+        payload = packet.model_dump()
+        payload["response_mode"] = "packet"
+        return payload
+
+    @app.post("/fingerprint")
+    async def fingerprint_endpoint(request: Request):
+        """Navigation-first retrieval payload with tier scores, not content."""
+        import time as _time
+
+        t0 = _time.time()
+        helix._last_activity_ts = t0
+
+        data = await request.json()
+        query = data.get("query", "")
+        if not query:
+            return JSONResponse({"error": "No query provided"}, status_code=400)
+
+        profile = str(
+            data.get("profile") or config.context.fingerprint_mode_profile
+        ).strip().lower()
+        if profile not in {"fast", "balanced", "quality"}:
+            return JSONResponse(
+                {"error": "Invalid profile", "allowed": ["fast", "balanced", "quality"]},
+                status_code=400,
+            )
+
+        include_cold = data.get("include_cold")
+        if include_cold is not None:
+            include_cold = bool(include_cold)
+
+        session_context = data.get("session_context")
+        if session_context is not None and not isinstance(session_context, dict):
+            session_context = None
+
+        if data.get("clean", False):
+            try:
+                helix.reset_session_state()
+            except Exception:
+                log.debug("reset_session_state failed", exc_info=True)
+
+        try:
+            max_results = int(
+                data.get("max_results", config.budget.max_fingerprints_per_turn)
+            )
+        except (TypeError, ValueError):
+            max_results = config.budget.max_fingerprints_per_turn
+        max_results = max(1, min(max_results, 200))
+
+        party_id = data.get("party_id")
+        if party_id is None:
+            party_id = config.session.default_party_id
+
+        expand_query = profile in {"balanced", "quality"}
+        use_harmonic = profile == "quality"
+        use_sr = profile == "quality"
+        use_cymatics = profile == "quality"
+        use_harmonic_bin = profile == "quality"
+        use_tcm = True
+
+        try:
+            expanded_query, domains, entities = helix._prepare_query_signals(
+                query,
+                session_context=session_context,
+                expand_query=expand_query,
+            )
+            candidates = helix._express(
+                domains,
+                entities,
+                max_results,
+                query_text=query,
+                include_cold=include_cold,
+                party_id=party_id,
+                use_harmonic=use_harmonic,
+                use_sr=use_sr,
+            )
+            candidates, refiner_contrib = helix._apply_candidate_refiners(
+                query,
+                candidates,
+                max_results,
+                use_cymatics=use_cymatics,
+                use_harmonic_bin=use_harmonic_bin,
+                use_tcm=use_tcm,
+                allow_rerank=(profile == "quality"),
+            )
+        except Exception as exc:
+            log.warning("/fingerprint failed: %s", exc, exc_info=True)
+            return JSONResponse(
+                {"error": type(exc).__name__, "detail": str(exc)},
+                status_code=500,
+            )
+
+        base_scores = dict(helix.genome.last_query_scores or {})
+        merged_tiers = _merge_tier_contributions(
+            getattr(helix.genome, "last_tier_contributions", {}) or {},
+            refiner_contrib,
+        )
+
+        attribution_map: dict = {}
+        if candidates:
+            try:
+                attribution_map = registry.get_attributions_for_genes(
+                    [g.gene_id for g in candidates]
+                )
+            except Exception:
+                log.debug("Fingerprint attribution lookup failed", exc_info=True)
+
+        fingerprints = []
+        for rank, g in enumerate(candidates):
+            path = None
+            if g.promoter and g.promoter.metadata:
+                path = g.promoter.metadata.get("path")
+            tiers = merged_tiers.get(g.gene_id, {})
+            tcm_bonus = refiner_contrib.get(g.gene_id, {}).get("tcm", 0.0)
+            row = {
+                "rank": rank,
+                "gene_id": g.gene_id,
+                "score": round(float(base_scores.get(g.gene_id, 0.0) + tcm_bonus), 4),
+                "preview": (g.content or "")[:160],
+                "path": path,
+                "source": g.source_id or "",
+                "domains": list(g.promoter.domains) if g.promoter else [],
+                "entities": list(g.promoter.entities) if g.promoter else [],
+                "chromatin": int(getattr(g, "chromatin", 0) or 0),
+                "tier_contributions": {
+                    k: round(float(v), 4) for k, v in sorted(tiers.items())
+                },
+            }
+            attribution = attribution_map.get(g.gene_id)
+            if attribution:
+                row["authored_by_party"] = attribution.get("party_id")
+                if attribution.get("handle"):
+                    row["authored_by_handle"] = attribution["handle"]
+            fingerprints.append(row)
+
+        tier_totals: dict = {}
+        for row in fingerprints:
+            for tier, score in row["tier_contributions"].items():
+                tier_totals[tier] = tier_totals.get(tier, 0.0) + score
+
+        latency_ms = round((_time.time() - t0) * 1000, 1)
+        return {
+            "mode": "fingerprint",
+            "profile": profile,
+            "query": query,
+            "extracted": {
+                "expanded_query": expanded_query,
+                "domains": list(domains),
+                "entities": list(entities),
+            },
+            "fingerprints": fingerprints,
+            "count": len(fingerprints),
+            "max_results": max_results,
+            "agent": {
+                "recommendation": "triage",
+                "hint": "Use tier fingerprints to decide which genes to fetch in full.",
+                "latency_ms": latency_ms,
+                "cold_tier_used": getattr(helix, "_last_cold_tier_used", False),
+                "cold_tier_count": getattr(helix, "_last_cold_tier_count", 0),
+                "tier_totals": {k: round(v, 4) for k, v in sorted(tier_totals.items())},
+            },
+        }
+
     # -- Stats endpoint ------------------------------------------------
 
     @app.get("/stats")
@@ -994,6 +1276,18 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
         import json as _json
 
         try:
+            rows = helix.genome.read_conn.execute(
+                "SELECT gene_id, embedding FROM genes "
+                "WHERE embedding IS NOT NULL AND chromatin < 2 "
+                "LIMIT 20000"
+            ).fetchall()
+            if not rows:
+                return {
+                    "query": query,
+                    "k": k,
+                    "count": 0,
+                    "neighbors": [],
+                }
             codec = getattr(helix, "_sema_codec", None)
             if codec is None:
                 return JSONResponse(
@@ -1004,11 +1298,6 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
                     status_code=503,
                 )
             q_sema = codec.encode(query)
-            rows = helix.genome.read_conn.execute(
-                "SELECT gene_id, embedding FROM genes "
-                "WHERE embedding IS NOT NULL AND chromatin < 2 "
-                "LIMIT 20000"
-            ).fetchall()
             scored: list = []
             for r in rows:
                 try:
@@ -1050,7 +1339,7 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
     # -- Debug: context-pipeline dry run (no splice) --------------------
 
     @app.get("/debug/preview")
-    async def preview_endpoint(query: str, max_genes: int = 12):
+    async def preview_endpoint(query: str, max_genes: int = 12, profile: str = "balanced"):
         """Dry-run the retrieval pipeline up to candidate selection.
 
         Runs the cheap part of the /context pipeline -- query extraction
@@ -1063,13 +1352,42 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
         without paying the full /context cost. Much cheaper than
         /context itself; no ribosome calls.
         """
+        profile = str(profile or "balanced").strip().lower()
+        if profile not in {"fast", "balanced", "quality"}:
+            return JSONResponse(
+                {"error": "Invalid profile", "allowed": ["fast", "balanced", "quality"]},
+                status_code=400,
+            )
+
+        expand_query = profile in {"balanced", "quality"}
+        use_harmonic = profile == "quality"
+        use_sr = profile == "quality"
+        use_cymatics = profile == "quality"
+        use_harmonic_bin = profile == "quality"
+        use_tcm = True
+
         try:
-            domains, entities = helix._extract_query_signals(query)
+            expanded_query, domains, entities = helix._prepare_query_signals(
+                query,
+                session_context=None,
+                expand_query=expand_query,
+            )
             candidates = helix._express(
                 domains=domains,
                 entities=entities,
                 max_genes=max_genes,
                 query_text=query,
+                use_harmonic=use_harmonic,
+                use_sr=use_sr,
+            )
+            candidates, refiner_contrib = helix._apply_candidate_refiners(
+                query,
+                candidates,
+                max_genes,
+                use_cymatics=use_cymatics,
+                use_harmonic_bin=use_harmonic_bin,
+                use_tcm=use_tcm,
+                allow_rerank=(profile == "quality"),
             )
         except Exception as exc:
             log.warning("/debug/preview failed: %s", exc, exc_info=True)
@@ -1079,29 +1397,41 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             )
 
         scores = dict(helix.genome.last_query_scores or {})
+        merged_tiers = _merge_tier_contributions(
+            getattr(helix.genome, "last_tier_contributions", {}) or {},
+            refiner_contrib,
+        )
         result = []
         for rank, g in enumerate(candidates):
             path = None
             if g.promoter and g.promoter.metadata:
                 path = g.promoter.metadata.get("path")
+            tcm_bonus = refiner_contrib.get(g.gene_id, {}).get("tcm", 0.0)
             result.append({
                 "rank": rank,
                 "gene_id": g.gene_id,
-                "score": round(float(scores.get(g.gene_id, 0.0)), 4),
+                "score": round(float(scores.get(g.gene_id, 0.0) + tcm_bonus), 4),
                 "preview": (g.content or "")[:160],
                 "path": path,
                 "domains": list(g.promoter.domains) if g.promoter else [],
                 "entities": list(g.promoter.entities) if g.promoter else [],
                 "chromatin": int(getattr(g, "chromatin", 0) or 0),
+                "tier_contributions": {
+                    k: round(float(v), 4)
+                    for k, v in sorted(merged_tiers.get(g.gene_id, {}).items())
+                },
             })
 
         return {
             "query": query,
+            "profile": profile,
             "extracted": {
+                "expanded_query": expanded_query,
                 "domains": list(domains),
                 "entities": list(entities),
             },
             "candidates": result,
+            "fingerprints": result,
             "count": len(result),
             "note": "Splice step skipped; these are pre-splice candidates.",
         }
@@ -1515,16 +1845,45 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
         elif hasattr(helix.ribosome, "ollama_ribosome"):
             ribosome_model = f"deberta+{helix.ribosome.ollama_ribosome.backend.model}"
 
+        genome_ready = True
+        genome_error = None
+        total_genes = 0
+        try:
+            total_genes = helix.genome.stats()["total_genes"]
+        except Exception as exc:
+            genome_ready = False
+            genome_error = str(exc)
+
+        upstream_probe = _probe_upstream(config.server.upstream)
+        upstream_ready = bool(upstream_probe.get("reachable"))
+        status = "ok" if genome_ready and upstream_ready else "degraded"
+
+        if status == "ok":
+            message = "Helix and its upstream model server answered readiness checks."
+        elif not genome_ready and not upstream_ready:
+            message = "Genome stats failed and the upstream model server is unreachable."
+        elif not genome_ready:
+            message = "Genome stats failed; inspect the local knowledge store."
+        else:
+            message = "Upstream model server is unreachable; final chat proxy calls will fail."
+
         return {
-            "status": "ok",
+            "status": status,
+            "message": message,
             "ribosome": ribosome_model,
             # W2-B: cost classification surfaces local vs paid-API backends
             # without operators having to read helix.toml. Pair with the
             # startup WARNING (above in create_app) for visibility.
             "ribosome_backend": config.ribosome.backend,
             "ribosome_cost_class": config.ribosome.cost_class,
-            "genes": helix.genome.stats()["total_genes"],
+            "genes": total_genes,
             "upstream": config.server.upstream,
+            "checks": {
+                "genome_ready": genome_ready,
+                "upstream_ready": upstream_ready,
+            },
+            "upstream_probe": upstream_probe,
+            "genome_error": genome_error,
         }
 
     @app.get("/replicas")

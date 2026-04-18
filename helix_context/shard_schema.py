@@ -48,6 +48,7 @@ def init_main_db(conn: sqlite3.Connection) -> None:
     cur = conn.cursor()
     _create_shards_table(cur)
     _create_fingerprint_index(cur)
+    _create_source_index(cur)
     _create_identity_tables(cur)
     conn.commit()
 
@@ -115,6 +116,53 @@ def _create_fingerprint_index(cur: sqlite3.Cursor) -> None:
     cur.execute(
         "CREATE INDEX IF NOT EXISTS idx_fp_is_parent "
         "ON fingerprint_index(is_parent)"
+    )
+
+
+def _create_source_index(cur: sqlite3.Cursor) -> None:
+    """source_index — provenance + freshness metadata per gene.
+
+    Lightweight metadata only. This lets the agent-context layer answer
+    freshness and authority questions without reopening every shard or
+    loading bulk gene content.
+    """
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS source_index (
+        gene_id           TEXT PRIMARY KEY,
+        shard_name        TEXT NOT NULL REFERENCES shards(shard_name),
+        source_id         TEXT,
+        repo_root         TEXT,
+        source_kind       TEXT,
+        observed_at       REAL,
+        mtime             REAL,
+        content_hash      TEXT,
+        volatility_class  TEXT NOT NULL DEFAULT 'medium',
+        authority_class   TEXT NOT NULL DEFAULT 'primary',
+        support_span      TEXT,
+        last_verified_at  REAL,
+        invalidated_at    REAL,
+        updated_at        REAL NOT NULL
+    )
+    """)
+    cur.execute(
+        "CREATE INDEX IF NOT EXISTS idx_source_index_shard "
+        "ON source_index(shard_name)"
+    )
+    cur.execute(
+        "CREATE INDEX IF NOT EXISTS idx_source_index_source "
+        "ON source_index(source_id)"
+    )
+    cur.execute(
+        "CREATE INDEX IF NOT EXISTS idx_source_index_repo "
+        "ON source_index(repo_root)"
+    )
+    cur.execute(
+        "CREATE INDEX IF NOT EXISTS idx_source_index_kind "
+        "ON source_index(source_kind)"
+    )
+    cur.execute(
+        "CREATE INDEX IF NOT EXISTS idx_source_index_volatility "
+        "ON source_index(volatility_class)"
     )
 
 
@@ -254,6 +302,49 @@ def upsert_fingerprint(
         (
             gene_id, shard_name, source_id, domains_json, entities_json,
             key_values_json, 1 if is_parent else 0, sequence_idx, time.time(),
+        ),
+    )
+    conn.commit()
+
+
+def upsert_source_index(
+    conn: sqlite3.Connection,
+    gene_id: str,
+    shard_name: str,
+    source_id: str | None,
+    repo_root: str | None = None,
+    source_kind: str | None = None,
+    observed_at: float | None = None,
+    mtime: float | None = None,
+    content_hash: str | None = None,
+    volatility_class: str | None = None,
+    authority_class: str | None = None,
+    support_span: str | None = None,
+    last_verified_at: float | None = None,
+    invalidated_at: float | None = None,
+) -> None:
+    """Write or replace a source_index row for a gene."""
+    conn.execute(
+        "INSERT OR REPLACE INTO source_index "
+        "(gene_id, shard_name, source_id, repo_root, source_kind, observed_at, "
+        "mtime, content_hash, volatility_class, authority_class, support_span, "
+        "last_verified_at, invalidated_at, updated_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            gene_id,
+            shard_name,
+            source_id,
+            repo_root,
+            source_kind,
+            observed_at,
+            mtime,
+            content_hash,
+            volatility_class or "medium",
+            authority_class or "primary",
+            support_span,
+            last_verified_at,
+            invalidated_at,
+            time.time(),
         ),
     )
     conn.commit()

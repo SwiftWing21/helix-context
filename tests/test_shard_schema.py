@@ -25,6 +25,7 @@ from helix_context.shard_schema import (
     open_main_db,
     register_shard,
     upsert_fingerprint,
+    upsert_source_index,
 )
 
 
@@ -51,6 +52,7 @@ def test_init_creates_all_tables(main_db):
     tables = _table_names(main_db)
     assert "shards" in tables
     assert "fingerprint_index" in tables
+    assert "source_index" in tables
     assert "orgs" in tables
     assert "parties" in tables
     assert "participants" in tables
@@ -154,6 +156,49 @@ def test_upsert_fingerprint_writes_and_replaces(main_db):
     ).fetchone()
     assert row["is_parent"] == 1
     assert '"design"' in row["domains"]
+
+
+def test_upsert_source_index_writes_and_replaces(main_db):
+    register_shard(main_db, "s_ref", "reference", "/r.db")
+
+    upsert_source_index(
+        main_db,
+        gene_id="g1",
+        shard_name="s_ref",
+        source_id="/docs/intro.md",
+        repo_root="/repo",
+        source_kind="doc",
+        observed_at=100.0,
+        mtime=90.0,
+        content_hash="abc123",
+        volatility_class="stable",
+        authority_class="primary",
+        support_span="1:20",
+        last_verified_at=101.0,
+    )
+    row = main_db.execute(
+        "SELECT * FROM source_index WHERE gene_id='g1'"
+    ).fetchone()
+    assert row is not None
+    assert row["source_kind"] == "doc"
+    assert row["volatility_class"] == "stable"
+    assert row["repo_root"] == "/repo"
+
+    upsert_source_index(
+        main_db,
+        gene_id="g1",
+        shard_name="s_ref",
+        source_id="/docs/intro.md",
+        source_kind="config",
+        volatility_class="hot",
+        authority_class="derived",
+    )
+    row = main_db.execute(
+        "SELECT * FROM source_index WHERE gene_id='g1'"
+    ).fetchone()
+    assert row["source_kind"] == "config"
+    assert row["volatility_class"] == "hot"
+    assert row["authority_class"] == "derived"
 
 
 def test_shard_categories_constant():

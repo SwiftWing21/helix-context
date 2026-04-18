@@ -57,6 +57,33 @@ class TestCrud:
         retrieved = genome.get_gene(gene_id)
         assert "v2" in retrieved.promoter.domains
 
+    def test_provenance_metadata_round_trips(self, genome):
+        gene = make_gene("context packet notes", domains=["docs"])
+        gene.source_id = "/repo/docs/notes.md"
+        gene.repo_root = "/repo"
+        gene.source_kind = "doc"
+        gene.observed_at = 123.0
+        gene.mtime = 120.0
+        gene.content_hash = "deadbeef"
+        gene.volatility_class = "stable"
+        gene.authority_class = "primary"
+        gene.support_span = "12:30"
+        gene.last_verified_at = 124.0
+
+        gene_id = genome.upsert_gene(gene, apply_gate=False)
+        retrieved = genome.get_gene(gene_id)
+
+        assert retrieved is not None
+        assert retrieved.repo_root == "/repo"
+        assert retrieved.source_kind == "doc"
+        assert retrieved.observed_at == 123.0
+        assert retrieved.mtime == 120.0
+        assert retrieved.content_hash == "deadbeef"
+        assert retrieved.volatility_class == "stable"
+        assert retrieved.authority_class == "primary"
+        assert retrieved.support_span == "12:30"
+        assert retrieved.last_verified_at == 124.0
+
     def test_get_nonexistent_returns_none(self, genome):
         assert genome.get_gene("doesnotexist") is None
 

@@ -12,7 +12,6 @@ from .genome import Genome
 from .ribosome import Ribosome, OllamaBackend
 from .codons import CodonChunker, CodonEncoder, RawStrand, Codon
 from .context_manager import HelixContextManager
-from .server import create_app
 from .exceptions import (
     HelixError,
     CodonAlignmentError,
@@ -38,6 +37,13 @@ except ImportError:
     SemaPrime = None
     PRIMES = None
     PRIME_COUNT = None
+
+
+def create_app(*args, **kwargs):
+    """Lazy server import so package import has no HTTP/app side effects."""
+    from .server import create_app as _create_app
+
+    return _create_app(*args, **kwargs)
 
 __all__ = [
     "accel_info",

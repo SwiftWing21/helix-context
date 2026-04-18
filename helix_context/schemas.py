@@ -49,6 +49,7 @@ class PromoterTags(BaseModel):
     intent: str = ""
     summary: str = ""
     sequence_index: Optional[int] = None
+    metadata: dict = Field(default_factory=dict)
 
 
 class TypedCoActivation(BaseModel):
@@ -131,6 +132,15 @@ class Gene(BaseModel):
 
     # Versioning (future — can ignore for MVP)
     source_id: Optional[str] = None
+    repo_root: Optional[str] = None
+    source_kind: Optional[str] = None
+    observed_at: Optional[float] = None
+    mtime: Optional[float] = None
+    content_hash: Optional[str] = None
+    volatility_class: Optional[str] = None
+    authority_class: Optional[str] = None
+    support_span: Optional[str] = None
+    last_verified_at: Optional[float] = None
     version: Optional[int] = None
     supersedes: Optional[str] = None
 
@@ -163,6 +173,44 @@ class ContextWindow(BaseModel):
     compression_ratio: float = 0.0
     context_health: ContextHealth = Field(default_factory=ContextHealth)
     metadata: dict = Field(default_factory=dict)
+
+
+class ContextItem(BaseModel):
+    """A task-scoped evidence item returned by the packet builder."""
+    kind: str = "gene"
+    gene_id: Optional[str] = None
+    claim_id: Optional[str] = None
+    title: str
+    content: str
+    relevance_score: float = 0.0
+    live_truth_score: float = 0.0
+    source_id: Optional[str] = None
+    source_kind: Optional[str] = None
+    volatility_class: Optional[str] = None
+    authority_class: Optional[str] = None
+    last_verified_at: Optional[float] = None
+    status: str = "verified"
+    citations: List[str] = Field(default_factory=list)
+
+
+class RefreshTarget(BaseModel):
+    """A concrete reread target before a high-risk action."""
+    target_kind: str
+    source_id: str
+    reason: str
+    priority: float = 0.0
+
+
+class ContextPacket(BaseModel):
+    """Agent-safe retrieval packet with freshness labeling."""
+    task_type: str
+    query: str
+    verified: List[ContextItem] = Field(default_factory=list)
+    stale_risk: List[ContextItem] = Field(default_factory=list)
+    contradictions: List[ContextItem] = Field(default_factory=list)
+    refresh_targets: List[RefreshTarget] = Field(default_factory=list)
+    working_set_id: Optional[str] = None
+    notes: List[str] = Field(default_factory=list)
 
 
 # ── Session registry (see docs/SESSION_REGISTRY.md) ────────────────────────

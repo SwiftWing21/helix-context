@@ -12,6 +12,7 @@ import pytest
 
 from fastapi.testclient import TestClient
 
+import helix_context.server as server_mod
 from helix_context.config import HelixConfig, BudgetConfig, GenomeConfig, RibosomeConfig, ServerConfig
 from helix_context.server import create_app
 
@@ -67,7 +68,12 @@ def client():
 
 
 class TestHealthEndpoint:
-    def test_health_returns_ok(self, client):
+    def test_health_returns_ok(self, client, monkeypatch):
+        monkeypatch.setattr(
+            server_mod,
+            "_probe_upstream",
+            lambda _url, timeout_s=1.0: {"reachable": True, "probe": "/api/tags", "status_code": 200},
+        )
         resp = client.get("/health")
         assert resp.status_code == 200
         data = resp.json()
@@ -75,10 +81,16 @@ class TestHealthEndpoint:
         assert "ribosome" in data
         assert "genes" in data
         assert "upstream" in data
+        assert data["checks"]["upstream_ready"] is True
 
-    def test_health_exposes_cost_class(self, client):
+    def test_health_exposes_cost_class(self, client, monkeypatch):
         """W2-B: /health surfaces backend cost classification so MCP
         clients can warn users when they're on a paid backend."""
+        monkeypatch.setattr(
+            server_mod,
+            "_probe_upstream",
+            lambda _url, timeout_s=1.0: {"reachable": True, "probe": "/api/tags", "status_code": 200},
+        )
         resp = client.get("/health")
         assert resp.status_code == 200
         data = resp.json()
@@ -87,6 +99,19 @@ class TestHealthEndpoint:
         # Test fixture uses RibosomeConfig defaults (backend=ollama),
         # which classifies as local.
         assert data["ribosome_cost_class"] in ("local", "api+free", "api+paid")
+
+    def test_health_degrades_when_upstream_unreachable(self, client, monkeypatch):
+        monkeypatch.setattr(
+            server_mod,
+            "_probe_upstream",
+            lambda _url, timeout_s=1.0: {"reachable": False, "detail": "connection refused"},
+        )
+        resp = client.get("/health")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "degraded"
+        assert data["checks"]["upstream_ready"] is False
+        assert "upstream model server is unreachable" in data["message"].lower()
 
 
 class TestStatsEndpoint:
@@ -179,6 +204,7 @@ class TestContextCitationEnrichment:
         client.post("/ingest", json={
             "content": "orphan content with distinctive marker xyzzyplugh",
             "content_type": "text",
+            "local_federation": False,
         })
         resp = client.post("/context", json={
             "query": "xyzzyplugh",
@@ -192,6 +218,41 @@ class TestContextCitationEnrichment:
             # Genes without attribution should not have these fields set.
             # If the field is present, it should be falsy / None.
             assert c.get("authored_by_party") in (None, "", False)
+
+
+class TestIngestFederationOverrides:
+    def test_ingest_accepts_explicit_identity_handles(self, client):
+        resp = client.post("/ingest", json={
+            "content": "identity override marker for claude ingest",
+            "content_type": "text",
+            "org_id": "swiftwing",
+            "party_id": "swift_wing21",
+            "participant_handle": "max",
+            "agent_handle": "laude",
+            "agent_kind": "claude-code",
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["count"] >= 1
+        assert data["attributed"] >= 1
+
+        gene_id = data["gene_ids"][0]
+        row = client.app.state.helix.genome.conn.execute(
+            "SELECT ga.org_id, ga.party_id, p.handle AS participant_handle, "
+            "       a.handle AS agent_handle, a.kind AS agent_kind "
+            "FROM gene_attribution ga "
+            "LEFT JOIN participants p ON p.participant_id = ga.participant_id "
+            "LEFT JOIN agents a ON a.agent_id = ga.agent_id "
+            "WHERE ga.gene_id = ?",
+            (gene_id,),
+        ).fetchone()
+
+        assert row is not None
+        assert row["org_id"] == "swiftwing"
+        assert row["party_id"] == "swift_wing21"
+        assert row["participant_handle"] == "max"
+        assert row["agent_handle"] == "laude"
+        assert row["agent_kind"] == "claude-code"
 
 
 class TestMetricsTokensEndpoint:
@@ -311,8 +372,65 @@ class TestContextEndpoint:
             assert "description" in data[0]
             assert "content" in data[0]
 
+    def test_context_can_swap_to_packet_mode(self, client):
+        client.post("/ingest", json={
+            "content": "Authentication config controls JWT session settings.",
+            "content_type": "text",
+            "metadata": {"path": "config/auth.toml"},
+        })
+
+        resp = client.post("/context", json={
+            "query": "authentication config",
+            "response_mode": "packet",
+            "task_type": "edit",
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["response_mode"] == "packet"
+        assert data["task_type"] == "edit"
+        assert "verified" in data
+        assert "stale_risk" in data
+        assert "refresh_targets" in data
+
     def test_context_empty_query_rejected(self, client):
         resp = client.post("/context", json={"query": ""})
+        assert resp.status_code == 400
+
+    def test_context_invalid_response_mode_rejected(self, client):
+        resp = client.post("/context", json={
+            "query": "auth jwt",
+            "response_mode": "banana",
+        })
+        assert resp.status_code == 400
+
+
+class TestContextPacketEndpoint:
+    def test_packet_returns_freshness_labeled_groups(self, client):
+        client.post("/ingest", json={
+            "content": "Authentication config controls JWT session settings.",
+            "content_type": "text",
+            "metadata": {"path": "config/auth.toml"},
+        })
+
+        resp = client.post("/context/packet", json={
+            "query": "authentication config",
+            "task_type": "edit",
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["task_type"] == "edit"
+        assert data["query"] == "authentication config"
+        assert "verified" in data
+        assert "stale_risk" in data
+        assert "refresh_targets" in data
+        assert data["response_mode"] == "packet"
+        assert isinstance(data["verified"], list)
+        assert isinstance(data["stale_risk"], list)
+        if data["verified"]:
+            assert data["verified"][0]["status"] == "verified"
+
+    def test_packet_empty_query_rejected(self, client):
+        resp = client.post("/context/packet", json={"query": ""})
         assert resp.status_code == 400
 
 
@@ -545,6 +663,7 @@ class TestDebugIntrospectionEndpoints:
         assert data["count"] == 0
         assert "domains" in data["extracted"]
         assert "entities" in data["extracted"]
+        assert data["profile"] == "balanced"
 
     def test_preview_extracts_query_signals(self, client):
         """Extraction is pure string processing; must produce something
@@ -555,3 +674,61 @@ class TestDebugIntrospectionEndpoints:
         assert resp.status_code == 200
         extracted = resp.json()["extracted"]
         assert extracted["domains"] or extracted["entities"]
+
+    def test_preview_returns_ingested_metadata_path(self, client):
+        ingest = client.post("/ingest", json={
+            "content": "Authentication module uses JWT refresh tokens.",
+            "content_type": "text",
+            "metadata": {"path": "src/auth.py"},
+        })
+        assert ingest.status_code == 200
+
+        resp = client.get("/debug/preview?query=authentication+jwt+refresh&max_genes=5")
+        assert resp.status_code == 200
+        candidates = resp.json()["candidates"]
+        assert any(c.get("path") == "src/auth.py" for c in candidates)
+
+    def test_fingerprint_returns_navigation_payload(self, client):
+        client.post("/ingest", json={
+            "content": "Authentication module uses JWT refresh tokens.",
+            "content_type": "text",
+            "metadata": {"path": "src/auth.py"},
+        })
+
+        resp = client.post("/fingerprint", json={
+            "query": "authentication jwt refresh",
+            "max_results": 5,
+            "profile": "balanced",
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["mode"] == "fingerprint"
+        assert data["profile"] == "balanced"
+        assert data["max_results"] == 5
+        assert "content" not in data
+        assert "fingerprints" in data
+        if data["fingerprints"]:
+            fp = data["fingerprints"][0]
+            assert "tier_contributions" in fp
+            assert "chromatin" in fp
+            assert "score" in fp
+
+    def test_fingerprint_fast_skips_query_expansion(self, client, monkeypatch):
+        def _fake_expand(q):
+            return q + " expandedterm"
+
+        monkeypatch.setattr(client.app.state.helix, "_expand_query_intent", _fake_expand)
+
+        fast = client.post("/fingerprint", json={
+            "query": "plain query",
+            "profile": "fast",
+        })
+        balanced = client.post("/fingerprint", json={
+            "query": "plain query",
+            "profile": "balanced",
+        })
+
+        assert fast.status_code == 200
+        assert balanced.status_code == 200
+        assert fast.json()["extracted"]["expanded_query"] == "plain query"
+        assert balanced.json()["extracted"]["expanded_query"] == "plain query expandedterm"
