@@ -1,15 +1,16 @@
 """
 SNOW benchmark harness — oracle + LLM cascade runner.
 
-Loads helix in-process against a benchmark genome, runs T0 retrieval for each
-query, fetches gene fields from SQLite, runs oracle, optionally runs LLM
-cascade, aggregates into a SNOW scorecard, writes JSON to results/.
+Runs T0 retrieval through the live Helix `/fingerprint` endpoint for each
+query, fetches deeper gene fields from SQLite, runs oracle, optionally runs
+LLM cascade, aggregates into a SNOW scorecard, writes JSON to results/.
 
 Usage:
     python benchmarks/snow/bench_snow.py --model oracle-only
     python benchmarks/snow/bench_snow.py --model qwen3:4b
     python benchmarks/snow/bench_snow.py --model all
     python benchmarks/snow/bench_snow.py --model qwen3:4b --limit 5
+    python benchmarks/snow/bench_snow.py --model qwen3:4b --profile all
     python benchmarks/snow/bench_snow.py --genome path/to/genome.db
 """
 from __future__ import annotations
@@ -25,6 +26,8 @@ from pathlib import Path
 from statistics import mean
 from typing import Any, Dict, List, Optional, Tuple
 
+import httpx
+
 # Windows cp1252 can't encode special chars; force UTF-8 for console output.
 try:
     sys.stdout.reconfigure(encoding="utf-8")
@@ -36,8 +39,6 @@ os.environ["HELIX_DISABLE_HEADROOM"] = "1"
 REPO = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(REPO))
 
-from helix_context import HelixContextManager, load_config  # noqa: E402
-
 from benchmarks.snow.oracle import oracle_cascade  # noqa: E402
 from benchmarks.snow.cascade import llm_cascade  # noqa: E402
 from benchmarks.snow.prompts import clean_response  # noqa: E402
@@ -46,8 +47,10 @@ GENOME_DB_DEFAULT = "genome-bench-2026-04-14.db"
 QUERIES_JSON = REPO / "benchmarks" / "snow" / "snow_queries.json"
 RESULTS_DIR = REPO / "benchmarks" / "snow" / "results"
 TOP_K = 12
+DEFAULT_HELIX_TIMEOUT_S = 120.0
 
 ALL_MODELS = ["gemma4:e2b", "qwen3:4b", "qwen3:8b"]
+ALL_PROFILES = ["fast", "balanced", "quality"]
 
 
 # ---------------------------------------------------------------------------
@@ -86,34 +89,64 @@ class OllamaModel:
 
 
 # ---------------------------------------------------------------------------
-# Helix retrieval helpers
+# Helix fingerprint client
 # ---------------------------------------------------------------------------
 
-def init_helix(genome_path: str) -> HelixContextManager:
-    """Create a HelixContextManager with benchmark-friendly config."""
+def default_helix_url() -> str:
+    """Resolve the default Helix base URL from local config."""
+    from helix_context import load_config  # noqa: WPS433
+
     cfg = load_config()
-    cfg.genome.path = genome_path
-    cfg.ribosome.query_expansion_enabled = False
-    cfg.ingestion.rerank_enabled = False
-    return HelixContextManager(cfg)
+    host = cfg.server.host or "127.0.0.1"
+    if host in {"0.0.0.0", "::"}:
+        host = "127.0.0.1"
+    return f"http://{host}:{cfg.server.port}"
 
 
-def run_t0(hcm: HelixContextManager, query: str):
-    """Run T0 retrieval and return (genes, gene_ids, scores, tier_contribs)."""
-    expanded = hcm._expand_query_intent(query)
-    domains, entities = hcm._extract_query_signals(expanded)
-    genes = hcm.genome.query_genes(
-        domains=domains,
-        entities=entities,
-        max_genes=TOP_K,
-    )
-    gene_ids = [g.gene_id for g in genes]
-    scores = dict(hcm.genome.last_query_scores)
-    tier_contribs = {
-        gid: dict(contribs)
-        for gid, contribs in hcm.genome.last_tier_contributions.items()
+class HelixFingerprintClient:
+    """Thin HTTP client for the live `/fingerprint` benchmark surface."""
+
+    def __init__(self, base_url: str, timeout: float = DEFAULT_HELIX_TIMEOUT_S):
+        self.base_url = base_url.rstrip("/")
+        self.client = httpx.Client(timeout=timeout)
+
+    def fingerprint(
+        self,
+        query: str,
+        max_results: int = TOP_K,
+        profile: str = "balanced",
+    ) -> Dict[str, Any]:
+        resp = self.client.post(
+            f"{self.base_url}/fingerprint",
+            json={
+                "query": query,
+                "max_results": max_results,
+                "profile": profile,
+            },
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def close(self) -> None:
+        self.client.close()
+
+
+def run_t0(client: HelixFingerprintClient, query: str, profile: str, max_results: int):
+    """Run T0 retrieval via /fingerprint and normalize the response."""
+    response = client.fingerprint(query=query, max_results=max_results, profile=profile)
+    fingerprints = response.get("fingerprints", [])
+    gene_ids = [fp.get("gene_id") for fp in fingerprints if fp.get("gene_id")]
+    scores = {
+        gid: float(fp.get("score", 0.0))
+        for gid, fp in ((fp.get("gene_id"), fp) for fp in fingerprints)
+        if gid
     }
-    return genes, gene_ids, scores, tier_contribs
+    tier_contribs = {
+        gid: dict(fp.get("tier_contributions", {}))
+        for gid, fp in ((fp.get("gene_id"), fp) for fp in fingerprints)
+        if gid
+    }
+    return response, gene_ids, scores, tier_contribs
 
 
 def fetch_gene_fields(conn: sqlite3.Connection, gene_ids: List[str]) -> Dict:
@@ -158,25 +191,27 @@ def fetch_neighbors(conn: sqlite3.Connection, gene_ids: List[str]) -> Dict:
 
 
 def build_fingerprints(
-    genes,
+    retrieval_fps: List[Dict[str, Any]],
     gene_ids: List[str],
     scores: Dict[str, float],
     tier_contribs: Dict[str, Dict],
     gene_fields: Dict[str, Dict],
 ) -> List[Dict]:
     """Build fingerprint dicts for the cascade."""
-    # Build a source_id lookup from Gene objects
-    source_map = {g.gene_id: g.source_id for g in genes}
+    fingerprint_map = {
+        fp["gene_id"]: fp for fp in retrieval_fps if fp.get("gene_id")
+    }
     fps = []
     for gid in gene_ids:
         f = gene_fields.get(gid, {})
+        fp = fingerprint_map.get(gid, {})
         fps.append({
             "gene_id": gid,
-            "source": source_map.get(gid),
+            "source": fp.get("source") or fp.get("path"),
             "score": scores.get(gid, 0.0),
             "tiers": tier_contribs.get(gid, {}),
-            "domains": f.get("domains", []),
-            "entities": f.get("entities", []),
+            "domains": fp.get("domains") or f.get("domains", []),
+            "entities": fp.get("entities") or f.get("entities", []),
         })
     return fps
 
@@ -203,9 +238,11 @@ def build_oracle_fingerprints(
 # ---------------------------------------------------------------------------
 
 def run_single_query(
-    hcm: HelixContextManager,
+    helix_client: HelixFingerprintClient,
     conn: sqlite3.Connection,
     q: Dict,
+    profile: str,
+    max_results: int,
     model: Optional[Any] = None,
 ) -> Dict:
     """Run a single SNOW query: T0 retrieval + oracle + optional LLM cascade."""
@@ -215,8 +252,14 @@ def run_single_query(
 
     # T0 retrieval
     t0_start = time.perf_counter()
-    genes, gene_ids, scores, tier_contribs = run_t0(hcm, query_text)
+    t0_payload, gene_ids, scores, tier_contribs = run_t0(
+        helix_client,
+        query=query_text,
+        profile=profile,
+        max_results=max_results,
+    )
     t0_elapsed = time.perf_counter() - t0_start
+    retrieved_fingerprints = t0_payload.get("fingerprints", [])
 
     # Fetch gene fields + neighbors from SQLite
     gene_fields = fetch_gene_fields(conn, gene_ids)
@@ -234,7 +277,13 @@ def run_single_query(
 
     # Build fingerprints
     oracle_fps = build_oracle_fingerprints(gene_ids, gene_fields)
-    cascade_fps = build_fingerprints(genes, gene_ids, scores, tier_contribs, gene_fields)
+    cascade_fps = build_fingerprints(
+        retrieved_fingerprints,
+        gene_ids,
+        scores,
+        tier_contribs,
+        gene_fields,
+    )
 
     # Oracle
     oracle_result = oracle_cascade(
@@ -264,10 +313,13 @@ def run_single_query(
         "source": q.get("source", ""),
         "target_tier": q.get("target_tier"),
         "retrieval": {
+            "profile": profile,
+            "extracted": t0_payload.get("extracted", {}),
             "gene_ids": gene_ids,
             "scores": {gid: scores.get(gid, 0.0) for gid in gene_ids},
             "tier_contribs": {gid: tier_contribs.get(gid, {}) for gid in gene_ids},
             "t0_latency_s": t0_elapsed,
+            "t0_endpoint_latency_ms": t0_payload.get("agent", {}).get("latency_ms"),
             "num_genes": len(gene_ids),
         },
         "oracle_result": oracle_result,
@@ -283,6 +335,8 @@ def aggregate_scorecard(
     query_results: List[Dict],
     model_name: str,
     genome_path: str,
+    fingerprint_profile: str,
+    helix_url: str,
 ) -> Dict:
     """Aggregate individual query results into a SNOW scorecard."""
     n = len(query_results)
@@ -412,6 +466,8 @@ def aggregate_scorecard(
             "genome": genome_name,
             "gene_count": gene_count,
             "n_queries": n,
+            "fingerprint_profile": fingerprint_profile,
+            "helix_url": helix_url,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         },
         "oracle": {
@@ -438,7 +494,11 @@ def print_scorecard(scorecard: Dict) -> None:
     n = meta["n_queries"]
 
     print()
-    header = f"SNOW Scorecard -- {meta['model']} on {meta['genome']} genome (N={n})"
+    profile = meta.get("fingerprint_profile", "balanced")
+    header = (
+        f"SNOW Scorecard -- {meta['model']} [{profile}] "
+        f"on {meta['genome']} genome (N={n})"
+    )
     print(header)
     sep = "-" * len(header)
     print(sep)
@@ -504,6 +564,19 @@ def main():
         "--base-url", default="http://localhost:11434",
         help="Ollama base URL",
     )
+    parser.add_argument(
+        "--helix-url", default=None,
+        help="Helix base URL serving POST /fingerprint (default: local helix.toml host/port)",
+    )
+    parser.add_argument(
+        "--profile", default="balanced",
+        choices=["fast", "balanced", "quality", "all"],
+        help="Fingerprint retrieval profile to benchmark",
+    )
+    parser.add_argument(
+        "--max-results", type=int, default=TOP_K,
+        help="Fingerprint count requested from /fingerprint",
+    )
     args = parser.parse_args()
 
     # Resolve genome path
@@ -514,6 +587,8 @@ def main():
         print(f"ERROR: genome not found: {genome_path}", file=sys.stderr)
         sys.exit(1)
 
+    helix_url = args.helix_url or default_helix_url()
+
     # Load queries
     with open(QUERIES_JSON, "r", encoding="utf-8") as f:
         queries = json.load(f)
@@ -522,6 +597,7 @@ def main():
 
     print(f"Loaded {len(queries)} queries from {QUERIES_JSON.name}")
     print(f"Genome: {genome_path}")
+    print(f"Helix:  {helix_url}")
 
     # Determine model(s)
     if args.model == "all":
@@ -529,87 +605,134 @@ def main():
     else:
         models_to_run = [args.model]
 
-    # Init helix once (shared across all model runs)
-    print("Initializing helix...")
-    hcm = init_helix(genome_path)
-    print(f"  Genome loaded: {hcm.genome.conn.execute('SELECT COUNT(*) FROM genes').fetchone()[0]} genes")
+    if args.profile == "all":
+        profiles_to_run = ALL_PROFILES
+    else:
+        profiles_to_run = [args.profile]
 
     # Open a raw SQLite connection for field fetching
     conn = sqlite3.connect(genome_path, timeout=30)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA busy_timeout=30000")
+    row = conn.execute("SELECT COUNT(*) FROM genes").fetchone()
+    gene_count = row[0] if row else "unknown"
+    print(f"Genome loaded: {gene_count} genes")
+
+    helix_client = HelixFingerprintClient(helix_url)
 
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
-    for model_name in models_to_run:
-        print(f"\n{'='*60}")
-        print(f"Running: {model_name}")
-        print(f"{'='*60}")
+    try:
+        try:
+            warmup = helix_client.fingerprint(
+                query="helix benchmark warmup",
+                max_results=min(args.max_results, 3),
+                profile=profiles_to_run[0],
+            )
+            print(
+                "Helix ready:"
+                f" {warmup.get('count', 0)} warmup fingerprints"
+                f" via profile={profiles_to_run[0]}"
+            )
+        except Exception as e:
+            print(f"ERROR: cannot reach Helix /fingerprint at {helix_url}: {e}", file=sys.stderr)
+            sys.exit(1)
 
-        # Create model wrapper (unless oracle-only)
-        model = None
-        if model_name != "oracle-only":
-            try:
-                model = OllamaModel(
-                    model=model_name,
-                    base_url=args.base_url,
+        for profile in profiles_to_run:
+            for model_name in models_to_run:
+                print(f"\n{'='*60}")
+                print(f"Running: {model_name}  profile={profile}")
+                print(f"{'='*60}")
+
+                # Create model wrapper (unless oracle-only)
+                model = None
+                if model_name != "oracle-only":
+                    try:
+                        model = OllamaModel(
+                            model=model_name,
+                            base_url=args.base_url,
+                        )
+                        # Warm up: verify model is reachable
+                        print(f"  Warming up {model_name}...")
+                        model.chat([{"role": "user", "content": "hi"}])
+                        print("  Model ready.")
+                    except Exception as e:
+                        print(f"  ERROR: cannot reach {model_name}: {e}", file=sys.stderr)
+                        print("  Skipping this model.", file=sys.stderr)
+                        continue
+
+                # Run queries
+                query_results = []
+                for i, q in enumerate(queries):
+                    t_q = time.perf_counter()
+                    try:
+                        result = run_single_query(
+                            helix_client,
+                            conn,
+                            q,
+                            profile=profile,
+                            max_results=args.max_results,
+                            model=model,
+                        )
+                    except Exception as e:
+                        print(f"  [{i+1}/{len(queries)}] FAIL q{q['idx']}: {e}", file=sys.stderr)
+                        result = {
+                            "idx": q["idx"],
+                            "query": q["query"],
+                            "expected_answer": q["expected_answer"],
+                            "accept": q["accept"],
+                            "source": q.get("source", ""),
+                            "target_tier": q.get("target_tier"),
+                            "retrieval": {
+                                "profile": profile,
+                                "extracted": {},
+                                "gene_ids": [],
+                                "scores": {},
+                                "tier_contribs": {},
+                                "t0_latency_s": 0,
+                                "t0_endpoint_latency_ms": None,
+                                "num_genes": 0,
+                            },
+                            "oracle_result": {"tier": -1, "gene_id": None, "tokens": 0, "latency_s": 0},
+                            "llm_result": {"tier": -1, "hops": 0, "answer": None, "miss": True,
+                                           "tokens": 0, "latency_s": 0, "hop_detail": [],
+                                           "gene_id": None} if model else None,
+                            "error": str(e),
+                        }
+                    elapsed = time.perf_counter() - t_q
+                    query_results.append(result)
+
+                    # Progress
+                    orc_tier = result["oracle_result"]["tier"]
+                    llm_tier = result["llm_result"]["tier"] if result.get("llm_result") else "-"
+                    status = f"oracle=T{orc_tier}"
+                    if model:
+                        status += f" llm=T{llm_tier}"
+                    print(
+                        f"  [{i+1}/{len(queries)}] q{q['idx']:02d} {elapsed:.1f}s"
+                        f"  {status}  {q['query'][:50]}"
+                    )
+
+                # Aggregate + print scorecard
+                scorecard = aggregate_scorecard(
+                    query_results,
+                    model_name,
+                    genome_path,
+                    fingerprint_profile=profile,
+                    helix_url=helix_url,
                 )
-                # Warm up: verify model is reachable
-                print(f"  Warming up {model_name}...")
-                model.chat([{"role": "user", "content": "hi"}])
-                print(f"  Model ready.")
-            except Exception as e:
-                print(f"  ERROR: cannot reach {model_name}: {e}", file=sys.stderr)
-                print(f"  Skipping this model.", file=sys.stderr)
-                continue
+                print_scorecard(scorecard)
 
-        # Run queries
-        query_results = []
-        for i, q in enumerate(queries):
-            t_q = time.perf_counter()
-            try:
-                result = run_single_query(hcm, conn, q, model=model)
-            except Exception as e:
-                print(f"  [{i+1}/{len(queries)}] FAIL q{q['idx']}: {e}", file=sys.stderr)
-                result = {
-                    "idx": q["idx"],
-                    "query": q["query"],
-                    "expected_answer": q["expected_answer"],
-                    "accept": q["accept"],
-                    "source": q.get("source", ""),
-                    "target_tier": q.get("target_tier"),
-                    "retrieval": {"gene_ids": [], "scores": {}, "tier_contribs": {},
-                                  "t0_latency_s": 0, "num_genes": 0},
-                    "oracle_result": {"tier": -1, "gene_id": None, "tokens": 0, "latency_s": 0},
-                    "llm_result": {"tier": -1, "hops": 0, "answer": None, "miss": True,
-                                   "tokens": 0, "latency_s": 0, "hop_detail": [],
-                                   "gene_id": None} if model else None,
-                    "error": str(e),
-                }
-            elapsed = time.perf_counter() - t_q
-            query_results.append(result)
-
-            # Progress
-            orc_tier = result["oracle_result"]["tier"]
-            llm_tier = result["llm_result"]["tier"] if result.get("llm_result") else "-"
-            status = f"oracle=T{orc_tier}"
-            if model:
-                status += f" llm=T{llm_tier}"
-            print(f"  [{i+1}/{len(queries)}] q{q['idx']:02d} {elapsed:.1f}s  {status}  {q['query'][:50]}")
-
-        # Aggregate + print scorecard
-        scorecard = aggregate_scorecard(query_results, model_name, genome_path)
-        print_scorecard(scorecard)
-
-        # Write JSON
-        date_str = datetime.now().strftime("%Y-%m-%d")
-        safe_model = model_name.replace(":", "_").replace("/", "_")
-        out_path = RESULTS_DIR / f"snow_{safe_model}_{date_str}.json"
-        with open(out_path, "w", encoding="utf-8") as f:
-            json.dump(scorecard, f, indent=2, default=str)
-        print(f"  Results written to {out_path}")
-
-    conn.close()
+                # Write JSON
+                date_str = datetime.now().strftime("%Y-%m-%d")
+                safe_model = model_name.replace(":", "_").replace("/", "_")
+                out_path = RESULTS_DIR / f"snow_{safe_model}_{profile}_{date_str}.json"
+                with open(out_path, "w", encoding="utf-8") as f:
+                    json.dump(scorecard, f, indent=2, default=str)
+                print(f"  Results written to {out_path}")
+    finally:
+        conn.close()
+        helix_client.close()
     print("\nDone.")
 
 

@@ -226,24 +226,45 @@ See [docs/RESEARCH.md](docs/RESEARCH.md#benchmark-results--scale-invariant-knowl
 ## Quick Start
 
 ```bash
-# Install from PyPI (beta)
-pip install helix-context --pre
+# Install from PyPI (beta) with the recommended launcher extras
+pip install helix-context[launcher] --pre
 
-# Pull a small model for the ribosome (context codec)
-ollama pull gemma4:e2b
+# Start the supervised server (recommended daily path)
+helix-launcher
 
-# Start the proxy
+# Or start the raw server directly (manual / advanced use)
 helix
-# or: python -m uvicorn helix_context.server:app --host 127.0.0.1 --port 11437
 
 # Seed the genome with your own project files
 python examples/seed_genome.py path/to/your/project/
 
 # Check genome health
-curl http://127.0.0.1:11437/stats
+helix-status
 ```
 
 Point any OpenAI-compatible client at `http://127.0.0.1:11437/v1` and start chatting. Context compression happens transparently.
+
+### Agent / MCP setup
+
+For agent hosts, the canonical MCP entrypoint is `helix_context.mcp_server`.
+
+```json
+{
+  "mcpServers": {
+    "helix-context": {
+      "command": "python",
+      "args": ["-m", "helix_context.mcp_server"],
+      "env": {
+        "HELIX_MCP_URL": "http://127.0.0.1:11437"
+      }
+    }
+  }
+}
+```
+
+Use `helix_context.mcp.server` only as a temporary rollback path. The
+newer server exposes the full MCP tool surface, including health,
+session-awareness, and debugging tools.
 
 ### Run it with the launcher (supervisor + dashboard)
 
@@ -256,6 +277,7 @@ live dashboard for status and Start/Restart/Stop controls.
 pip install helix-context[launcher] --pre
 
 # Run it — opens http://127.0.0.1:11438/ in your browser
+# This is the canonical human-facing startup path.
 helix-launcher
 
 # Or as a system tray app (requires [launcher-tray] for pystray)
@@ -273,10 +295,15 @@ The launcher:
 - Wires Start / Restart / Stop buttons to the helix process via the
   restart-protocol-compliant announce + kill path
 - **Adopts** an already-running helix via state file on startup —
-  you can restart the launcher without killing helix
+  you can restart the launcher without killing helix. Adopted servers
+  stay running when the launcher exits; only Helix processes spawned by
+  this launcher are stopped on launcher shutdown.
 - Runs with a **system tray icon** in `--tray` mode: close browser
   tabs freely, the launcher keeps running in the tray until you
   click Quit
+- Pairs naturally with `helix-status`, which checks the server,
+  launcher, MCP config, and shared skill in one quick command and
+  exits non-zero until the full integration is ready
 
 System-service templates for running the launcher unattended live in
 [`deploy/`](deploy/) (systemd, launchd, and NSSM for Windows). See

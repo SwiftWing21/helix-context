@@ -47,6 +47,7 @@ class StateCollector:
 
         base = f"http://{self.supervisor.helix_host}:{self.supervisor.helix_port}"
         client = httpx.Client(base_url=base, timeout=self.http_timeout)
+        health_seen = False
         try:
             stats = self._safe_get_json(client, "/stats")
             if stats:
@@ -59,7 +60,29 @@ class StateCollector:
 
             health = self._safe_get_json(client, "/health")
             if health:
+                health_seen = True
                 state["helix"]["ribosome"] = health.get("ribosome")
+                checks = health.get("checks", {}) or {}
+                state["helix"]["availability"] = (
+                    "available" if health.get("status") == "ok" else "degraded"
+                )
+                if health.get("status") == "ok":
+                    state["helix"]["next_action"] = (
+                        "Helix is healthy. Query it through MCP or the OpenAI-compatible endpoint."
+                    )
+                elif checks.get("upstream_ready") is False:
+                    state["helix"]["next_action"] = (
+                        "Start or fix the upstream model server, then use Restart if Helix stays degraded."
+                    )
+                elif checks.get("genome_ready") is False:
+                    state["helix"]["next_action"] = (
+                        "Inspect the local genome database, then use Restart if Helix stays degraded."
+                    )
+                else:
+                    state["helix"]["next_action"] = (
+                        "Helix responded unexpectedly. Restart it from the launcher UI."
+                    )
+                state["helix"]["health_message"] = health.get("message")
 
             components = self._safe_get_json(client, "/admin/components")
             if components and components.get("components"):
@@ -75,6 +98,13 @@ class StateCollector:
         finally:
             client.close()
 
+        if not health_seen:
+            state["helix"]["availability"] = "degraded"
+            state["helix"]["next_action"] = (
+                "The Helix process exists but did not answer its health endpoints. "
+                "Restart it from the launcher UI."
+            )
+
         models = self._collect_models()
         if models:
             state["models"] = models
@@ -89,6 +119,7 @@ class StateCollector:
             "running": running,
             "port": self.supervisor.helix_port,
             "host": self.supervisor.helix_host,
+            "availability": "available" if running else "unavailable",
         }
         if running:
             out["pid"] = self.supervisor.get_pid()
@@ -96,6 +127,7 @@ class StateCollector:
             st = self.supervisor.store.state
             out["last_restart_reason"] = st.last_restart_reason
             out["last_restart_at"] = st.last_restart_at
+            out["next_action"] = "Wait for the health probe or use Restart if Helix looks stuck."
         else:
             # When helix is down, surface an orphan warning if one is
             # detected on the configured port — it's almost certainly
@@ -106,6 +138,7 @@ class StateCollector:
                     out["orphan_pid"] = orphan_pid
             except Exception:
                 log.debug("Orphan scan failed", exc_info=True)
+            out["next_action"] = "Click Start to launch Helix."
 
         # Last error — present whether helix is up or down.
         last_error = self.supervisor.get_last_error()

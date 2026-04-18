@@ -6,6 +6,15 @@
 <section class="panel panel--diagnostics">
   <h2 class="panel-title">Diagnostics</h2>
 
+  {% if state.helix.availability %}
+    <div class="diagnostics-warn">
+      <strong>Status:</strong> {{ state.helix.availability }}
+      {% if state.helix.next_action %}
+        — {{ state.helix.next_action }}
+      {% endif %}
+    </div>
+  {% endif %}
+
   {% if state.helix.last_error %}
     <div class="diagnostics-error">
       <strong>Last {{ state.helix.last_error.operation }} error:</strong>

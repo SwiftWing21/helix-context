@@ -422,6 +422,8 @@ class HelixContextManager:
                 gene = self.ribosome.pack(strand.content, content_type=content_type)
             # Preserve sequence index from chunking
             gene.promoter.sequence_index = strand.sequence_index
+            if metadata:
+                gene.promoter.metadata.update(dict(metadata))
             gene.is_fragment = strand.is_fragment
             # Store source file path for change-based decay
             if source_path:
@@ -612,37 +614,11 @@ class HelixContextManager:
         # Restates the query with expanded keywords BEFORE promoter lookup.
         # This sharpens the initial frequency so retrieval falls into the
         # right gravity well instead of optimizing the wrong one.
-        expanded_query = self._expand_query_intent(query)
-
-        # Step 1: Extract promoter signals (heuristic, no model)
-        domains, entities = self._extract_query_signals(expanded_query)
-
-        # Step 1b: Inject implicit "THIS" tokens from session_context.
-        # The user's editor / cwd / open files tell us which project they
-        # are AT — this is information the synthetic bench harness lacks
-        # but real callers always have. Tokens become path_key_index
-        # lookup keys via query_terms in the Tier 0 retrieval pass.
-        if session_context:
-            try:
-                from .genome import path_tokens
-                implicit = set()
-                ap = session_context.get("active_project")
-                if ap:
-                    implicit |= path_tokens(str(ap))
-                for f in session_context.get("active_files", []) or []:
-                    implicit |= path_tokens(str(f))
-                # Also accept a flat list of project names (multi-repo
-                # workspaces, "I'm bouncing between helix and cosmic")
-                for p in session_context.get("active_projects", []) or []:
-                    implicit |= path_tokens(str(p))
-                # Add as entities — query_genes treats them identically
-                # to extracted entities, and the PKI tier will pair them
-                # with the kv_keys from the actual query.
-                if implicit:
-                    existing = {e.lower() for e in entities}
-                    entities = entities + [t for t in implicit if t not in existing]
-            except Exception:
-                log.debug("session_context plumb failed", exc_info=True)
+        expanded_query, domains, entities = self._prepare_query_signals(
+            query,
+            session_context=session_context,
+            expand_query=True,
+        )
 
         # Step 2: Express (genome query + pending buffer + optional cold tier)
         candidates = self._express(
@@ -669,106 +645,15 @@ class HelixContextManager:
                 metadata={"query": query, "genes_expressed": 0},
             )
 
-        # Step 3: Score-gated trimming
-        # Cymatics resonance is blended as a BONUS on retrieval scores,
-        # not used to re-sort. This preserves retrieval-tier ordering
-        # (which finds the right genes) while giving spectrally-similar
-        # genes a small boost for tiebreaking.
-        if self._use_cymatics and len(candidates) > 1:
-            try:
-                from .cymatics import (
-                    query_spectrum, cached_gene_spectrum,
-                    flux_score_dispatch, build_weight_vector,
-                )
-                metric = self.config.cymatics.distance_metric
-                q_spec = query_spectrum(
-                    query, synonym_map=self.config.synonym_map,
-                    peak_width=self._cymatics_peak_width,
-                )
-                weights = build_weight_vector(
-                    query, synonym_map=self.config.synonym_map,
-                    peak_width=self._cymatics_peak_width,
-                )
-                scores = self.genome.last_query_scores or {}
-                for gene in candidates:
-                    g_spec = cached_gene_spectrum(gene, peak_width=self._cymatics_peak_width)
-                    bonus = flux_score_dispatch(q_spec, g_spec, weights, metric) * 0.5  # max 0.5 bonus
-                    scores[gene.gene_id] = scores.get(gene.gene_id, 0) + bonus
-                self.genome.last_query_scores = scores
-                # Re-sort by blended score
-                candidates.sort(
-                    key=lambda g: scores.get(g.gene_id, 0), reverse=True,
-                )
-            except Exception:
-                log.debug("Cymatics blend failed", exc_info=True)
-
-        if len(candidates) > max_genes:
-            if (
-                self.config.ingestion.rerank_enabled
-                and hasattr(self.ribosome, 're_rank')
-            ):
-                try:
-                    candidates = self.ribosome.re_rank(query, candidates, k=max_genes)
-                except Exception:
-                    log.warning("Re-rank failed, falling back to retrieval order", exc_info=True)
-                    candidates = candidates[:max_genes]
-            else:
-                candidates = candidates[:max_genes]
-
-        # Step 3.20: Harmonic bin boost (Monte Carlo as overtone series)
-        # Reads ray-trace results as a FREQUENCY distribution — genes
-        # appearing in >70% of rays' paths are fundamentals, not ranks.
-        # This is the cymatics "read the standing wave" approach.
-        if len(candidates) >= 3:
-            try:
-                from .ray_trace import harmonic_bin_boost
-                seed_ids = [g.gene_id for g in candidates[:3]]
-                # Sprint 2 item 6: when theta alternation is enabled and
-                # the TCM session has enough history to provide a
-                # velocity direction, bias ray sampling fore/aft along
-                # that direction. Requires Howard 2005 velocity TCM
-                # (Sprint 1 item 3) — the context vector now carries
-                # trajectory not raw position.
-                velocity = None
-                theta_w = 1.0
-                if (
-                    getattr(self.config.retrieval, "ray_trace_theta", False)
-                    and self._tcm_session is not None
-                    and self._tcm_session.depth >= 2
-                ):
-                    velocity = list(self._tcm_session.context_vector)
-                    theta_w = self.config.retrieval.theta_weight
-                overtones = harmonic_bin_boost(
-                    seed_ids, self.genome,
-                    k_rays=100, max_bounces=2,  # lightweight for per-query use
-                    velocity_vector=velocity, theta_weight=theta_w,
-                )
-                if overtones:
-                    scores = self.genome.last_query_scores or {}
-                    for gene in candidates:
-                        if gene.gene_id in overtones:
-                            scores[gene.gene_id] = scores.get(gene.gene_id, 0) + overtones[gene.gene_id]
-                    self.genome.last_query_scores = scores
-                    candidates.sort(key=lambda g: scores.get(g.gene_id, 0), reverse=True)
-            except Exception:
-                log.debug("Harmonic bin boost failed", exc_info=True)
-
-        # Step 3.25: TCM session-context bonus (tiebreaker)
-        # Genes similar to the current session drift vector get a small
-        # boost. This creates forward-recall asymmetry — recent context
-        # preferentially surfaces related genes.
-        if self._tcm_session is not None and self._tcm_session.depth > 0:
-            try:
-                from .tcm import tcm_bonus
-                bonuses = tcm_bonus(self._tcm_session, candidates, weight=0.3)
-                # Re-sort candidates by retrieval score + TCM bonus
-                scores = self.genome.last_query_scores or {}
-                candidates.sort(
-                    key=lambda g: scores.get(g.gene_id, 0) + bonuses.get(g.gene_id, 0),
-                    reverse=True,
-                )
-            except Exception:
-                pass  # TCM is a tiebreaker, never blocks
+        candidates, _ = self._apply_candidate_refiners(
+            query,
+            candidates,
+            max_genes,
+            use_cymatics=True,
+            use_harmonic_bin=True,
+            use_tcm=True,
+            allow_rerank=True,
+        )
 
         # Dynamic budget tiers — size the expression window based on
         # retrieval confidence instead of always sending max_genes.
@@ -1358,6 +1243,36 @@ class HelixContextManager:
         self._intent_cache[query] = expanded
         return expanded
 
+    def _prepare_query_signals(
+        self,
+        query: str,
+        session_context: Optional[dict] = None,
+        *,
+        expand_query: bool = True,
+    ) -> Tuple[str, List[str], List[str]]:
+        """Return the query text and derived retrieval signals for a request."""
+        expanded_query = self._expand_query_intent(query) if expand_query else query
+        domains, entities = self._extract_query_signals(expanded_query)
+
+        if session_context:
+            try:
+                from .genome import path_tokens
+                implicit = set()
+                ap = session_context.get("active_project")
+                if ap:
+                    implicit |= path_tokens(str(ap))
+                for f in session_context.get("active_files", []) or []:
+                    implicit |= path_tokens(str(f))
+                for p in session_context.get("active_projects", []) or []:
+                    implicit |= path_tokens(str(p))
+                if implicit:
+                    existing = {e.lower() for e in entities}
+                    entities = entities + [t for t in implicit if t not in existing]
+            except Exception:
+                log.debug("session_context plumb failed", exc_info=True)
+
+        return expanded_query, domains, entities
+
     # -- Internal: Step 2 (express) ------------------------------------
 
     def _express(
@@ -1368,6 +1283,8 @@ class HelixContextManager:
         query_text: Optional[str] = None,
         include_cold: Optional[bool] = None,
         party_id: Optional[str] = None,
+        use_harmonic: bool = True,
+        use_sr: Optional[bool] = None,
     ) -> List[Gene]:
         """Query genome + pending buffer for matching genes.
 
@@ -1400,7 +1317,12 @@ class HelixContextManager:
         # ── Hot-tier retrieval (chromatin < HETEROCHROMATIN) ────────────
         try:
             candidates = self.genome.query_genes(
-                domains, entities, max_genes=max_genes, party_id=party_id,
+                domains,
+                entities,
+                max_genes=max_genes,
+                party_id=party_id,
+                use_harmonic=use_harmonic,
+                use_sr=use_sr,
             )
         except PromoterMismatch:
             pass
@@ -1472,6 +1394,111 @@ class HelixContextManager:
                     log.warning("cold-tier retrieval failed", exc_info=True)
 
         return deduped[:max_genes * 2]
+
+    def _apply_candidate_refiners(
+        self,
+        query: str,
+        candidates: List[Gene],
+        max_genes: int,
+        *,
+        use_cymatics: bool = True,
+        use_harmonic_bin: bool = True,
+        use_tcm: bool = True,
+        allow_rerank: bool = True,
+    ) -> Tuple[List[Gene], Dict[str, Dict[str, float]]]:
+        """Apply post-express candidate refiners before assembly or fingerprinting."""
+        refiner_contrib: Dict[str, Dict[str, float]] = {}
+
+        if use_cymatics and self._use_cymatics and len(candidates) > 1:
+            try:
+                from .cymatics import (
+                    query_spectrum, cached_gene_spectrum,
+                    flux_score_dispatch, build_weight_vector,
+                )
+                metric = self.config.cymatics.distance_metric
+                q_spec = query_spectrum(
+                    query, synonym_map=self.config.synonym_map,
+                    peak_width=self._cymatics_peak_width,
+                )
+                weights = build_weight_vector(
+                    query, synonym_map=self.config.synonym_map,
+                    peak_width=self._cymatics_peak_width,
+                )
+                scores = self.genome.last_query_scores or {}
+                for gene in candidates:
+                    g_spec = cached_gene_spectrum(gene, peak_width=self._cymatics_peak_width)
+                    bonus = flux_score_dispatch(q_spec, g_spec, weights, metric) * 0.5
+                    if bonus:
+                        refiner_contrib.setdefault(gene.gene_id, {})["cymatics"] = bonus
+                    scores[gene.gene_id] = scores.get(gene.gene_id, 0) + bonus
+                self.genome.last_query_scores = scores
+                candidates.sort(key=lambda g: scores.get(g.gene_id, 0), reverse=True)
+            except Exception:
+                log.debug("Cymatics blend failed", exc_info=True)
+
+        if len(candidates) > max_genes:
+            if (
+                allow_rerank
+                and self.config.ingestion.rerank_enabled
+                and hasattr(self.ribosome, "re_rank")
+            ):
+                try:
+                    candidates = self.ribosome.re_rank(query, candidates, k=max_genes)
+                except Exception:
+                    log.warning("Re-rank failed, falling back to retrieval order", exc_info=True)
+                    candidates = candidates[:max_genes]
+            else:
+                candidates = candidates[:max_genes]
+
+        if use_harmonic_bin and len(candidates) >= 3:
+            try:
+                from .ray_trace import harmonic_bin_boost
+                seed_ids = [g.gene_id for g in candidates[:3]]
+                velocity = None
+                theta_w = 1.0
+                if (
+                    getattr(self.config.retrieval, "ray_trace_theta", False)
+                    and self._tcm_session is not None
+                    and self._tcm_session.depth >= 2
+                ):
+                    velocity = list(self._tcm_session.context_vector)
+                    theta_w = self.config.retrieval.theta_weight
+                overtones = harmonic_bin_boost(
+                    seed_ids,
+                    self.genome,
+                    k_rays=100,
+                    max_bounces=2,
+                    velocity_vector=velocity,
+                    theta_weight=theta_w,
+                )
+                if overtones:
+                    scores = self.genome.last_query_scores or {}
+                    for gene in candidates:
+                        if gene.gene_id in overtones:
+                            bonus = overtones[gene.gene_id]
+                            refiner_contrib.setdefault(gene.gene_id, {})["harmonic_bin"] = bonus
+                            scores[gene.gene_id] = scores.get(gene.gene_id, 0) + bonus
+                    self.genome.last_query_scores = scores
+                    candidates.sort(key=lambda g: scores.get(g.gene_id, 0), reverse=True)
+            except Exception:
+                log.debug("Harmonic bin boost failed", exc_info=True)
+
+        if use_tcm and self._tcm_session is not None and self._tcm_session.depth > 0:
+            try:
+                from .tcm import tcm_bonus
+                bonuses = tcm_bonus(self._tcm_session, candidates, weight=0.3)
+                for gid, bonus in bonuses.items():
+                    if bonus:
+                        refiner_contrib.setdefault(gid, {})["tcm"] = bonus
+                scores = self.genome.last_query_scores or {}
+                candidates.sort(
+                    key=lambda g: scores.get(g.gene_id, 0) + bonuses.get(g.gene_id, 0),
+                    reverse=True,
+                )
+            except Exception:
+                pass
+
+        return candidates, refiner_contrib
 
     # -- Internal: Step 5 (assemble) -----------------------------------
 

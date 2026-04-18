@@ -39,6 +39,7 @@ query_expansion_enabled = false         # Step 0 LLM query-intent expansion. fal
 ribosome_tokens = 3000                  # fixed decoder prompt
 expression_tokens = 12000               # 1:10 ratio at 128K = ~12.8K total context budget
 max_genes_per_turn = 12
+max_fingerprints_per_turn = 40          # navigation-first fingerprint payload cap (final returned count, not frontier width)
 splice_aggressiveness = 0.3             # 0=keep all, 1=ruthless trim (lower preserves more literal detail)
 decoder_mode = "condensed"              # "full"|"condensed"|"minimal"|"none" (none saves ~750 tokens for API models)
 # Sprint 1 legibility pack (AI-consumer roadmap): emit one metadata line
@@ -65,10 +66,17 @@ synthetic_session_window_s = 300        # 5 min — same-IP requests within this
 synthetic_session_enabled = true        # Flip to false to restore prior NULL-session behavior (not recommended)
 
 [genome]
-path = "F:/Projects/helix-context/genome.db"
+# 2026-04-16: swapped to fresh-rebuild clean genome. Old path archived:
+#   F:/Projects/helix-context/genome.db          — old master (pre-rebuild)
+#   C:/helix-cache/genome.db                     — old replica (had backfill)
+# New genomes/ folder is the phase-2 sharding root. main/ is v1's only
+# shard; future shards land as genomes/reference/, genomes/agent/, etc.
+path = "F:/Projects/helix-context/genomes/main/genome.db"
 compact_interval = 3600                 # seconds between source-change checks (hourly)
 cold_start_threshold = 10              # genes needed before history stripping kicks in (Fix 3)
-replicas = ["C:/helix-cache/genome.db", "E:/helix-cache/genome.db"]
+# Replicas disabled during phase-1 cutover. Will re-enable alongside
+# the shard router in phase 2 (sharding changes the replication shape).
+replicas = []
 replica_sync_interval = 100             # sync replicas every N inserts
 # No time-based decay. Genes never expire.
 # Compaction only detects source file changes (mtime vs last_accessed).
@@ -107,6 +115,7 @@ cold_tier_enabled = false               # master opt-in
 cold_tier_min_hot_genes = 0             # fall through when hot returns <= this many genes (0 = only on empty)
 cold_tier_k = 3                         # max cold-tier genes per query
 cold_tier_min_cosine = 0.15             # SEMA cosine floor (sparse 20-dim — see comment above)
+fingerprint_mode_profile = "balanced"   # "fast" | "balanced" | "quality" for POST /fingerprint and /debug/preview
 
 [cymatics]
 enabled = true                          # Blended as bonus (0.5 max), not used to re-sort

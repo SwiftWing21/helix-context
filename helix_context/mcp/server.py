@@ -1,6 +1,9 @@
 """
 Helix Context MCP Server — exposes genome tools to Claude Code.
 
+LEGACY SERVER: kept for rollback compatibility only.
+Prefer `python -m helix_context.mcp_server` with `HELIX_MCP_URL`.
+
 Three tools:
     helix_context    — query compressed context for a topic (the money saver)
     helix_ingest     — ingest content into the genome
@@ -41,6 +44,12 @@ import httpx
 
 HELIX_URL = os.environ.get("HELIX_URL", "http://127.0.0.1:11437")
 TIMEOUT = float(os.environ.get("HELIX_TIMEOUT", "30"))
+
+_LEGACY_WARNING = (
+    "WARNING: helix_context.mcp.server is the legacy 3-tool MCP server. "
+    "Switch to `python -m helix_context.mcp_server` and `HELIX_MCP_URL` "
+    "for the canonical 18-tool surface."
+)
 
 
 # ── MCP stdio protocol (minimal, no SDK dependency) ─────────────────
@@ -304,6 +313,7 @@ HANDLERS = {
 
 def main():
     """Run the MCP stdio server."""
+    print(_LEGACY_WARNING, file=sys.stderr)
     _init_io()
 
     while True:

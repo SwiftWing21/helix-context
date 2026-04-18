@@ -79,6 +79,7 @@ all = [
 [project.scripts]
 helix = "helix_context.server:main"
 helix-launcher = "helix_context.launcher.app:main"
+helix-status = "helix_status:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,8 +1,12 @@
 {# Panel assembly — conditionally renders each panel only if its data is present. #}
 
-{% if not state.helix.running %}
+{% if state.helix.availability == "unavailable" or not state.helix.running %}
   <div class="panel panel--empty">
     <p>Helix is stopped. Click <strong>Start</strong> to launch the server.</p>
+  </div>
+{% elif state.helix.availability == "degraded" %}
+  <div class="panel panel--empty">
+    <p>Helix is running but not answering health checks cleanly. Try <strong>Restart</strong> and check Diagnostics.</p>
   </div>
 {% else %}
 

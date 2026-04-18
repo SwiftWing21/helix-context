@@ -71,13 +71,16 @@ def create_app(
         except Exception:
             log.warning("Adoption check failed", exc_info=True)
         yield
-        # On shutdown, stop helix cleanly (best-effort).
-        if supervisor.is_running():
+        # On shutdown, stop only processes this launcher spawned itself.
+        # Adopted Helix instances should keep running when the launcher exits.
+        if supervisor.is_running() and supervisor.owns_process():
             try:
                 log.info("Launcher shutting down — stopping helix")
                 supervisor.stop(reason="launcher shutdown")
             except Exception:
                 log.warning("Graceful helix stop failed during launcher shutdown", exc_info=True)
+        elif supervisor.is_running():
+            log.info("Launcher shutting down — leaving adopted helix running")
 
     app = FastAPI(title="Helix Launcher", version="0.1.0", lifespan=lifespan)
     app.state.store = store

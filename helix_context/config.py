@@ -94,6 +94,7 @@ class BudgetConfig:
     ribosome_tokens: int = 3000
     expression_tokens: int = 6000
     max_genes_per_turn: int = 8
+    max_fingerprints_per_turn: int = 40
     splice_aggressiveness: float = 0.5
     decoder_mode: str = "full"  # "full"|"condensed"|"minimal"|"none"
     # Sprint 1 legibility pack (AI-consumer roadmap): emit a one-line
@@ -150,6 +151,7 @@ class ContextConfig:
     cold_tier_min_hot_genes: int = 0        # Fall through when hot returns <= this many genes (0 = only on empty)
     cold_tier_k: int = 3                    # Max cold-tier genes to retrieve per query
     cold_tier_min_cosine: float = 0.15      # SEMA cosine floor (sparse 20-dim — see Genome.query_cold_tier)
+    fingerprint_mode_profile: str = "balanced"  # "fast" | "balanced" | "quality"
 
 
 @dataclass
@@ -271,6 +273,7 @@ def load_config(path: Optional[str] = None) -> HelixConfig:
             ribosome_tokens=b.get("ribosome_tokens", cfg.budget.ribosome_tokens),
             expression_tokens=b.get("expression_tokens", cfg.budget.expression_tokens),
             max_genes_per_turn=b.get("max_genes_per_turn", cfg.budget.max_genes_per_turn),
+            max_fingerprints_per_turn=b.get("max_fingerprints_per_turn", cfg.budget.max_fingerprints_per_turn),
             splice_aggressiveness=float(b.get("splice_aggressiveness", cfg.budget.splice_aggressiveness)),
             decoder_mode=b.get("decoder_mode", cfg.budget.decoder_mode),
             legibility_enabled=bool(b.get("legibility_enabled", cfg.budget.legibility_enabled)),
@@ -318,6 +321,7 @@ def load_config(path: Optional[str] = None) -> HelixConfig:
             cold_tier_min_hot_genes=int(c.get("cold_tier_min_hot_genes", cfg.context.cold_tier_min_hot_genes)),
             cold_tier_k=int(c.get("cold_tier_k", cfg.context.cold_tier_k)),
             cold_tier_min_cosine=float(c.get("cold_tier_min_cosine", cfg.context.cold_tier_min_cosine)),
+            fingerprint_mode_profile=str(c.get("fingerprint_mode_profile", cfg.context.fingerprint_mode_profile)).lower(),
         )
 
     # Cymatics

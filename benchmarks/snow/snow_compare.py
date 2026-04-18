@@ -85,9 +85,12 @@ def main() -> None:
         llm = r.get("llm")
         if not llm:
             continue
-        model = r.get("meta", {}).get("model", "unknown")
+        meta = r.get("meta", {})
+        model = meta.get("model", "unknown")
+        profile = meta.get("fingerprint_profile", "legacy")
         llm_rows.append({
             "model": model,
+            "profile": profile,
             "hops": llm.get("avg_hops", 0),
             "tokens": llm.get("avg_tokens", 0),
             "latency": llm.get("avg_latency_s", 0),
@@ -100,23 +103,26 @@ def main() -> None:
             "file": r.get("_file", ""),
         })
 
-    # Sort by avg hops ascending
-    llm_rows.sort(key=lambda x: x["hops"])
+    # Sort by profile, then avg hops ascending.
+    llm_rows.sort(key=lambda x: (x["profile"], x["hops"], x["model"]))
 
     if llm_rows:
         # --- Model comparison table ---
         # Find max model name length for alignment
         name_w = max(len(r["model"]) for r in llm_rows)
         name_w = max(name_w, 5)  # minimum "Model"
+        profile_w = max(len(r["profile"]) for r in llm_rows)
+        profile_w = max(profile_w, 7)  # minimum "Profile"
 
-        print(f"Model comparison (sorted by avg hops ascending, n={n_queries}):")
-        header = (f"  {'Model':<{name_w}}   Hops   Tokens   Latency  Triage%"
+        print(f"Model comparison (sorted by profile, then avg hops, n={n_queries}):")
+        header = (f"  {'Model':<{name_w}}  {'Profile':<{profile_w}}   Hops   Tokens   Latency  Triage%"
                   f"  Miss%  Waste  Tok OH  Lat OH")
         print(header)
         print("  " + "-" * (len(header) - 2))
 
         for r in llm_rows:
             print(f"  {r['model']:<{name_w}}"
+                  f"  {r['profile']:<{profile_w}}"
                   f"   {r['hops']:4.1f}"
                   f"   {r['tokens']:7.0f}"
                   f"   {r['latency']:6.2f}s"
@@ -136,14 +142,14 @@ def main() -> None:
 
         if tier_labels:
             print("Per-step latency (avg):")
-            tier_header = "  " + f"{'Model':<{name_w}}"
+            tier_header = "  " + f"{'Model':<{name_w}}  {'Profile':<{profile_w}}"
             for t in tier_labels:
                 tier_header += f"   {t:>8}"
             print(tier_header)
             print("  " + "-" * (len(tier_header) - 2))
 
             for r in llm_rows:
-                line = f"  {r['model']:<{name_w}}"
+                line = f"  {r['model']:<{name_w}}  {r['profile']:<{profile_w}}"
                 for t in tier_labels:
                     step = r["per_step"].get(t, {})
                     if isinstance(step, dict):
@@ -161,10 +167,12 @@ def main() -> None:
     # --- File inventory ---
     print(f"Result files ({len(results)}):")
     for r in results:
-        model = r.get("meta", {}).get("model", "?")
-        ts = r.get("meta", {}).get("timestamp", "?")[:10]
+        meta = r.get("meta", {})
+        model = meta.get("model", "?")
+        profile = meta.get("fingerprint_profile", "legacy")
+        ts = meta.get("timestamp", "?")[:10]
         has_llm = "LLM" if r.get("llm") else "oracle-only"
-        print(f"  {r.get('_file', '?'):<45}  {model:<20}  {has_llm}  {ts}")
+        print(f"  {r.get('_file', '?'):<45}  {model:<20}  {profile:<8}  {has_llm}  {ts}")
 
 
 if __name__ == "__main__":

@@ -42,6 +42,7 @@ def fake_supervisor(fake_store, tmp_path):
     sup.adopt.return_value = False
     sup.find_orphan_helix.return_value = None
     sup.get_last_error.return_value = None
+    sup.owns_process.return_value = False
     return sup
 
 
@@ -99,6 +100,30 @@ class TestApiState:
         assert resp.json() == {"helix": {"running": False, "port": 11437}}
 
 
+class TestLauncherOwnership:
+    def test_shutdown_does_not_stop_adopted_helix(self, fake_store, fake_supervisor, fake_collector):
+        fake_supervisor.adopt.return_value = True
+        fake_supervisor.is_running.return_value = True
+        fake_supervisor.owns_process.return_value = False
+
+        app = create_app(store=fake_store, supervisor=fake_supervisor, collector=fake_collector)
+        with TestClient(app):
+            pass
+
+        fake_supervisor.stop.assert_not_called()
+
+    def test_shutdown_stops_owned_helix(self, fake_store, fake_supervisor, fake_collector):
+        fake_supervisor.adopt.return_value = False
+        fake_supervisor.is_running.return_value = True
+        fake_supervisor.owns_process.return_value = True
+
+        app = create_app(store=fake_store, supervisor=fake_supervisor, collector=fake_collector)
+        with TestClient(app):
+            pass
+
+        fake_supervisor.stop.assert_called_once()
+
+
 class TestPanelsPartial:
     def test_panels_partial_returns_html(self, client):
         resp = client.get("/api/state/panels")
@@ -106,6 +131,19 @@ class TestPanelsPartial:
         assert resp.headers["content-type"].startswith("text/html")
         # Empty state when helix down
         assert "Helix is stopped" in resp.text
+
+    def test_panels_partial_renders_degraded_message(self, client, fake_collector):
+        fake_collector.collect.return_value = {
+            "helix": {
+                "running": True,
+                "availability": "degraded",
+                "next_action": "Restart it from the launcher UI.",
+                "port": 11437,
+            }
+        }
+        resp = client.get("/api/state/panels")
+        assert resp.status_code == 200
+        assert "not answering health checks cleanly" in resp.text
 
 
 class TestControlStart:

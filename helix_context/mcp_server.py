@@ -48,7 +48,7 @@ Run (stdio transport — what MCP hosts spawn):
 Configure in Claude Code .mcp.json:
     {
       "mcpServers": {
-        "helix": {
+        "helix-context": {
           "command": "python",
           "args": ["-m", "helix_context.mcp_server"],
           "env": {
@@ -61,6 +61,16 @@ Configure in Claude Code .mcp.json:
 Env:
     HELIX_MCP_URL        - helix HTTP base URL (default http://127.0.0.1:11437)
     HELIX_MCP_TIMEOUT    - per-request timeout in seconds (default 30)
+    HELIX_MCP_HANDLE     - live MCP session handle for registry presence
+    HELIX_PARTY_ID       - party/device id for session presence; also the
+                           ingest default when HELIX_DEVICE is unset
+    HELIX_MCP_HOST       - MCP host/tool family for presence tags
+    HELIX_ORG            - ingest attribution org id
+    HELIX_DEVICE         - ingest attribution device/party id override
+    HELIX_USER           - ingest attribution human participant handle
+    HELIX_AGENT          - ingest attribution AI agent handle
+    HELIX_AGENT_KIND     - optional ingest attribution agent kind
+                           (defaults to HELIX_MCP_HOST when omitted)
 
 Composition hook: Headroom already ships `codebase-memory-mcp` (manual
 install, off-by-default as of 2026-04-14 per Tejas on Discord). Its
@@ -125,10 +135,121 @@ def _http(method: str, path: str, body: Optional[Dict] = None) -> Dict[str, Any]
         return {
             "_error": "helix unreachable",
             "_detail": f"{exc.reason} at {url}",
-            "_hint": "Is helix running? Check HELIX_MCP_URL env var.",
+            "_hint": (
+                "Start `helix-launcher` (recommended) or run `helix` manually. "
+                "If Helix is already running elsewhere, check HELIX_MCP_URL."
+            ),
         }
     except Exception as exc:
         return {"_error": str(exc)}
+
+
+def _normalize_health_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Project raw /health or transport errors into a stable status shape."""
+    normalized: Dict[str, Any] = {"server": payload}
+
+    if payload.get("_error") == "helix unreachable":
+        normalized.update({
+            "availability": "unavailable",
+            "next_action": (
+                "Run `helix-launcher` to start the canonical supervisor. "
+                "If you intentionally run Helix elsewhere, update HELIX_MCP_URL."
+            ),
+            "message": payload.get("_detail", "Helix is unreachable."),
+        })
+        return normalized
+
+    if payload.get("_error"):
+        normalized.update({
+            "availability": "degraded",
+            "next_action": (
+                "Inspect the server error details, then restart Helix with "
+                "`helix-launcher` if the issue persists."
+            ),
+            "message": payload.get("_detail") or payload.get("_error"),
+        })
+        return normalized
+
+    if payload.get("status") == "ok":
+        genes = int(payload.get("genes", 0) or 0)
+        next_action = "Use `helix_context` for repo questions."
+        if genes == 0:
+            next_action = (
+                "Helix is up but the genome is empty. Ingest project content "
+                "or point Helix at the intended database before relying on retrieval."
+            )
+        normalized.update({
+            "availability": "available",
+            "next_action": next_action,
+            "message": "Helix answered /health successfully.",
+        })
+        return normalized
+
+    if payload.get("status") in {"degraded", "unavailable"}:
+        normalized.update({
+            "availability": payload.get("status"),
+            "next_action": (
+                payload.get("message")
+                or "Inspect the Helix health payload, then restart with `helix-launcher` if needed."
+            ),
+            "message": payload.get("message", "Helix reported a degraded health state."),
+        })
+        return normalized
+
+    normalized.update({
+        "availability": "degraded",
+        "next_action": (
+            "Helix responded, but the health payload was unexpected. "
+            "Check `/health`, then restart with `helix-launcher` if needed."
+        ),
+        "message": "Unexpected /health payload.",
+    })
+    return normalized
+
+
+def _normalize_identity_token(value: Optional[str]) -> Optional[str]:
+    """Normalize env-driven identity tokens to Helix's local-tier shape."""
+    if not value:
+        return None
+    normalized = str(value).strip().lower()[:64]
+    return normalized or None
+
+
+def _default_ingest_identity() -> Dict[str, Any]:
+    """Resolve explicit ingest attribution forwarded from the MCP process.
+
+    Unlike registry presence, Helix's HTTP /ingest route runs in another
+    process and cannot see this MCP process's env vars. We therefore ship
+    the resolved identity over the wire so ingests can be attributed to the
+    intended org/device/user/agent chain even when Helix was launched from
+    a different shell.
+    """
+    org_id = _normalize_identity_token(os.environ.get("HELIX_ORG"))
+    party_id = _normalize_identity_token(
+        os.environ.get("HELIX_DEVICE")
+        or os.environ.get("HELIX_PARTY_ID")
+        or os.environ.get("HELIX_PARTY")
+    )
+    participant_handle = _normalize_identity_token(os.environ.get("HELIX_USER"))
+    agent_handle = _normalize_identity_token(
+        os.environ.get("HELIX_AGENT") or os.environ.get("HELIX_MCP_HANDLE")
+    )
+    agent_kind = _normalize_identity_token(
+        os.environ.get("HELIX_AGENT_KIND") or os.environ.get("HELIX_MCP_HOST")
+    )
+
+    payload: Dict[str, Any] = {}
+    if org_id:
+        payload["org_id"] = org_id
+    if party_id:
+        payload["party_id"] = party_id
+    if participant_handle:
+        payload["participant_handle"] = participant_handle
+    if agent_handle:
+        payload["agent_handle"] = agent_handle
+    if agent_kind:
+        payload["agent_kind"] = agent_kind
+    return payload
 
 
 # ── Tool: helix_context ──────────────────────────────────────────────
@@ -187,13 +308,21 @@ def helix_ingest(
     metadata: optional dict stamped onto every created gene. Include
         "source_id" to make re-ingests idempotent.
 
-    Persona/user attribution comes from HELIX_AGENT / HELIX_USER env
-    vars on the helix *server* (not on this MCP process), via helix's
-    4-layer federation. See docs/FEDERATION_LOCAL.md.
+    Attribution defaults come from this MCP process's env vars and are
+    forwarded explicitly to Helix's 4-layer federation:
+        HELIX_ORG -> org_id
+        HELIX_DEVICE or HELIX_PARTY_ID -> party_id
+        HELIX_USER -> participant_handle
+        HELIX_AGENT or HELIX_MCP_HANDLE -> agent_handle
+        HELIX_AGENT_KIND or HELIX_MCP_HOST -> agent_kind
+
+    This keeps ingests correctly attributed even when the Helix HTTP
+    server was launched from a different shell. See docs/FEDERATION_LOCAL.md.
     """
     body: Dict[str, Any] = {"content": content, "content_type": content_type}
     if metadata:
         body["metadata"] = metadata
+    body.update(_default_ingest_identity())
     return _http("POST", "/ingest", body)
 
 
@@ -414,7 +543,7 @@ def helix_health() -> Dict[str, Any]:
     (status, ribosome backend, total genes, upstream). Use this for
     connectivity probes; use helix_stats for detailed genome health.
     """
-    return _http("GET", "/health")
+    return _normalize_health_payload(_http("GET", "/health"))
 
 
 # ── Tool: helix_metrics_tokens ───────────────────────────────────────
@@ -521,6 +650,21 @@ def helix_splice_preview(query: str, max_genes: int = 12) -> Dict[str, Any]:
     return _http("GET", path)
 
 
+@mcp.tool()
+def helix_fingerprint(
+    query: str,
+    max_results: Optional[int] = None,
+    profile: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Return navigation-first retrieval fingerprints, not assembled content."""
+    body: Dict[str, Any] = {"query": query}
+    if max_results is not None:
+        body["max_results"] = int(max_results)
+    if profile:
+        body["profile"] = profile
+    return _http("POST", "/fingerprint", body)
+
+
 # ── Software-vocabulary aliases (per docs/ROSETTA.md) ────────────────
 # Pass-through tools registered under canonical software names. Body
 # delegates to the legacy implementation -- same network call, same
@@ -575,6 +719,21 @@ def helix_document_preview(query: str, max_genes: int = 12) -> Dict[str, Any]:
         f"&max_genes={int(max_genes)}"
     )
     return _http("GET", path)
+
+
+@mcp.tool()
+def helix_document_fingerprint(
+    query: str,
+    max_results: Optional[int] = None,
+    profile: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Canonical alias for ``helix_fingerprint``."""
+    body: Dict[str, Any] = {"query": query}
+    if max_results is not None:
+        body["max_results"] = int(max_results)
+    if profile:
+        body["profile"] = profile
+    return _http("POST", "/fingerprint", body)
 
 
 # ── Future: codebase-memory-mcp composition ──────────────────────────

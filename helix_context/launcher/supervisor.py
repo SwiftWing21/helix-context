@@ -91,6 +91,7 @@ class HelixSupervisor:
         self._last_error: Optional[str] = None
         self._last_error_at: Optional[float] = None
         self._last_error_operation: Optional[str] = None
+        self._owns_helix_process = False
 
     def _get_psutil(self):
         if self._psutil is None:
@@ -123,11 +124,13 @@ class HelixSupervisor:
         """Return True if a tracked helix process is alive and responsive."""
         pid = self.store.state.helix_pid
         if pid is None:
+            self._owns_helix_process = False
             return False
         psutil = self._get_psutil()
         if not psutil.pid_exists(pid):
             log.info("Stored helix PID %d is dead; clearing state", pid)
             self.store.clear_helix()
+            self._owns_helix_process = False
             return False
         # PID exists — verify it's actually our uvicorn process.
         try:
@@ -135,6 +138,7 @@ class HelixSupervisor:
             cmdline = proc.cmdline()
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             self.store.clear_helix()
+            self._owns_helix_process = False
             return False
         expected_marker = "helix_context.server:app"
         if not any(expected_marker in part for part in cmdline):
@@ -143,6 +147,7 @@ class HelixSupervisor:
                 pid,
             )
             self.store.clear_helix()
+            self._owns_helix_process = False
             return False
         return True
 
@@ -182,6 +187,10 @@ class HelixSupervisor:
         self._last_error = None
         self._last_error_at = None
         self._last_error_operation = None
+
+    def owns_process(self) -> bool:
+        """Return True if this launcher instance spawned the tracked Helix."""
+        return self._owns_helix_process
 
     # ── orphan detection ───────────────────────────────────────────
 
@@ -288,6 +297,7 @@ class HelixSupervisor:
                     command=cmdline,
                     port=self.helix_port,
                 )
+                self._owns_helix_process = False
                 self._clear_error()
                 return orphan_pid
 
@@ -324,6 +334,7 @@ class HelixSupervisor:
             raise
 
         self.store.set_helix(pid=proc.pid, command=cmd, port=self.helix_port)
+        self._owns_helix_process = True
 
         if wait_ready:
             try:
@@ -335,6 +346,7 @@ class HelixSupervisor:
                 except Exception:
                     pass
                 self.store.clear_helix()
+                self._owns_helix_process = False
                 self._record_error("start", str(exc))
                 raise
 
@@ -368,6 +380,7 @@ class HelixSupervisor:
         while time.monotonic() < deadline:
             if _port_is_free(self.helix_host, self.helix_port):
                 self.store.clear_helix()
+                self._owns_helix_process = False
                 log.info("Helix stopped (pid=%d)", pid)
                 self._clear_error()
                 return
@@ -407,6 +420,7 @@ class HelixSupervisor:
                 "Adopted existing helix via state file (pid=%d, port=%d)",
                 self.store.state.helix_pid, self.store.state.helix_port,
             )
+            self._owns_helix_process = False
             return True
 
         # Stage 2: orphan scan
@@ -430,6 +444,7 @@ class HelixSupervisor:
             command=cmdline,
             port=self.helix_port,
         )
+        self._owns_helix_process = False
         log.info(
             "Adopted orphan helix on %s:%d (pid=%d)",
             self.helix_host, self.helix_port, orphan_pid,

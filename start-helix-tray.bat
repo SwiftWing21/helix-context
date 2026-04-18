@@ -19,6 +19,14 @@ set HELIX_OTEL_ENDPOINT=localhost:4317
 set HELIX_OTEL_INSECURE=1
 set HELIX_OTEL_SAMPLER_RATIO=1.0
 
+REM ── Budget-zone gene-cap spike (2026-04-14) ─────────────────────
+REM When set, the expression pipeline clamps max_genes based on the
+REM caller's incoming prompt token count so big prompts don't get the
+REM full BROAD tier when the caller is already near their window.
+REM Zones (at 128k window): <25% none, 25-40% cap 12, 40-60% cap 6,
+REM 60-80% cap 3, 80%+ cap 1. Harmless when unset. See budget_zone.py.
+set HELIX_BUDGET_ZONE=1
+
 REM ── 4-layer federation attribution (edit to your handle) ────────
 REM HELIX_AGENT is the persona writing genes. If unset, ingests tag
 REM as "manual / no AI persona involved." Set per shell/shortcut for

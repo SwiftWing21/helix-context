@@ -63,6 +63,7 @@ class TestCollectHelixDown:
         result = collector.collect()
         assert "helix" in result
         assert result["helix"]["running"] is False
+        assert result["helix"]["availability"] == "unavailable"
         # No other panels should be present
         assert "genes" not in result
         assert "parties" not in result
@@ -116,6 +117,37 @@ class TestGenesPanel:
         assert state["genes"]["total"] == 8000
         assert state["genes"]["raw_chars"] == 47_000_000
         assert state["genes"]["compression_ratio"] == 2.69
+
+    def test_health_ok_marks_available(self, collector):
+        responses = {
+            "/stats": {
+                "total_genes": 8000,
+                "total_chars_raw": 47_000_000,
+                "total_chars_compressed": 17_500_000,
+                "compression_ratio": 2.69,
+            },
+            "/sessions": {"participants": []},
+            "/health": {"status": "ok", "ribosome": "mock"},
+        }
+        with patch("httpx.Client", return_value=_mock_client(responses)):
+            with patch.object(collector, "_collect_models", return_value=None):
+                state = collector.collect()
+        assert state["helix"]["availability"] == "available"
+
+    def test_missing_health_marks_degraded(self, collector):
+        responses = {
+            "/stats": {
+                "total_genes": 8000,
+                "total_chars_raw": 47_000_000,
+                "total_chars_compressed": 17_500_000,
+                "compression_ratio": 2.69,
+            },
+            "/sessions": {"participants": []},
+        }
+        with patch("httpx.Client", return_value=_mock_client(responses)):
+            with patch.object(collector, "_collect_models", return_value=None):
+                state = collector.collect()
+        assert state["helix"]["availability"] == "degraded"
 
 
 class TestPartiesAndParticipants:
