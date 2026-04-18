@@ -993,6 +993,36 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             max_results = config.budget.max_fingerprints_per_turn
         max_results = max(1, min(max_results, 200))
 
+        # Optional score_floor — drops candidates whose post-refiner score falls
+        # below the threshold. Operates on final scores (base + refiner), not
+        # raw retrieval scores, so TCM/cymatics/etc. bumps count. Omitted or 0.0
+        # preserves backwards-compatible behavior (no filtering).
+        score_floor_raw = data.get("score_floor")
+        if score_floor_raw is None:
+            score_floor = 0.0
+        else:
+            try:
+                score_floor = float(score_floor_raw)
+            except (TypeError, ValueError):
+                return JSONResponse(
+                    {"error": "score_floor must be a number"},
+                    status_code=400,
+                )
+            if score_floor < 0:
+                return JSONResponse(
+                    {"error": "score_floor must be >= 0"},
+                    status_code=400,
+                )
+
+        # Evaluation budget: when a score_floor is in play we need to consider
+        # more candidates than max_results so truncated_by_cap can be meaningful
+        # (otherwise _express would already cap at max_results and cap is a
+        # no-op after floor filtering).
+        if score_floor > 0:
+            eval_budget = min(max(max_results * 3, 50), 200)
+        else:
+            eval_budget = max_results
+
         party_id = data.get("party_id")
         if party_id is None:
             party_id = config.session.default_party_id
@@ -1013,7 +1043,7 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             candidates = helix._express(
                 domains,
                 entities,
-                max_results,
+                eval_budget,
                 query_text=query,
                 include_cold=include_cold,
                 party_id=party_id,
@@ -1023,7 +1053,7 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             candidates, refiner_contrib = helix._apply_candidate_refiners(
                 query,
                 candidates,
-                max_results,
+                eval_budget,
                 use_cymatics=use_cymatics,
                 use_harmonic_bin=use_harmonic_bin,
                 use_tcm=use_tcm,
@@ -1042,17 +1072,31 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             refiner_contrib,
         )
 
+        # Final score = base retrieval + refiner bumps (TCM etc.). Score_floor
+        # applies against this, not the raw base score.
+        def _final_score(gene_id: str) -> float:
+            tcm_bonus = refiner_contrib.get(gene_id, {}).get("tcm", 0.0)
+            return float(base_scores.get(gene_id, 0.0) + tcm_bonus)
+
+        evaluated_total = len(candidates)
+        above_floor = [g for g in candidates if _final_score(g.gene_id) >= score_floor]
+        above_floor_total = len(above_floor)
+        truncated = above_floor[:max_results]
+        returned = len(truncated)
+        filtered_by_floor = evaluated_total - above_floor_total
+        truncated_by_cap = above_floor_total - returned
+
         attribution_map: dict = {}
-        if candidates:
+        if truncated:
             try:
                 attribution_map = registry.get_attributions_for_genes(
-                    [g.gene_id for g in candidates]
+                    [g.gene_id for g in truncated]
                 )
             except Exception:
                 log.debug("Fingerprint attribution lookup failed", exc_info=True)
 
         fingerprints = []
-        for rank, g in enumerate(candidates):
+        for rank, g in enumerate(truncated):
             path = None
             if g.promoter and g.promoter.metadata:
                 path = g.promoter.metadata.get("path")
@@ -1084,6 +1128,29 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             for tier, score in row["tier_contributions"].items():
                 tier_totals[tier] = tier_totals.get(tier, 0.0) + score
 
+        # response_hint — tell the caller when filtering/truncation mattered.
+        # Accounting counts are defined over the evaluated set (not the whole
+        # corpus), so the hint only speaks to what this call actually saw.
+        if returned == 0 and evaluated_total > 0 and score_floor > 0:
+            response_hint = (
+                f"All {evaluated_total} evaluated candidates fell below "
+                f"score_floor={score_floor}; consider lowering it or "
+                f"refining the query."
+            )
+        elif truncated_by_cap > 0:
+            response_hint = (
+                f"{truncated_by_cap} additional candidates cleared the floor "
+                f"but were truncated by max_results={max_results}; raise "
+                f"max_results to see more."
+            )
+        elif filtered_by_floor > 0:
+            response_hint = (
+                f"{filtered_by_floor} evaluated candidates fell below "
+                f"score_floor={score_floor}."
+            )
+        else:
+            response_hint = "No filtering or truncation applied."
+
         latency_ms = round((_time.time() - t0) * 1000, 1)
         return {
             "mode": "fingerprint",
@@ -1097,6 +1164,13 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             "fingerprints": fingerprints,
             "count": len(fingerprints),
             "max_results": max_results,
+            "score_floor": score_floor,
+            "evaluated_total": evaluated_total,
+            "above_floor_total": above_floor_total,
+            "returned": returned,
+            "filtered_by_floor": filtered_by_floor,
+            "truncated_by_cap": truncated_by_cap,
+            "response_hint": response_hint,
             "agent": {
                 "recommendation": "triage",
                 "hint": "Use tier fingerprints to decide which genes to fetch in full.",

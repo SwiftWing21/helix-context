@@ -732,3 +732,142 @@ class TestDebugIntrospectionEndpoints:
         assert balanced.status_code == 200
         assert fast.json()["extracted"]["expanded_query"] == "plain query"
         assert balanced.json()["extracted"]["expanded_query"] == "plain query expandedterm"
+
+    # -- score_floor + accounting --------------------------------------
+
+    def _inject_fake_fingerprint_candidates(self, client, monkeypatch, scored):
+        """Make _express return synthetic genes with deterministic scores.
+
+        scored: list of (gene_id, score) tuples. Produces that many Gene
+        objects with matching base scores and a no-op refiner pass so the
+        final score equals the base score.
+        """
+        from helix_context.schemas import Gene, PromoterTags
+
+        genes = [
+            Gene(
+                gene_id=gid,
+                content=f"content-{gid}",
+                complement=f"summary-{gid}",
+                codons=[],
+                promoter=PromoterTags(domains=[], entities=[], intent="", summary=""),
+                source_id=f"src/{gid}.py",
+            )
+            for gid, _ in scored
+        ]
+        score_map = {gid: float(score) for gid, score in scored}
+
+        helix = client.app.state.helix
+
+        def _fake_express(domains, entities, max_results, **_kw):
+            helix.genome.last_query_scores = dict(score_map)
+            helix.genome.last_tier_contributions = {
+                gid: {"fts5": score} for gid, score in score_map.items()
+            }
+            return list(genes)
+
+        def _fake_refiners(query, candidates, max_results, **_kw):
+            return list(candidates), {gid: {} for gid, _ in scored}
+
+        monkeypatch.setattr(helix, "_express", _fake_express)
+        monkeypatch.setattr(helix, "_apply_candidate_refiners", _fake_refiners)
+
+    def test_fingerprint_score_floor_default_is_backwards_compatible(
+        self, client, monkeypatch
+    ):
+        self._inject_fake_fingerprint_candidates(
+            client, monkeypatch,
+            [("g1", 10.0), ("g2", 5.0), ("g3", 1.0)],
+        )
+        resp = client.post("/fingerprint", json={
+            "query": "anything", "max_results": 10, "profile": "fast",
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["score_floor"] == 0.0
+        assert data["returned"] == 3
+        assert data["filtered_by_floor"] == 0
+        assert data["truncated_by_cap"] == 0
+
+    def test_fingerprint_score_floor_filters_low_score(
+        self, client, monkeypatch
+    ):
+        self._inject_fake_fingerprint_candidates(
+            client, monkeypatch,
+            [("g1", 10.0), ("g2", 5.0), ("g3", 1.0), ("g4", 0.5)],
+        )
+        resp = client.post("/fingerprint", json={
+            "query": "anything", "max_results": 10,
+            "profile": "fast", "score_floor": 3.0,
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["evaluated_total"] == 4
+        assert data["above_floor_total"] == 2  # g1, g2
+        assert data["returned"] == 2
+        assert data["filtered_by_floor"] == 2
+        assert data["truncated_by_cap"] == 0
+        returned_ids = [fp["gene_id"] for fp in data["fingerprints"]]
+        assert returned_ids == ["g1", "g2"]
+
+    def test_fingerprint_cap_truncates_above_floor(
+        self, client, monkeypatch
+    ):
+        # Deterministic case Max specified:
+        # evaluated=5, above_floor=3, returned=2, filtered=2, truncated=1
+        self._inject_fake_fingerprint_candidates(
+            client, monkeypatch,
+            [
+                ("g1", 10.0),
+                ("g2", 8.0),
+                ("g3", 6.0),
+                ("g4", 2.0),
+                ("g5", 1.0),
+            ],
+        )
+        resp = client.post("/fingerprint", json={
+            "query": "anything", "max_results": 2,
+            "profile": "fast", "score_floor": 5.0,
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["evaluated_total"] == 5
+        assert data["above_floor_total"] == 3
+        assert data["returned"] == 2
+        assert data["filtered_by_floor"] == 2
+        assert data["truncated_by_cap"] == 1
+        assert "truncated by max_results=2" in data["response_hint"]
+        returned_ids = [fp["gene_id"] for fp in data["fingerprints"]]
+        assert returned_ids == ["g1", "g2"]
+
+    def test_fingerprint_invalid_score_floor_rejected(
+        self, client, monkeypatch
+    ):
+        self._inject_fake_fingerprint_candidates(
+            client, monkeypatch, [("g1", 1.0)],
+        )
+        resp_bad = client.post("/fingerprint", json={
+            "query": "anything", "score_floor": "not-a-number",
+        })
+        assert resp_bad.status_code == 400
+
+        resp_negative = client.post("/fingerprint", json={
+            "query": "anything", "score_floor": -1.0,
+        })
+        assert resp_negative.status_code == 400
+
+    def test_fingerprint_response_hint_describes_filtering(
+        self, client, monkeypatch
+    ):
+        self._inject_fake_fingerprint_candidates(
+            client, monkeypatch,
+            [("g1", 1.0), ("g2", 2.0)],
+        )
+        resp = client.post("/fingerprint", json={
+            "query": "anything", "max_results": 10,
+            "profile": "fast", "score_floor": 100.0,
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["returned"] == 0
+        assert "All 2 evaluated candidates fell below" in data["response_hint"]
