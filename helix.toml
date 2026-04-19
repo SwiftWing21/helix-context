@@ -87,6 +87,29 @@ host = "127.0.0.1"
 port = 11437
 upstream = "http://localhost:11434"     # Ollama
 
+# ──────────────────────────────────────────────────────────────────────
+# [headroom] — OPTIONAL PROXY LIFECYCLE (launcher only).
+#
+# Headroom (https://github.com/chopratejas/headroom) is a separate
+# process serving a compression proxy + dashboard at
+# http://{host}:{port}/dashboard. The launcher can spawn it as a child
+# at boot (autostart=true) and surface it in the tray menu.
+#
+# Graceful adoption: if a headroom process is already listening on the
+# configured port when the launcher starts, we adopt it (don't spawn a
+# duplicate) and leave it alive on Quit unless the user explicitly
+# clicked "Stop Headroom" in the tray.
+#
+# Requires: pip install "helix-context[codec]"  (pulls headroom-ai[proxy])
+# ──────────────────────────────────────────────────────────────────────
+[headroom]
+enabled = false                         # Master switch; false = launcher ignores headroom entirely
+autostart = false                       # If enabled + autostart, spawn on launcher boot (unless adopting)
+host = "127.0.0.1"
+port = 8787                             # Default headroom proxy port
+mode = "token"                          # "token" (compression-first) | "cache" (prefix-cache-stable)
+dashboard_path = "/dashboard"           # Appended to http://{host}:{port} for the tray menu link
+
 [ingestion]
 backend = "cpu"                         # "ollama" (LLM, slow) | "cpu" (spaCy+regex, fast) | "hybrid"
 splade_enabled = true                   # Phase 2: SPLADE sparse expansion at index time

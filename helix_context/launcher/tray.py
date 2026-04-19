@@ -102,6 +102,8 @@ class HelixTrayIcon:
         on_quit: Optional[Callable[[], None]] = None,
         grafana_url: Optional[str] = None,
         prometheus_url: Optional[str] = None,
+        headroom_supervisor=None,
+        headroom_dashboard_url: Optional[str] = None,
     ) -> None:
         self.supervisor = supervisor
         self.dashboard_url = dashboard_url
@@ -110,6 +112,10 @@ class HelixTrayIcon:
         self._on_quit_extra = on_quit
         self.grafana_url = grafana_url
         self.prometheus_url = prometheus_url
+        # Optional — only provided when helix-context[codec] is installed
+        # AND [headroom] enabled=true in helix.toml.
+        self.headroom = headroom_supervisor
+        self.headroom_dashboard_url = headroom_dashboard_url
         self._icon = None  # type: ignore[assignment]
         self._quit_event = threading.Event()
 
@@ -139,6 +145,53 @@ class HelixTrayIcon:
             webbrowser.open(self.prometheus_url)
         except Exception:
             log.warning("Tray: failed to open Prometheus", exc_info=True)
+
+    # ── Headroom handlers ─────────────────────────────────────────
+
+    def _open_headroom_dashboard(self, icon, item) -> None:  # noqa: ARG002
+        if not self.headroom_dashboard_url:
+            return
+        log.info("Tray: opening Headroom dashboard at %s",
+                 self.headroom_dashboard_url)
+        try:
+            webbrowser.open(self.headroom_dashboard_url)
+        except Exception:
+            log.warning("Tray: failed to open Headroom dashboard", exc_info=True)
+
+    def _start_headroom(self, icon, item) -> None:  # noqa: ARG002
+        if self.headroom is None:
+            return
+        log.info("Tray: starting Headroom")
+        try:
+            pid = self.headroom.start()
+            log.info("Tray: Headroom started (pid=%d)", pid)
+        except Exception as exc:
+            log.error("Tray Headroom start failed: %s", exc, exc_info=True)
+        finally:
+            self._refresh_menu()
+
+    def _restart_headroom(self, icon, item) -> None:  # noqa: ARG002
+        if self.headroom is None:
+            return
+        log.info("Tray: restarting Headroom")
+        try:
+            self.headroom.restart(reason="manual restart from tray menu")
+        except Exception as exc:
+            log.error("Tray Headroom restart failed: %s", exc, exc_info=True)
+        finally:
+            self._refresh_menu()
+
+    def _stop_headroom(self, icon, item) -> None:  # noqa: ARG002
+        if self.headroom is None:
+            return
+        log.info("Tray: stopping Headroom (force=True — user-initiated)")
+        try:
+            # User clicked the menu item — override ownership gate.
+            self.headroom.stop(reason="manual stop from tray menu", force=True)
+        except Exception as exc:
+            log.error("Tray Headroom stop failed: %s", exc, exc_info=True)
+        finally:
+            self._refresh_menu()
 
     def _start_helix(self, icon, item) -> None:  # noqa: ARG002
         log.info("Tray: starting helix")
@@ -186,6 +239,28 @@ class HelixTrayIcon:
                 self.supervisor.stop(reason="launcher quit from tray menu")
         except Exception:
             log.warning("Tray quit: helix stop failed (continuing)", exc_info=True)
+
+        # Headroom Quit policy: only stop if we spawned it. Adopted
+        # headroom stays alive — the user (or another tool) launched it
+        # outside the launcher and Quit shouldn't surprise-kill it.
+        if self.headroom is not None:
+            try:
+                if self.headroom.is_running() and self.headroom.owns_process():
+                    log.info("Tray quit: stopping owned Headroom")
+                    self.headroom.stop(
+                        reason="launcher quit from tray menu",
+                        force=False,  # still enforces ownership gate
+                    )
+                elif self.headroom.is_running():
+                    log.info(
+                        "Tray quit: leaving adopted Headroom running "
+                        "(it was started outside the launcher)"
+                    )
+            except Exception:
+                log.warning(
+                    "Tray quit: headroom stop failed (continuing)",
+                    exc_info=True,
+                )
 
         if self._on_quit_extra is not None:
             try:
@@ -235,6 +310,14 @@ class HelixTrayIcon:
             items.append(pystray.MenuItem("Open Grafana", self._open_grafana))
         if self.prometheus_url:
             items.append(pystray.MenuItem("Open Prometheus", self._open_prometheus))
+        # Headroom dashboard link — only when wired. Dashboard is reachable
+        # whenever headroom is running (whether we spawned it or adopted it).
+        if self.headroom is not None and self.headroom_dashboard_url:
+            items.append(pystray.MenuItem(
+                "Open Headroom Dashboard",
+                self._open_headroom_dashboard,
+                enabled=lambda item: self.headroom.is_running(),  # noqa: ARG005
+            ))
         items.extend([
             pystray.Menu.SEPARATOR,
             pystray.MenuItem(
@@ -252,6 +335,28 @@ class HelixTrayIcon:
                 self._stop_helix,
                 enabled=lambda item: self.supervisor.is_running(),  # noqa: ARG005
             ),
+        ])
+        # Headroom lifecycle controls — only surfaced when a supervisor is wired.
+        if self.headroom is not None:
+            items.extend([
+                pystray.Menu.SEPARATOR,
+                pystray.MenuItem(
+                    "Start Headroom",
+                    self._start_headroom,
+                    enabled=lambda item: not self.headroom.is_running(),  # noqa: ARG005
+                ),
+                pystray.MenuItem(
+                    "Restart Headroom",
+                    self._restart_headroom,
+                    enabled=lambda item: self.headroom.is_running(),  # noqa: ARG005
+                ),
+                pystray.MenuItem(
+                    "Stop Headroom",
+                    self._stop_headroom,
+                    enabled=lambda item: self.headroom.is_running(),  # noqa: ARG005
+                ),
+            ])
+        items.extend([
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("Quit", self._quit),
         ])

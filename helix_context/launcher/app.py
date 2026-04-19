@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import sys
 import threading
 import time
@@ -29,6 +30,12 @@ from .supervisor import (
     ShutdownTimeout,
     StartupTimeout,
     SupervisorError,
+)
+from .headroom_supervisor import (
+    HeadroomSupervisor,
+    HeadroomSupervisorError,
+    HeadroomNotInstalled,
+    is_headroom_installed,
 )
 
 log = logging.getLogger("helix.launcher.app")
@@ -250,6 +257,81 @@ def _open_ui(url: str, native: bool, window_title: str = "Helix Launcher") -> No
             log.warning("Failed to open browser — navigate manually to %s", url)
 
 
+def _env_truthy(name: str) -> Optional[bool]:
+    """Parse an env var as tristate: True/False/None (unset)."""
+    v = os.environ.get(name)
+    if v is None:
+        return None
+    return v.strip().lower() in ("1", "true", "yes", "on")
+
+
+def _maybe_build_headroom(
+    store,
+    autostart_override: Optional[bool] = None,
+    enabled_override: Optional[bool] = None,
+) -> tuple[Optional["HeadroomSupervisor"], Optional[str]]:
+    """Build a HeadroomSupervisor + dashboard URL, or (None, None) if
+    the feature isn't enabled for this environment.
+
+    Resolution order:
+        1. `helix-context[codec]` must be installed (headroom importable)
+        2. `[headroom] enabled = true` in helix.toml (or HELIX_HEADROOM_ENABLED=1)
+        3. Try to adopt an existing headroom proxy on the configured port.
+        4. If no orphan found AND (autostart=true OR HELIX_HEADROOM_AUTOSTART=1),
+           spawn a new headroom child.
+
+    Never raises — returns (None, None) on any failure. Headroom is an
+    optional enhancement; a broken install should never block launcher start.
+    """
+    if not is_headroom_installed():
+        log.debug("Headroom not installed — skipping headroom supervisor")
+        return None, None
+
+    try:
+        from helix_context.config import load_config
+        cfg = load_config()
+        hcfg = cfg.headroom
+    except Exception as exc:
+        log.warning("Headroom: failed to load config, skipping (%s)", exc)
+        return None, None
+
+    enabled = hcfg.enabled if enabled_override is None else enabled_override
+    if not enabled:
+        log.debug("Headroom: [headroom] enabled=false — skipping")
+        return None, None
+
+    autostart = hcfg.autostart if autostart_override is None else autostart_override
+
+    headroom = HeadroomSupervisor(
+        store=store,
+        host=hcfg.host,
+        port=hcfg.port,
+        mode=hcfg.mode,
+    )
+
+    # Stage 1: adopt if a headroom is already running.
+    if headroom.adopt():
+        log.info(
+            "Headroom: adopted existing process on %s:%d — will NOT stop on Quit",
+            hcfg.host, hcfg.port,
+        )
+    elif autostart:
+        # Stage 2: spawn a new one.
+        try:
+            log.info("Headroom: starting on %s:%d (mode=%s)",
+                     hcfg.host, hcfg.port, hcfg.mode)
+            headroom.start()
+        except HeadroomNotInstalled:
+            log.warning("Headroom: package not installed; disabling")
+            return None, None
+        except Exception as exc:
+            log.warning("Headroom: autostart failed (%s); continuing without", exc)
+            # Keep the supervisor so the tray still shows Start Headroom.
+
+    dashboard_url = f"http://{hcfg.host}:{hcfg.port}{hcfg.dashboard_path}"
+    return headroom, dashboard_url
+
+
 def _handle_service_command(command: str, dry_run: bool) -> int:
     """Handle install-service / uninstall-service subcommands.
 
@@ -339,6 +421,16 @@ def main(argv: Optional[list] = None) -> int:
             log.error("Failed to start helix: %s", exc)
             log.info("Launcher will continue; use the Start button once the issue is fixed")
 
+    # Optional Headroom proxy — only provisioned when the package is
+    # importable AND [headroom] enabled=true in helix.toml (or
+    # HELIX_HEADROOM_ENABLED=1). Adoption is always attempted first so
+    # we never spawn a duplicate on top of an existing user-run proxy.
+    headroom_supervisor, headroom_dashboard_url = _maybe_build_headroom(
+        store=store,
+        autostart_override=_env_truthy("HELIX_HEADROOM_AUTOSTART"),
+        enabled_override=_env_truthy("HELIX_HEADROOM_ENABLED"),
+    )
+
     app = create_app(store=store, supervisor=supervisor, collector=collector)
 
     url = f"http://{args.host}:{args.port}/"
@@ -372,6 +464,8 @@ def main(argv: Optional[list] = None) -> int:
             dashboard_url=url,
             grafana_url=args.grafana_url,
             prometheus_url=args.prometheus_url,
+            headroom_supervisor=headroom_supervisor,
+            headroom_dashboard_url=headroom_dashboard_url,
         )
         log.info("Tray mode active — dashboard at %s", url)
         log.info("Click the tray icon to open the dashboard; Quit from its menu to exit.")

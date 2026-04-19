@@ -212,6 +212,25 @@ class RetrievalConfig:
 
 
 @dataclass
+class HeadroomConfig:
+    """Headroom proxy lifecycle controls — launcher only.
+
+    Headroom is a separate process (headroom-ai[proxy]) that serves a
+    compression proxy + dashboard at `http://{host}:{port}/dashboard`.
+    When ``autostart`` is true, the launcher spawns it as a child and
+    surfaces it in the tray menu. When it's already running on
+    ``port``, the launcher **adopts** the existing process rather than
+    spawning a duplicate — the adopted process survives launcher Quit.
+    """
+    enabled: bool = False               # Master switch; false = do nothing
+    autostart: bool = False             # Start at launcher boot (if not already up)
+    host: str = "127.0.0.1"
+    port: int = 8787
+    mode: str = "token"                 # "token" | "cache" (passed to --mode)
+    dashboard_path: str = "/dashboard"  # Appended to http://{host}:{port}
+
+
+@dataclass
 class HelixConfig:
     ribosome: RibosomeConfig = field(default_factory=RibosomeConfig)
     budget: BudgetConfig = field(default_factory=BudgetConfig)
@@ -222,6 +241,7 @@ class HelixConfig:
     cymatics: CymaticsConfig = field(default_factory=CymaticsConfig)
     retrieval: RetrievalConfig = field(default_factory=RetrievalConfig)
     session: SessionConfig = field(default_factory=SessionConfig)
+    headroom: HeadroomConfig = field(default_factory=HeadroomConfig)
     synonym_map: Dict[str, List[str]] = field(default_factory=dict)
 
 
@@ -361,6 +381,18 @@ def load_config(path: Optional[str] = None) -> HelixConfig:
             default_party_id=str(s.get("default_party_id", cfg.session.default_party_id)),
             synthetic_session_window_s=int(s.get("synthetic_session_window_s", cfg.session.synthetic_session_window_s)),
             synthetic_session_enabled=bool(s.get("synthetic_session_enabled", cfg.session.synthetic_session_enabled)),
+        )
+
+    # Headroom — optional proxy lifecycle controls
+    if "headroom" in raw:
+        h = raw["headroom"]
+        cfg.headroom = HeadroomConfig(
+            enabled=bool(h.get("enabled", cfg.headroom.enabled)),
+            autostart=bool(h.get("autostart", cfg.headroom.autostart)),
+            host=str(h.get("host", cfg.headroom.host)),
+            port=int(h.get("port", cfg.headroom.port)),
+            mode=str(h.get("mode", cfg.headroom.mode)),
+            dashboard_path=str(h.get("dashboard_path", cfg.headroom.dashboard_path)),
         )
 
     # Fix 1: synonym map

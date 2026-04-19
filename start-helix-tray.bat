@@ -34,6 +34,23 @@ REM per-persona tagging (Laude/Taude/Raude each pin their own .bat).
 if "%HELIX_USER%"=="" set HELIX_USER=max
 REM set HELIX_AGENT=raude   REM uncomment + edit if you want persona tagging
 
+REM ── Headroom proxy (OPTIONAL — requires helix-context[codec]) ───
+REM When enabled, the launcher adopts or spawns a headroom proxy and
+REM adds "Open Headroom Dashboard" + Start/Restart/Stop Headroom to
+REM the tray menu. The launcher gracefully adopts an already-running
+REM headroom proxy on the configured port (8787 by default) rather
+REM than spawning a duplicate — adopted processes survive Quit.
+REM
+REM Master switch (overrides [headroom] enabled in helix.toml):
+REM   set HELIX_HEADROOM_ENABLED=1
+REM
+REM Autostart (spawn if nothing is already running):
+REM   set HELIX_HEADROOM_AUTOSTART=1
+REM
+REM See helix.toml [headroom] for host/port/mode configuration.
+REM set HELIX_HEADROOM_ENABLED=1
+REM set HELIX_HEADROOM_AUTOSTART=1
+
 REM ── Launch the tray ─────────────────────────────────────────────
 start "helix-launcher" /B python -m helix_context.launcher.app ^
   --tray ^

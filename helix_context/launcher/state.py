@@ -37,6 +37,15 @@ class LauncherState:
     launcher_start_time: Optional[float] = None
     last_restart_reason: Optional[str] = None
     last_restart_at: Optional[float] = None
+    # Headroom proxy (optional child — see HeadroomSupervisor)
+    headroom_pid: Optional[int] = None
+    headroom_port: int = 8787
+    headroom_start_time: Optional[float] = None
+    headroom_command: List[str] = field(default_factory=list)
+    # True only if launcher spawned this headroom; False if adopted.
+    # Adopted processes survive launcher Quit unless the user explicitly
+    # clicked "Stop Headroom" in the tray.
+    headroom_owned: bool = False
 
 
 class StateStore:
@@ -104,6 +113,30 @@ class StateStore:
         self._state.helix_pid = None
         self._state.helix_start_time = None
         self._state.helix_command = []
+        self._write()
+
+    def set_headroom(
+        self,
+        pid: int,
+        command: List[str],
+        port: int,
+        owned: bool,
+        start_time: Optional[float] = None,
+    ) -> None:
+        self._state.headroom_pid = pid
+        self._state.headroom_command = list(command)
+        self._state.headroom_port = port
+        self._state.headroom_owned = owned
+        self._state.headroom_start_time = (
+            start_time if start_time is not None else time.time()
+        )
+        self._write()
+
+    def clear_headroom(self) -> None:
+        self._state.headroom_pid = None
+        self._state.headroom_start_time = None
+        self._state.headroom_command = []
+        self._state.headroom_owned = False
         self._write()
 
     def set_launcher(self, pid: int, start_time: Optional[float] = None) -> None:
