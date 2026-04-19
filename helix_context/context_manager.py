@@ -1877,29 +1877,35 @@ class HelixContextManager:
         # query names? Pathway-layer signal — measures retrieval
         # location, not content overlap. See
         # benchmarks/results/needle_step1b_iter2_pathcov_2026-04-18.json.
+        # File-grain companion added 2026-04-18 to catch same-folder-wrong-file.
+        file_token_coverage = 0.0
         try:
             if candidates and query_terms:
-                from .genome import path_tokens
+                from .genome import file_tokens, path_tokens
                 q_set = {t.lower() for t in query_terms if t}
-                hits = 0
+                folder_hits = 0
+                file_hits = 0
                 for g in candidates:
                     sid = getattr(g, "source_id", None)
                     if not sid:
                         continue
-                    toks = path_tokens(sid)
-                    if toks & q_set:
-                        hits += 1
-                path_token_coverage = hits / max(len(candidates), 1)
+                    if path_tokens(sid) & q_set:
+                        folder_hits += 1
+                    if file_tokens(sid) & q_set:
+                        file_hits += 1
+                denom = max(len(candidates), 1)
+                path_token_coverage = folder_hits / denom
+                file_token_coverage = file_hits / denom
         except Exception:
             log.debug("path token coverage calc failed", exc_info=True)
 
-        # Composite v2: path_token_coverage is the only signal from
-        # iter1+iter2 that discriminates hit-vs-miss on the 10-needle
-        # bench (delta +0.48). Crispness/neighborhood were anti-correlated;
-        # neighborhood saturated; top_dominance was inverted. Pathcov leads
-        # with coverage as a floor to prevent empty-context scoring 1.0.
+        # Composite v3 (2026-04-18): blend folder-grain + file-grain.
+        # File-grain is weighted higher because same-folder-wrong-file is
+        # the dominant silent-miss mode on the 10-needle bench. Coverage
+        # acts as a floor so empty-context never scores 1.0.
         coverage_floor = max(coverage, 0.05)
-        resolution_conf = path_token_coverage * math.sqrt(coverage_floor)
+        blended_pathcov = 0.4 * path_token_coverage + 0.6 * file_token_coverage
+        resolution_conf = blended_pathcov * math.sqrt(coverage_floor)
 
         # Telemetry: surface per-query health so dashboards can watch
         # the retrieval-quality distribution over time. No-op if OTel
@@ -1933,6 +1939,7 @@ class HelixContextManager:
             top_score_raw=round(top_score_raw, 4),
             top_dominance=round(top_dominance, 4),
             path_token_coverage=round(path_token_coverage, 4),
+            file_token_coverage=round(file_token_coverage, 4),
         )
 
     # -- Internal: compaction ------------------------------------------

@@ -230,6 +230,55 @@ def path_tokens(source_id: Optional[str]) -> set:
     return out
 
 
+def file_tokens(source_id: Optional[str]) -> set:
+    """Extract tokens from just the filename (basename), excluding folders.
+
+    Companion to path_tokens() — where that returns folder + file tokens
+    mixed together, this returns only the basename's tokens. Motivated by
+    the "same-folder-wrong-file" failure mode on the 10-needle bench:
+    a query for "helix pipeline" matches path_tokens on any gene under
+    helix-context/, but only the genes whose filename itself mentions
+    "pipeline" deserve a coordinate-confidence boost.
+
+    Uses the same split + noise rules as path_tokens() but restricts
+    input to the basename after the last separator.
+
+    Examples:
+        "F:/Projects/helix-context/docs/architecture/PIPELINE_LANES.md"
+          → {"pipeline", "lanes"}
+
+        "F:/Projects/helix-context/helix_context/retrieval.py"
+          → {"retrieval"}
+
+        "F:/Projects/helix-context/helix_context/genome.py"
+          → {"genome"}
+    """
+    if not source_id:
+        return set()
+    # Find the last separator (either / or \) to isolate the basename.
+    # PurePath would also work but adds an import; cheap local split is fine.
+    for sep in ("/", "\\"):
+        if sep in source_id:
+            basename = source_id.rsplit(sep, 1)[-1]
+            break
+    else:
+        basename = source_id
+    if not basename:
+        return set()
+    out = set()
+    for tok in _PATH_SPLIT_RE.split(basename):
+        t = tok.lower()
+        if len(t) <= 1 or t in _PATH_NOISE_TOKENS:
+            continue
+        out.add(t)
+        if "-" in t or "_" in t:
+            for sub in re.split(r"[-_]+", t):
+                s = sub.lower()
+                if len(s) > 1 and s not in _PATH_NOISE_TOKENS:
+                    out.add(s)
+    return out
+
+
 # Thresholds for the score-based gate. Calibrated against the 2026-04-10
 # noise-diluted genome (8,063 genes, ~42% structural noise). See
 # scripts/simulate_density_gate_v2.py for the empirical basis.

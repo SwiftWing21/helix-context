@@ -307,6 +307,7 @@ def find_needle(client, needle):
         "top_score_raw": health.get("top_score_raw", 0),
         "top_dominance": health.get("top_dominance", 0),
         "path_token_coverage": health.get("path_token_coverage", 0),
+        "file_token_coverage": health.get("file_token_coverage", 0),
         "answer_preview": answer_text[:200] if answer_text else "",
     }
 

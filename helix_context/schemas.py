@@ -170,6 +170,12 @@ class ContextHealth(BaseModel):
     top_dominance: float = 0.0          # top / mean(all scored) — how much #1 dominates
     path_token_coverage: float = 0.0    # Fraction of delivered genes whose source_path
                                         # tokens overlap the extracted query signals
+    # File-grain coord signal (2026-04-18): path_token_coverage is folder+file
+    # tokens mixed; this is basename-only. Catches "same folder, wrong file"
+    # silent-miss mode where the delivered set is all in the right project
+    # directory but none of the filenames match the queried concept.
+    file_token_coverage: float = 0.0    # Fraction of delivered genes whose basename
+                                        # tokens overlap the extracted query signals
 
 
 class ContextWindow(BaseModel):

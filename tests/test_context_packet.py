@@ -110,6 +110,82 @@ def test_source_index_metadata_overrides_gene_metadata():
         genome.close()
 
 
+def test_file_grain_downgrades_same_folder_wrong_file():
+    """File-grain coord signal catches wrong-file-right-folder silent miss.
+
+    Two fresh stable docs live in the same folder; neither filename
+    contains "pipeline". A query for "pipeline steps" passes folder-grain
+    (both genes are in the /repo/ "docs" folder) but fails file-grain
+    (neither filename mentions pipeline) — the packet must downgrade.
+    """
+    now_ts = 50_000.0
+    genome = Genome(":memory:")
+    try:
+        gene_a = make_gene("Notes on retrieval tiers", domains=["retrieval"])
+        gene_a.source_id = "/repo/pipeline-docs/retrieval.md"
+        gene_a.source_kind = "doc"
+        gene_a.volatility_class = "stable"
+        gene_a.authority_class = "primary"
+        gene_a.last_verified_at = now_ts - 60.0
+        genome.upsert_gene(gene_a, apply_gate=False)
+
+        gene_b = make_gene("Notes on expression steps", domains=["retrieval"])
+        gene_b.source_id = "/repo/pipeline-docs/expression.md"
+        gene_b.source_kind = "doc"
+        gene_b.volatility_class = "stable"
+        gene_b.authority_class = "primary"
+        gene_b.last_verified_at = now_ts - 60.0
+        genome.upsert_gene(gene_b, apply_gate=False)
+
+        packet = build_context_packet(
+            "pipeline steps",
+            task_type="edit",
+            genome=genome,
+            now_ts=now_ts,
+        )
+
+        # Folder-grain passes (both genes under /repo/pipeline-docs/,
+        # which contains the "pipeline" token). File-grain is 0 —
+        # neither retrieval.md nor expression.md has "pipeline" in the
+        # basename. High-risk task_type="edit" should downgrade to
+        # needs_refresh.
+        assert packet.verified == []
+        assert any("file_coverage" in note for note in packet.notes) or any(
+            "coordinate_confidence" in note for note in packet.notes
+        )
+        for item in packet.stale_risk:
+            assert item.status in ("needs_refresh", "stale_risk")
+    finally:
+        genome.close()
+
+
+def test_file_grain_passes_when_filename_matches():
+    """File-grain coord signal does NOT downgrade when filename matches query."""
+    now_ts = 60_000.0
+    genome = Genome(":memory:")
+    try:
+        gene = make_gene("Pipeline has six steps", domains=["pipeline"])
+        gene.source_id = "/repo/docs/pipeline.md"
+        gene.source_kind = "doc"
+        gene.volatility_class = "stable"
+        gene.authority_class = "primary"
+        gene.last_verified_at = now_ts - 60.0
+        genome.upsert_gene(gene, apply_gate=False)
+
+        packet = build_context_packet(
+            "pipeline steps",
+            task_type="edit",
+            genome=genome,
+            now_ts=now_ts,
+        )
+
+        # Filename contains "pipeline" → file-grain passes → verified.
+        assert len(packet.verified) == 1
+        assert packet.verified[0].status == "verified"
+    finally:
+        genome.close()
+
+
 def test_get_refresh_targets_returns_only_refreshable_sources():
     now_ts = 40_000.0
     genome = Genome(":memory:")

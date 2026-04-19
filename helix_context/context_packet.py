@@ -13,7 +13,7 @@ from pathlib import PurePath
 from typing import Optional
 
 from .accel import extract_query_signals
-from .genome import path_tokens
+from .genome import file_tokens, path_tokens
 from .schemas import ContextItem, ContextPacket, Gene, RefreshTarget
 
 _HALF_LIFE_SECONDS = {
@@ -202,33 +202,63 @@ def _item_citations(gene: Gene, meta: dict) -> list[str]:
     return citations
 
 
-def _coordinate_confidence(query: str, genes: list[Gene]) -> float:
-    """Path-token overlap between query and delivered gene source paths.
+def _coordinate_signals(query: str, genes: list[Gene]) -> tuple[float, float]:
+    """Folder-grain + file-grain path overlap between query and delivered genes.
 
-    Step 1b-iter2 signal (2026-04-18): measures whether retrieval landed
-    in the coordinate region the query names, independent of content
-    freshness. Folder-grain, not file-grain. Hit mean 1.00 vs miss mean
-    0.52 on the 10-needle bench.
+    Returns ``(folder_coverage, file_coverage)`` — both in [0, 1]. Each is
+    the fraction of delivered genes whose path/file tokens intersect the
+    query's significant tokens.
+
+    - **folder_coverage** uses ``path_tokens()`` (folder + file tokens mixed).
+      Coarse signal. Introduced as Step 1b-iter2 (2026-04-18).
+    - **file_coverage** uses ``file_tokens()`` (basename only). Narrower
+      signal; designed to catch the "same-folder-wrong-file" failure mode
+      where the delivered set is all in the right project directory but
+      none of the files actually contain the queried concept.
     """
     if not genes:
-        return 0.0
+        return (0.0, 0.0)
     domains, entities = extract_query_signals(query)
     q_set = {t.lower() for t in (domains + entities) if t}
     if not q_set:
-        return 0.0
-    hits = 0
+        return (0.0, 0.0)
+    folder_hits = 0
+    file_hits = 0
     for g in genes:
         sid = getattr(g, "source_id", None)
-        if sid and (path_tokens(sid) & q_set):
-            hits += 1
-    return hits / len(genes)
+        if not sid:
+            continue
+        if path_tokens(sid) & q_set:
+            folder_hits += 1
+        if file_tokens(sid) & q_set:
+            file_hits += 1
+    n = len(genes)
+    return (folder_hits / n, file_hits / n)
+
+
+def _coordinate_confidence(query: str, genes: list[Gene]) -> float:
+    """Composite folder + file grain confidence in [0, 1].
+
+    Blends ``_coordinate_signals`` into a single number suitable for
+    threshold-based downgrades. File-grain is weighted higher because
+    same-folder-wrong-file is the dominant silent-miss mode (see
+    2026-04-18 session-close handoff). A gene whose filename tokens
+    match the query is much more likely to be the right coordinate
+    than one that just happens to share a project folder.
+    """
+    folder_cov, file_cov = _coordinate_signals(query, genes)
+    return 0.4 * folder_cov + 0.6 * file_cov
 
 
 _COORDINATE_CONFIDENCE_FLOOR = 0.30
+_FILE_GRAIN_FLOOR = 0.15
 
 
 def _apply_coordinate_confidence(
-    status: str, task_type: str, coordinate_confidence: float,
+    status: str,
+    task_type: str,
+    coordinate_confidence: float,
+    file_coverage: float = 1.0,
 ) -> str:
     """Downgrade status when coordinate confidence is below the floor.
 
@@ -236,8 +266,15 @@ def _apply_coordinate_confidence(
     resolution itself landed in the wrong region, freshness is a category
     error. Low coordinate confidence forces a refresh cue regardless of
     how fresh the delivered content is.
+
+    File-grain acts as an independent downgrade trigger: if the delivered
+    set passed folder-grain (composite ≥ floor) but no delivered file
+    names mention the queried concept, we're in "same folder, wrong file"
+    territory and still shouldn't trust the packet for high-risk tasks.
     """
-    if coordinate_confidence >= _COORDINATE_CONFIDENCE_FLOOR:
+    composite_ok = coordinate_confidence >= _COORDINATE_CONFIDENCE_FLOOR
+    file_ok = file_coverage >= _FILE_GRAIN_FLOOR
+    if composite_ok and file_ok:
         return status
     if task_type in _HIGH_RISK_TASKS:
         return "needs_refresh"
@@ -254,6 +291,7 @@ def _build_item(
     task_type: str,
     now_ts: float,
     coordinate_confidence: float = 1.0,
+    file_coverage: float = 1.0,
 ) -> tuple[ContextItem, str]:
     freshness_known = meta.get("last_verified_at") is not None
     freshness_score = _freshness_score(
@@ -275,7 +313,9 @@ def _build_item(
         invalidated_at=meta.get("invalidated_at"),
         freshness_known=freshness_known,
     )
-    status = _apply_coordinate_confidence(status, task_type, coordinate_confidence)
+    status = _apply_coordinate_confidence(
+        status, task_type, coordinate_confidence, file_coverage,
+    )
 
     item = ContextItem(
         kind="gene",
@@ -363,14 +403,26 @@ def build_context_packet(
     if effective_main_conn is None:
         packet.notes.append("source_index unavailable; using gene-local metadata only")
 
-    # Step 1b-iter2: coordinate_confidence downgrades status when
-    # retrieval lands outside the coordinate region the query names.
-    coordinate_confidence = _coordinate_confidence(query, genes)
+    # Step 1b-iter2 + file-grain: coordinate_confidence downgrades status
+    # when retrieval lands outside the coordinate region the query names.
+    # folder_cov is coarse (project/module level); file_cov is narrow
+    # (basename level). The composite is a weighted blend; file_cov is
+    # surfaced separately so "same folder, wrong file" still triggers
+    # a downgrade even when the composite passes.
+    folder_cov, file_cov = _coordinate_signals(query, genes)
+    coordinate_confidence = 0.4 * folder_cov + 0.6 * file_cov
     if coordinate_confidence < _COORDINATE_CONFIDENCE_FLOOR:
         packet.notes.append(
             f"coordinate_confidence={coordinate_confidence:.2f} below "
-            f"{_COORDINATE_CONFIDENCE_FLOOR:.2f} floor — retrieval may not "
-            "have located the right coordinate region"
+            f"{_COORDINATE_CONFIDENCE_FLOOR:.2f} floor "
+            f"(folder={folder_cov:.2f}, file={file_cov:.2f}) — retrieval "
+            "may not have located the right coordinate region"
+        )
+    elif file_cov < _FILE_GRAIN_FLOOR:
+        packet.notes.append(
+            f"file_coverage={file_cov:.2f} below {_FILE_GRAIN_FLOOR:.2f} "
+            f"floor (folder={folder_cov:.2f}) — delivered set is in the "
+            "right folder but no filenames match the queried concept"
         )
 
     for gene in genes:
@@ -383,6 +435,7 @@ def build_context_packet(
             task_type=task_type,
             now_ts=now_ts,
             coordinate_confidence=coordinate_confidence,
+            file_coverage=file_cov,
         )
         if status == "verified":
             packet.verified.append(item)
