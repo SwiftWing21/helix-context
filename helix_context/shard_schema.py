@@ -49,6 +49,7 @@ def init_main_db(conn: sqlite3.Connection) -> None:
     _create_shards_table(cur)
     _create_fingerprint_index(cur)
     _create_source_index(cur)
+    _create_claims_tables(cur)
     _create_identity_tables(cur)
     conn.commit()
 
@@ -163,6 +164,73 @@ def _create_source_index(cur: sqlite3.Cursor) -> None:
     cur.execute(
         "CREATE INDEX IF NOT EXISTS idx_source_index_volatility "
         "ON source_index(volatility_class)"
+    )
+
+
+def _create_claims_tables(cur: sqlite3.Cursor) -> None:
+    """claims + claim_edges — structured fact layer over genes.
+
+    Claims are the unit an agent reasons over: exact literal paths,
+    config values, API routes, benchmark metrics, operational state.
+    Extracted from gene content at ingest (literal kind) or backfilled
+    lazily for legacy genomes (derived/inferred kinds).
+
+    claim_edges records contradiction / support / supersedes links
+    between claims, so the packet builder can surface conflict without
+    reopening bulk content.
+
+    See docs/specs/2026-04-17-agent-context-index-build-spec.md §B.
+    """
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS claims (
+        claim_id               TEXT PRIMARY KEY,
+        gene_id                TEXT NOT NULL,
+        shard_name             TEXT NOT NULL REFERENCES shards(shard_name),
+        claim_type             TEXT NOT NULL,
+        entity_key             TEXT,
+        claim_text             TEXT NOT NULL,
+        extraction_kind        TEXT NOT NULL DEFAULT 'literal',
+        specificity            REAL NOT NULL DEFAULT 0.5,
+        confidence             REAL NOT NULL DEFAULT 0.5,
+        observed_at            REAL,
+        supersedes_claim_id    TEXT,
+        updated_at             REAL NOT NULL
+    )
+    """)
+    cur.execute(
+        "CREATE INDEX IF NOT EXISTS idx_claims_gene "
+        "ON claims(gene_id)"
+    )
+    cur.execute(
+        "CREATE INDEX IF NOT EXISTS idx_claims_entity "
+        "ON claims(entity_key)"
+    )
+    cur.execute(
+        "CREATE INDEX IF NOT EXISTS idx_claims_type "
+        "ON claims(claim_type)"
+    )
+    cur.execute(
+        "CREATE INDEX IF NOT EXISTS idx_claims_supersedes "
+        "ON claims(supersedes_claim_id)"
+    )
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS claim_edges (
+        src_claim_id  TEXT NOT NULL,
+        dst_claim_id  TEXT NOT NULL,
+        edge_type     TEXT NOT NULL,
+        weight        REAL NOT NULL DEFAULT 1.0,
+        created_at    REAL NOT NULL,
+        PRIMARY KEY (src_claim_id, dst_claim_id, edge_type)
+    )
+    """)
+    cur.execute(
+        "CREATE INDEX IF NOT EXISTS idx_claim_edges_dst "
+        "ON claim_edges(dst_claim_id)"
+    )
+    cur.execute(
+        "CREATE INDEX IF NOT EXISTS idx_claim_edges_type "
+        "ON claim_edges(edge_type)"
     )
 
 
@@ -305,6 +373,107 @@ def upsert_fingerprint(
         ),
     )
     conn.commit()
+
+
+def upsert_claim(
+    conn: sqlite3.Connection,
+    claim_id: str,
+    gene_id: str,
+    shard_name: str,
+    claim_type: str,
+    claim_text: str,
+    entity_key: str | None = None,
+    extraction_kind: str = "literal",
+    specificity: float = 0.5,
+    confidence: float = 0.5,
+    observed_at: float | None = None,
+    supersedes_claim_id: str | None = None,
+) -> None:
+    """Write or replace a claim row. Idempotent on claim_id."""
+    from .schemas import CLAIM_TYPES, EXTRACTION_KINDS
+    if claim_type not in CLAIM_TYPES:
+        raise ValueError(f"unknown claim_type={claim_type!r}")
+    if extraction_kind not in EXTRACTION_KINDS:
+        raise ValueError(f"unknown extraction_kind={extraction_kind!r}")
+    conn.execute(
+        "INSERT OR REPLACE INTO claims "
+        "(claim_id, gene_id, shard_name, claim_type, entity_key, claim_text, "
+        "extraction_kind, specificity, confidence, observed_at, "
+        "supersedes_claim_id, updated_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            claim_id, gene_id, shard_name, claim_type, entity_key, claim_text,
+            extraction_kind, specificity, confidence, observed_at,
+            supersedes_claim_id, time.time(),
+        ),
+    )
+    conn.commit()
+
+
+def upsert_claim_edge(
+    conn: sqlite3.Connection,
+    src_claim_id: str,
+    dst_claim_id: str,
+    edge_type: str,
+    weight: float = 1.0,
+) -> None:
+    """Write or replace a claim-edge row. Idempotent on (src, dst, edge_type)."""
+    from .schemas import CLAIM_EDGE_TYPES
+    if edge_type not in CLAIM_EDGE_TYPES:
+        raise ValueError(f"unknown edge_type={edge_type!r}")
+    conn.execute(
+        "INSERT OR REPLACE INTO claim_edges "
+        "(src_claim_id, dst_claim_id, edge_type, weight, created_at) "
+        "VALUES (?, ?, ?, ?, ?)",
+        (src_claim_id, dst_claim_id, edge_type, weight, time.time()),
+    )
+    conn.commit()
+
+
+def query_claims(
+    conn: sqlite3.Connection,
+    entity_key: str | None = None,
+    claim_type: str | None = None,
+    gene_id: str | None = None,
+    shard_name: str | None = None,
+    extraction_kind: str | None = None,
+    limit: int = 100,
+) -> list[dict]:
+    """Read claims by any combination of filters. Content-free — never
+    opens a shard.
+
+    Returns plain dicts (one per row) ordered newest-first by observed_at.
+    None filters are treated as wildcards. Use limit to bound response size.
+    """
+    clauses = []
+    params: list = []
+    if entity_key is not None:
+        clauses.append("entity_key = ?")
+        params.append(entity_key)
+    if claim_type is not None:
+        clauses.append("claim_type = ?")
+        params.append(claim_type)
+    if gene_id is not None:
+        clauses.append("gene_id = ?")
+        params.append(gene_id)
+    if shard_name is not None:
+        clauses.append("shard_name = ?")
+        params.append(shard_name)
+    if extraction_kind is not None:
+        clauses.append("extraction_kind = ?")
+        params.append(extraction_kind)
+    where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
+    params.append(limit)
+    rows = conn.execute(
+        "SELECT claim_id, gene_id, shard_name, claim_type, entity_key, "
+        "claim_text, extraction_kind, specificity, confidence, observed_at, "
+        "supersedes_claim_id, updated_at "
+        f"FROM claims{where} "
+        "ORDER BY COALESCE(observed_at, updated_at) DESC "
+        "LIMIT ?",
+        params,
+    ).fetchall()
+    return [dict(r) for r in rows]
 
 
 def upsert_source_index(

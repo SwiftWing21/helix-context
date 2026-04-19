@@ -227,6 +227,55 @@ class ContextPacket(BaseModel):
     notes: List[str] = Field(default_factory=list)
 
 
+# ── Claims layer (see docs/specs/2026-04-17-agent-context-index-build-spec.md) ──
+
+CLAIM_TYPES = (
+    "path_value",
+    "config_value",
+    "api_contract",
+    "entity_membership",
+    "benchmark_result",
+    "operational_state",
+    "version_marker",
+    "human_assertion",
+)
+
+EXTRACTION_KINDS = ("literal", "derived", "inferred")
+
+CLAIM_EDGE_TYPES = ("contradicts", "supports", "supersedes", "duplicates")
+
+
+class Claim(BaseModel):
+    """A structured fact extracted from a gene.
+
+    Agents reason over claims, not bulk gene content. A claim carries
+    enough provenance (gene_id, shard_name, observed_at) that the
+    packet builder can answer freshness questions without opening the
+    owning shard's content tier.
+    """
+    claim_id: str
+    gene_id: str
+    shard_name: str
+    claim_type: str              # one of CLAIM_TYPES
+    entity_key: Optional[str] = None
+    claim_text: str
+    extraction_kind: str = "literal"   # one of EXTRACTION_KINDS
+    specificity: float = 0.5
+    confidence: float = 0.5
+    observed_at: Optional[float] = None
+    supersedes_claim_id: Optional[str] = None
+    updated_at: float = 0.0
+
+
+class ClaimEdge(BaseModel):
+    """Directed edge between two claims in the contradiction/support graph."""
+    src_claim_id: str
+    dst_claim_id: str
+    edge_type: str               # one of CLAIM_EDGE_TYPES
+    weight: float = 1.0
+    created_at: float = 0.0
+
+
 # ── Session registry (see docs/SESSION_REGISTRY.md) ────────────────────────
 
 class Party(BaseModel):

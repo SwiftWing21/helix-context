@@ -321,6 +321,8 @@ class Genome:
         seeded_edges_enabled: bool = False,
         filename_anchor_enabled: bool = False,
         filename_anchor_weight: float = 4.0,
+        main_conn: Optional[sqlite3.Connection] = None,
+        shard_name: str = "main",
     ):
         self.path = path
         self.synonym_map = synonym_map or {}
@@ -339,6 +341,11 @@ class Genome:
         # Tier 0.5 filename-anchor (2026-04-15 Dewey-pivot spike).
         self._filename_anchor_enabled = filename_anchor_enabled
         self._filename_anchor_weight = filename_anchor_weight
+        # Phase 2 claims layer (2026-04-19). Optional hook — when a main.db
+        # connection is supplied, upsert_gene emits literal claims into it
+        # after each ingest. None = no auto-hook, preserving legacy behavior.
+        self._main_conn = main_conn
+        self._shard_name = shard_name
 
         # Checkpoint WAL BEFORE opening our long-lived connection
         # so we see the latest state from any external writers
@@ -1478,6 +1485,17 @@ class Genome:
         # Notify replication manager (if attached)
         if self._replication_mgr is not None:
             self._replication_mgr.notify_write()
+
+        # Phase 2 claims hook: emit literal claims into main.db if wired.
+        # Soft-fail — ingest should never break because of claim extraction.
+        if self._main_conn is not None:
+            try:
+                from .claims import extract_literal_claims, persist_claims
+                claims = extract_literal_claims(gene, shard_name=self._shard_name)
+                if claims:
+                    persist_claims(self._main_conn, claims)
+            except Exception:
+                log.warning("claim extraction failed at ingest", exc_info=True)
 
         return gene_id
 

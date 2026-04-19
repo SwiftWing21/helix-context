@@ -23,7 +23,10 @@ from helix_context.shard_schema import (
     init_main_db,
     list_shards,
     open_main_db,
+    query_claims,
     register_shard,
+    upsert_claim,
+    upsert_claim_edge,
     upsert_fingerprint,
     upsert_source_index,
 )
@@ -53,6 +56,8 @@ def test_init_creates_all_tables(main_db):
     assert "shards" in tables
     assert "fingerprint_index" in tables
     assert "source_index" in tables
+    assert "claims" in tables
+    assert "claim_edges" in tables
     assert "orgs" in tables
     assert "parties" in tables
     assert "participants" in tables
@@ -207,3 +212,163 @@ def test_shard_categories_constant():
     assert "reference" in SHARD_CATEGORIES
     assert "org" in SHARD_CATEGORIES
     assert "cold" in SHARD_CATEGORIES
+
+
+# ── Claims layer ────────────────────────────────────────────────────
+
+
+def _register_shard(main_db, name="s_ref"):
+    register_shard(main_db, name, "reference", f"/tmp/{name}.db")
+
+
+def test_upsert_claim_writes_row(main_db):
+    _register_shard(main_db)
+    upsert_claim(
+        main_db,
+        claim_id="c1",
+        gene_id="g1",
+        shard_name="s_ref",
+        claim_type="path_value",
+        claim_text="genome.db lives at genomes/main/genome.db",
+        entity_key="genomes/main/genome.db",
+        extraction_kind="literal",
+        specificity=0.9,
+        confidence=0.8,
+        observed_at=1_776_000_000.0,
+    )
+    row = main_db.execute("SELECT * FROM claims WHERE claim_id='c1'").fetchone()
+    assert row["gene_id"] == "g1"
+    assert row["claim_type"] == "path_value"
+    assert row["entity_key"] == "genomes/main/genome.db"
+    assert row["extraction_kind"] == "literal"
+    assert row["specificity"] == 0.9
+    assert row["confidence"] == 0.8
+
+
+def test_upsert_claim_idempotent_on_claim_id(main_db):
+    _register_shard(main_db)
+    for text in ("first", "second"):
+        upsert_claim(
+            main_db,
+            claim_id="c1",
+            gene_id="g1",
+            shard_name="s_ref",
+            claim_type="config_value",
+            claim_text=text,
+        )
+    rows = main_db.execute("SELECT claim_text FROM claims").fetchall()
+    assert len(rows) == 1
+    assert rows[0]["claim_text"] == "second"
+
+
+def test_upsert_claim_rejects_unknown_type(main_db):
+    _register_shard(main_db)
+    import pytest
+    with pytest.raises(ValueError, match="unknown claim_type"):
+        upsert_claim(
+            main_db, claim_id="c1", gene_id="g1", shard_name="s_ref",
+            claim_type="not_a_type", claim_text="...",
+        )
+    with pytest.raises(ValueError, match="unknown extraction_kind"):
+        upsert_claim(
+            main_db, claim_id="c1", gene_id="g1", shard_name="s_ref",
+            claim_type="path_value", claim_text="...",
+            extraction_kind="bogus",
+        )
+
+
+def test_upsert_claim_edge_writes_and_replaces(main_db):
+    _register_shard(main_db)
+    # Seed two claims
+    for cid in ("c1", "c2"):
+        upsert_claim(
+            main_db, claim_id=cid, gene_id=cid, shard_name="s_ref",
+            claim_type="path_value", claim_text=cid,
+        )
+    upsert_claim_edge(main_db, "c1", "c2", "contradicts", weight=0.8)
+    row = main_db.execute(
+        "SELECT * FROM claim_edges WHERE src_claim_id='c1' AND dst_claim_id='c2'"
+    ).fetchone()
+    assert row["edge_type"] == "contradicts"
+    assert row["weight"] == 0.8
+
+    # Upsert on same (src,dst,type) replaces weight
+    upsert_claim_edge(main_db, "c1", "c2", "contradicts", weight=0.5)
+    rows = main_db.execute(
+        "SELECT weight FROM claim_edges WHERE src_claim_id='c1'"
+    ).fetchall()
+    assert len(rows) == 1
+    assert rows[0]["weight"] == 0.5
+
+
+def test_upsert_claim_edge_rejects_unknown_type(main_db):
+    import pytest
+    with pytest.raises(ValueError, match="unknown edge_type"):
+        upsert_claim_edge(main_db, "c1", "c2", "not_a_type")
+
+
+def test_query_claims_filters(main_db):
+    _register_shard(main_db, "s_ref")
+    _register_shard(main_db, "s_org")
+    upsert_claim(
+        main_db, claim_id="c1", gene_id="g1", shard_name="s_ref",
+        claim_type="path_value", claim_text="p1",
+        entity_key="/etc/foo", observed_at=100.0,
+    )
+    upsert_claim(
+        main_db, claim_id="c2", gene_id="g2", shard_name="s_org",
+        claim_type="config_value", claim_text="p2",
+        entity_key="/etc/foo", observed_at=200.0,
+    )
+    upsert_claim(
+        main_db, claim_id="c3", gene_id="g3", shard_name="s_ref",
+        claim_type="path_value", claim_text="p3",
+        entity_key="/etc/bar", observed_at=150.0,
+    )
+
+    # Entity-key filter: 2 rows, newest first
+    rows = query_claims(main_db, entity_key="/etc/foo")
+    assert [r["claim_id"] for r in rows] == ["c2", "c1"]
+
+    # Type filter
+    rows = query_claims(main_db, claim_type="path_value")
+    assert {r["claim_id"] for r in rows} == {"c1", "c3"}
+
+    # Shard filter
+    rows = query_claims(main_db, shard_name="s_ref")
+    assert len(rows) == 2
+
+    # Combined filter (entity + type)
+    rows = query_claims(main_db, entity_key="/etc/foo", claim_type="path_value")
+    assert [r["claim_id"] for r in rows] == ["c1"]
+
+    # No filter = all rows, newest first
+    rows = query_claims(main_db)
+    assert len(rows) == 3
+    assert rows[0]["claim_id"] == "c2"  # observed_at=200 is newest
+
+
+def test_query_claims_limit_bounds_result(main_db):
+    _register_shard(main_db)
+    for i in range(5):
+        upsert_claim(
+            main_db, claim_id=f"c{i}", gene_id=f"g{i}", shard_name="s_ref",
+            claim_type="path_value", claim_text=f"p{i}",
+        )
+    assert len(query_claims(main_db, limit=3)) == 3
+    assert len(query_claims(main_db, limit=100)) == 5
+
+
+def test_init_creates_claim_indexes(main_db):
+    names = {
+        r["name"]
+        for r in main_db.execute(
+            "SELECT name FROM sqlite_master WHERE type='index'"
+        ).fetchall()
+    }
+    assert "idx_claims_gene" in names
+    assert "idx_claims_entity" in names
+    assert "idx_claims_type" in names
+    assert "idx_claims_supersedes" in names
+    assert "idx_claim_edges_dst" in names
+    assert "idx_claim_edges_type" in names
