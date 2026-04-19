@@ -6,11 +6,15 @@ the bytes (library). Together they should out-recall either alone.
 
 ## Cells
 
-1. **pure_rag** — direct FTS5/BM25 query against genes_fts, no Helix
-   pipeline. Baseline "what does raw RAG get?"
-2. **helix_only** — /context/packet (Helix's weighing layer). The
+1. **pure_rag_bm25** — direct FTS5/BM25 query against genes_fts, no
+   Helix pipeline. Lexical baseline.
+2. **pure_rag_embedding** — cosine similarity over the 20D SEMA vectors
+   stored in genome.genes.embedding. Semantic baseline. Uses the same
+   embedding space Helix uses internally, so it's a direct test of
+   what a downstream retriever with only Helix's encoder would get.
+3. **helix_only** — /context/packet (Helix's weighing layer). The
    agent-safe index surface as it stands today.
-3. **helix_rag** — /context/packet for pointers, then read the source
+4. **helix_rag** — /context/packet for pointers, then read the source
    files from disk. The composition: Helix points, naive fetcher reads.
 
 ## Dual scoring per needle
@@ -164,7 +168,7 @@ def _norm(s: str) -> str:
 # ── Cell A: pure RAG via raw FTS5 ────────────────────────────────────
 
 
-def cell_pure_rag(needle: dict, top_k: int = 12) -> dict:
+def cell_pure_rag_bm25(needle: dict, top_k: int = 12) -> dict:
     t0 = time.time()
     match_expr = _fts_query(needle["query"])
     conn = sqlite3.connect(GENOME_PATH)
@@ -184,7 +188,70 @@ def cell_pure_rag(needle: dict, top_k: int = 12) -> dict:
     delivered_srcs = [r[1] for r in rows if r[1]]
     content = "\n---\n".join((r[2] or "")[:4000] for r in rows)
     return {
-        "cell": "pure_rag",
+        "cell": "pure_rag_bm25",
+        "latency_s": round(time.time() - t0, 3),
+        "delivered_srcs": delivered_srcs,
+        "n_delivered": len(delivered_srcs),
+        "content": content,
+        "content_chars": len(content),
+    }
+
+
+# ── Cell B: pure embedding RAG (SEMA cosine) ─────────────────────────
+
+_SEMA_CODEC = None
+
+
+def _get_sema_codec():
+    """Lazy-load the SemaCodec. First call may download MiniLM weights."""
+    global _SEMA_CODEC
+    if _SEMA_CODEC is None:
+        from helix_context.sema import SemaCodec
+        _SEMA_CODEC = SemaCodec()
+    return _SEMA_CODEC
+
+
+def _cosine(a: "list[float]", b: "list[float]") -> float:
+    import math
+    dot = sum(x * y for x, y in zip(a, b))
+    na = math.sqrt(sum(x * x for x in a)) or 1.0
+    nb = math.sqrt(sum(y * y for y in b)) or 1.0
+    return dot / (na * nb)
+
+
+def cell_pure_rag_embedding(needle: dict, top_k: int = 12) -> dict:
+    t0 = time.time()
+    try:
+        codec = _get_sema_codec()
+        query_vec = codec.encode(needle["query"])
+    except Exception as exc:
+        return {"cell": "pure_rag_embedding",
+                "error": f"SEMA codec unavailable: {exc}"}
+
+    conn = sqlite3.connect(GENOME_PATH)
+    try:
+        rows = conn.execute(
+            "SELECT gene_id, source_id, content, embedding FROM genes "
+            "WHERE embedding IS NOT NULL"
+        ).fetchall()
+    finally:
+        conn.close()
+
+    # Cosine rank — fine at 7k rows; switch to numpy if we grow past 100k.
+    scored = []
+    for gene_id, src, content, emb_blob in rows:
+        try:
+            emb = json.loads(emb_blob)
+        except Exception:
+            continue
+        scored.append((_cosine(query_vec, emb), src, content))
+    scored.sort(key=lambda x: x[0], reverse=True)
+    top = scored[:top_k]
+
+    delivered_srcs = [s for _, s, _ in top if s]
+    content = "\n---\n".join((c or "")[:4000] for _, _, c in top)
+    return {
+        "cell": "pure_rag_embedding",
         "latency_s": round(time.time() - t0, 3),
         "delivered_srcs": delivered_srcs,
         "n_delivered": len(delivered_srcs),
@@ -345,9 +412,13 @@ def score_cell(result: dict, needle: dict) -> dict:
 # ── Runner + reporting ──────────────────────────────────────────────
 
 
+CELL_ORDER = ("pure_rag_bm25", "pure_rag_embedding", "helix_only", "helix_rag")
+
+
 def run_needle(client: httpx.Client, needle: dict) -> dict:
     cells = {
-        "pure_rag": cell_pure_rag(needle),
+        "pure_rag_bm25": cell_pure_rag_bm25(needle),
+        "pure_rag_embedding": cell_pure_rag_embedding(needle),
         "helix_only": cell_helix_only(client, needle),
         "helix_rag": cell_helix_rag(client, needle),
     }
@@ -368,31 +439,29 @@ def _fmt_pct(x: float) -> str:
 
 
 def print_per_needle(results: list[dict]) -> None:
-    print(f"{'needle':<45} "
-          f"{'pure_rag':<17} {'helix_only':<17} {'helix_rag':<17}")
-    print(f"{'':<45} "
-          f"{'ptr':<7} {'ans':<8} "
-          f"{'ptr':<7} {'ans':<8} "
-          f"{'ptr':<7} {'ans':<8}")
-    print("-" * 96)
+    header_cells = "  ".join(f"{c:<15}" for c in CELL_ORDER)
+    print(f"{'needle':<42} {header_cells}")
+    sub_header = "  ".join("ptr    ans   " for _ in CELL_ORDER)
+    print(f"{'':<42} {sub_header}")
+    print("-" * (42 + 17 * len(CELL_ORDER)))
     for r in results:
-        line = f"{r['name']:<45} "
-        for cell_name in ("pure_rag", "helix_only", "helix_rag"):
+        line = f"{r['name']:<42} "
+        for cell_name in CELL_ORDER:
             s = r["cells"][cell_name]["score"]
             if "error" in s:
-                line += f"{'ERR':<7} {'ERR':<8} "
+                line += f"{'ERR':<7}{'ERR':<8} "
             else:
-                line += (f"{_fmt_pct(s['pointer_partial']):<7} "
+                line += (f"{_fmt_pct(s['pointer_partial']):<7}"
                          f"{_fmt_pct(s['content_partial']):<8} ")
         print(line)
 
 
 def print_aggregate(results: list[dict]) -> None:
     print("\n=== Aggregate (across {} needles) ===".format(len(results)))
-    print(f"{'cell':<12} {'ptr_full':<10} {'ptr_partial':<12} "
+    print(f"{'cell':<22} {'ptr_full':<10} {'ptr_partial':<12} "
           f"{'ans_full':<10} {'ans_partial':<12} {'mean_latency_ms':<16}")
-    print("-" * 75)
-    for cell_name in ("pure_rag", "helix_only", "helix_rag"):
+    print("-" * 85)
+    for cell_name in CELL_ORDER:
         ptr_full = 0
         ans_full = 0
         ptr_partial_sum = 0.0
@@ -411,7 +480,7 @@ def print_aggregate(results: list[dict]) -> None:
             lat_sum += r["cells"][cell_name].get("latency_s", 0) or 0
         if not n:
             continue
-        print(f"{cell_name:<12} "
+        print(f"{cell_name:<22} "
               f"{f'{ptr_full}/{n}':<10} "
               f"{ptr_partial_sum/n:>5.2f}        "
               f"{f'{ans_full}/{n}':<10} "
@@ -444,7 +513,7 @@ def main() -> int:
         results.append(r)
         # Tiny inline status so we see progress
         marks = []
-        for cell_name in ("pure_rag", "helix_only", "helix_rag"):
+        for cell_name in CELL_ORDER:
             s = r["cells"][cell_name]["score"]
             if "error" in s:
                 marks.append("E")

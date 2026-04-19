@@ -13,8 +13,8 @@
         "8787"
       ],
       "cells": {
-        "pure_rag": {
-          "cell": "pure_rag",
+        "pure_rag_bm25": {
+          "cell": "pure_rag_bm25",
           "latency_s": 0.025,
           "delivered_srcs": [
             "F:/Projects/Education/fleet/skills/security_suite.py",
@@ -45,9 +45,39 @@
             ]
           }
         },
+        "pure_rag_embedding": {
+          "cell": "pure_rag_embedding",
+          "latency_s": 7.818,
+          "delivered_srcs": [
+            "F:/Projects/helix-context/backend-with-otel.bat",
+            "F:/Projects/helix-context/docs/architecture/LAUNCHER.md",
+            "F:/Projects/Education/fleet/web_app.py",
+            "F:/Projects/helix-context/launcher-with-otel.bat",
+            "F:/Projects/Education/fleet/knowledge/code_writes/workspace/.gitignore",
+            "F:/Projects/helix-context/helix_context/mcp/server.py",
+            "F:/Projects/helix-context/tests/test_launcher_state.py",
+            "F:/Projects/Education/docs/archive/ARCHITECTURE_RESEARCH.md"
+          ],
+          "n_delivered": 8,
+          "content_chars": 15282,
+          "score": {
+            "pointer_full": false,
+            "pointer_partial": 0.0,
+            "content_full": false,
+            "content_partial": 0.5,
+            "group_hits": [
+              false,
+              false
+            ],
+            "answer_found": [
+              true,
+              false
+            ]
+          }
+        },
         "helix_only": {
           "cell": "helix_only",
-          "latency_s": 0.56,
+          "latency_s": 0.501,
           "delivered_srcs": [
             "F:/Projects/helix-context/helix_context/context_manager.py",
             "F:/Projects/helix-context/helix_context/context_manager.py",
@@ -90,7 +120,7 @@
         },
         "helix_rag": {
           "cell": "helix_rag",
-          "latency_s": 0.559,
+          "latency_s": 0.474,
           "delivered_srcs": [
             "F:/Projects/helix-context/helix_context/context_manager.py",
             "F:/Projects/helix-context/training/export_training_data.py",
@@ -134,9 +164,9 @@
         "codec"
       ],
       "cells": {
-        "pure_rag": {
-          "cell": "pure_rag",
-          "latency_s": 0.034,
+        "pure_rag_bm25": {
+          "cell": "pure_rag_bm25",
+          "latency_s": 0.036,
           "delivered_srcs": [
             "F:/Projects/helix-context/docs/ops/SKILLS_BUNDLE.md",
             "F:/Projects/helix-context/docs/ops/SKILLS_BUNDLE.md",
@@ -168,9 +198,43 @@
             ]
           }
         },
+        "pure_rag_embedding": {
+          "cell": "pure_rag_embedding",
+          "latency_s": 0.16,
+          "delivered_srcs": [
+            "F:/Projects/helix-context/NOTICE",
+            "F:/Projects/helix-context/docs/architecture/LAUNCHER.md",
+            "F:/Projects/helix-context/deploy/windows/setup-helix.ps1",
+            "F:/Projects/helix-context/deploy/windows/README.md",
+            "F:/Projects/Education/docs/superpowers/plans/2026-03-24-rust-phase3-bridge.md",
+            "F:/Projects/helix-context/tests/test_launcher_state.py",
+            "F:/Projects/helix-context/helix_context/config.py",
+            "F:/Projects/helix-context/helix_context/launcher/__init__.py",
+            "F:/Projects/helix-context/helix_context/launcher/supervisor.py",
+            "F:/Projects/CosmicTasha/web/.dockerignore",
+            "F:/Projects/helix-context/helix_context/launcher/installer.py",
+            "F:/Projects/Education/BigEd/launcher/modules/hub.py"
+          ],
+          "n_delivered": 12,
+          "content_chars": 35173,
+          "score": {
+            "pointer_full": false,
+            "pointer_partial": 0.0,
+            "content_full": true,
+            "content_partial": 1.0,
+            "group_hits": [
+              false,
+              false
+            ],
+            "answer_found": [
+              true,
+              true
+            ]
+          }
+        },
         "helix_only": {
           "cell": "helix_only",
-          "latency_s": 1.079,
+          "latency_s": 1.018,
           "delivered_srcs": [
             "F:/Projects/helix-context/helix_context/context_manager.py",
             "F:/Projects/helix-context/training/export_training_data.py",
@@ -213,7 +277,7 @@
         },
         "helix_rag": {
           "cell": "helix_rag",
-          "latency_s": 1.084,
+          "latency_s": 1.01,
           "delivered_srcs": [
             "F:/Projects/helix-context/helix_context/context_manager.py",
             "F:/Projects/helix-context/training/export_training_data.py",
@@ -257,9 +321,9 @@
         "5x"
       ],
       "cells": {
-        "pure_rag": {
-          "cell": "pure_rag",
-          "latency_s": 0.036,
+        "pure_rag_bm25": {
+          "cell": "pure_rag_bm25",
+          "latency_s": 0.03,
           "delivered_srcs": [
             "F:/Projects/helix-context/helix.toml",
             "F:/Projects/helix-context/benchmarks/needle_results.json",
@@ -289,9 +353,40 @@
             ]
           }
         },
+        "pure_rag_embedding": {
+          "cell": "pure_rag_embedding",
+          "latency_s": 0.15,
+          "delivered_srcs": [
+            "F:/Projects/helix-context/docs/DIMENSIONS.md",
+            "F:/Projects/helix-context/docs/architecture/DIMENSIONS.md",
+            "F:/Projects/helix-context/docs/benchmarks/BENCHMARKS.md",
+            "F:/Projects/helix-context/scripts/claude_core_ingest.py",
+            "F:/Projects/helix-context/docs/FUTURE/PUSH_PULL_CONTEXT.md",
+            "F:/Projects/helix-context/scripts/ingest_parallel.py",
+            "F:/Projects/helix-context/docs/collab/batman_output/PORT_NOTES.md",
+            "F:/Projects/helix-context/docs/collab/CELESTIA_JOINT_EXPERIMENT.md",
+            "F:/Projects/helix-context/scripts/claude_core_ingest.py"
+          ],
+          "n_delivered": 9,
+          "content_chars": 31798,
+          "score": {
+            "pointer_full": false,
+            "pointer_partial": 0.0,
+            "content_full": false,
+            "content_partial": 0.5,
+            "group_hits": [
+              false,
+              false
+            ],
+            "answer_found": [
+              true,
+              false
+            ]
+          }
+        },
         "helix_only": {
           "cell": "helix_only",
-          "latency_s": 0.789,
+          "latency_s": 0.764,
           "delivered_srcs": [
             "F:/Projects/helix-context/helix_context/context_manager.py",
             "F:/Projects/helix-context/training/export_training_data.py",
@@ -333,7 +428,7 @@
         },
         "helix_rag": {
           "cell": "helix_rag",
-          "latency_s": 0.851,
+          "latency_s": 0.711,
           "delivered_srcs": [
             "F:/Projects/helix-context/helix_context/context_manager.py",
             "F:/Projects/helix-context/training/export_training_data.py",
@@ -377,9 +472,9 @@
         "agent-context-index"
       ],
       "cells": {
-        "pure_rag": {
-          "cell": "pure_rag",
-          "latency_s": 0.026,
+        "pure_rag_bm25": {
+          "cell": "pure_rag_bm25",
+          "latency_s": 0.027,
           "delivered_srcs": [
             "F:/Projects/Education/BigEd/research/agent_swarming_and_collaboration.md",
             "F:/Projects/helix-context/docs/positioning/ENTERPRISE.md",
@@ -410,9 +505,43 @@
             ]
           }
         },
+        "pure_rag_embedding": {
+          "cell": "pure_rag_embedding",
+          "latency_s": 0.15,
+          "delivered_srcs": [
+            "F:/Projects/CosmicTasha/web/src/lib/compliance-kb/soc2/templates/encryption-policy.ts",
+            "F:/Projects/Education/docs/superpowers/plans/2026-03-28-module-deps-versioning.md",
+            "F:/Projects/Education/fleet/modules_blueprint.py",
+            "F:/Projects/helix-context/helix_context/telemetry.py",
+            "F:/Projects/helix-context/helix_context/server.py",
+            "F:/Projects/BookKeeper/docs/superpowers/plans/2026-03-25-rbac-completion.md",
+            "F:/Projects/Education/fleet/geo_api.py",
+            "F:/Projects/helix-context/helix_context/telemetry.py",
+            "F:/Projects/helix-context/tests/test_health.py",
+            "F:/Projects/CosmicTasha/web/src/lib/compliance-kb/soc2/templates/access-review-templates.ts",
+            "F:/Projects/helix-context/benchmarks/needle_results.json",
+            "F:/Projects/helix-context/tests/test_layered_fingerprints.py"
+          ],
+          "n_delivered": 12,
+          "content_chars": 36485,
+          "score": {
+            "pointer_full": false,
+            "pointer_partial": 0.0,
+            "content_full": false,
+            "content_partial": 0.0,
+            "group_hits": [
+              false,
+              false
+            ],
+            "answer_found": [
+              false,
+              false
+            ]
+          }
+        },
         "helix_only": {
           "cell": "helix_only",
-          "latency_s": 0.626,
+          "latency_s": 0.552,
           "delivered_srcs": [
             "F:/Projects/helix-context/helix_context/context_manager.py",
             "F:/Projects/helix-context/training/export_training_data.py",
@@ -455,7 +584,7 @@
         },
         "helix_rag": {
           "cell": "helix_rag",
-          "latency_s": 0.586,
+          "latency_s": 0.576,
           "delivered_srcs": [
             "F:/Projects/helix-context/helix_context/context_manager.py",
             "F:/Projects/helix-context/training/export_training_data.py",
@@ -499,9 +628,9 @@
         "token"
       ],
       "cells": {
-        "pure_rag": {
-          "cell": "pure_rag",
-          "latency_s": 0.048,
+        "pure_rag_bm25": {
+          "cell": "pure_rag_bm25",
+          "latency_s": 0.037,
           "delivered_srcs": [
             "F:/Projects/helix-context/docs/benchmarks/BENCHMARKS.md",
             "F:/Projects/helix-context/docs/benchmarks/BENCHMARKS.md",
@@ -533,9 +662,43 @@
             ]
           }
         },
+        "pure_rag_embedding": {
+          "cell": "pure_rag_embedding",
+          "latency_s": 0.154,
+          "delivered_srcs": [
+            "F:/Projects/CosmicTasha/web/postcss.config.mjs",
+            "F:/Projects/Education/biged-rs/crates/biged-gui/src/lib.rs",
+            "F:/Projects/CosmicTasha/deploy/Caddyfile",
+            "F:/Projects/Education/fleet/static/view_engine.js",
+            "F:/Projects/Education/deploy/helm/biged-cc/templates/service-dashboard.yaml",
+            "F:/Projects/Education/deploy/helm/biged-cc/templates/deployment-ollama.yaml",
+            "F:/Projects/BookKeeper/docs/superpowers/plans/2026-03-25-stitch-ui-integration.md",
+            "F:/Projects/Education/biged-rs/crates/biged-gui/src/web.rs",
+            "F:/Projects/Education/docs/superpowers/plans/2026-03-24-rust-phase4-gui.md",
+            "F:/Projects/Education/biged-rs/LICENSE",
+            "F:/Projects/BookKeeper/bookkeeper/dashboard/token_bridge.py",
+            "F:/Projects/BookKeeper/bookkeeper/dashboard/templates/_head.html"
+          ],
+          "n_delivered": 12,
+          "content_chars": 22378,
+          "score": {
+            "pointer_full": false,
+            "pointer_partial": 0.0,
+            "content_full": false,
+            "content_partial": 0.5,
+            "group_hits": [
+              false,
+              false
+            ],
+            "answer_found": [
+              false,
+              true
+            ]
+          }
+        },
         "helix_only": {
           "cell": "helix_only",
-          "latency_s": 1.085,
+          "latency_s": 0.989,
           "delivered_srcs": [
             "F:/Projects/Education/fleet/skills/api_health_probe.py",
             "F:/Projects/Education/fleet/knowledge/code_drafts/autoresearch_loop_evolved_20260402_coder_2.py",
@@ -578,7 +741,7 @@
         },
         "helix_rag": {
           "cell": "helix_rag",
-          "latency_s": 1.043,
+          "latency_s": 0.981,
           "delivered_srcs": [
             "F:/Projects/Education/fleet/skills/api_health_probe.py",
             "F:/Projects/Education/fleet/knowledge/code_drafts/autoresearch_loop_evolved_20260402_coder_2.py",
@@ -622,9 +785,9 @@
         "15min"
       ],
       "cells": {
-        "pure_rag": {
-          "cell": "pure_rag",
-          "latency_s": 0.013,
+        "pure_rag_bm25": {
+          "cell": "pure_rag_bm25",
+          "latency_s": 0.012,
           "delivered_srcs": [
             "F:/Projects/Education/fleet/factorio/state_encoder.py",
             "F:/Projects/Education/docs/superpowers/plans/2026-03-28-factorio-ml-overhaul.md",
@@ -656,9 +819,43 @@
             ]
           }
         },
+        "pure_rag_embedding": {
+          "cell": "pure_rag_embedding",
+          "latency_s": 0.143,
+          "delivered_srcs": [
+            "F:/Projects/Education/fleet/db_tasks.py",
+            "F:/Projects/BookKeeper/bookkeeper/ingestion/bank/csv_parser.py",
+            "F:/Projects/CosmicTasha/web/src/app/intake/_context/intake-context.tsx",
+            "F:/Projects/Education/fleet/templates/components/_tasks.html",
+            "F:/Projects/Education/fleet/templates/components/_tasks.html",
+            "F:/Projects/Education/fleet/templates/components/_queue.html",
+            "F:/Projects/Education/fleet/payments.py",
+            "F:/Projects/Education/fleet/templates/components/_update.html",
+            "F:/Projects/Education/scripts/setup.ps1",
+            "F:/Projects/CosmicTasha/web/src/lib/review/mock-data.ts",
+            "F:/Projects/helix-context/helix_context/cwola.py",
+            "F:/Projects/BookKeeper/bookkeeper/scale/task_queue.py"
+          ],
+          "n_delivered": 12,
+          "content_chars": 31629,
+          "score": {
+            "pointer_full": false,
+            "pointer_partial": 0.0,
+            "content_full": false,
+            "content_partial": 0.0,
+            "group_hits": [
+              false,
+              false
+            ],
+            "answer_found": [
+              false,
+              false
+            ]
+          }
+        },
         "helix_only": {
           "cell": "helix_only",
-          "latency_s": 0.196,
+          "latency_s": 0.177,
           "delivered_srcs": [
             "F:/Projects/Education/autoresearch/profiles.toml",
             "F:/Projects/helix-context/benchmarks/precision_tie_break_ab_2026-04-15.json",
@@ -701,7 +898,7 @@
         },
         "helix_rag": {
           "cell": "helix_rag",
-          "latency_s": 0.248,
+          "latency_s": 0.178,
           "delivered_srcs": [
             "F:/Projects/Education/autoresearch/profiles.toml",
             "F:/Projects/helix-context/benchmarks/precision_tie_break_ab_2026-04-15.json",
@@ -745,9 +942,9 @@
         "0.15"
       ],
       "cells": {
-        "pure_rag": {
-          "cell": "pure_rag",
-          "latency_s": 0.041,
+        "pure_rag_bm25": {
+          "cell": "pure_rag_bm25",
+          "latency_s": 0.029,
           "delivered_srcs": [
             "F:/Projects/helix-context/docs/collab/from_todd/PWPC_EXPERIMENT_SPEC.md",
             "F:/Projects/helix-context/helix_context/context_manager.py",
@@ -779,9 +976,43 @@
             ]
           }
         },
+        "pure_rag_embedding": {
+          "cell": "pure_rag_embedding",
+          "latency_s": 0.142,
+          "delivered_srcs": [
+            "F:/Projects/Education/BigEd/research/COMPARISON_security_posture.md",
+            "F:/Projects/Education/BigEd/research/COMPARISON_stier_roadmap.md",
+            "F:/Projects/helix-context/docs/research/RESEARCH.md",
+            "F:/Projects/_plans/ray_trace_plan.md",
+            "F:/Projects/helix-context/scripts/pwpc/lockstep_matrix_test.py",
+            "F:/Projects/Education/fleet/knowledge/flywheel/audit_20260326_054031.md",
+            "F:/Projects/Education/fleet/knowledge/flywheel/audit_20260326_050352.md",
+            "F:/Projects/Education/fleet/knowledge/flywheel/audit_20260326_051005.md",
+            "F:/Projects/Education/fleet/knowledge/flywheel/audit_20260326_053051.md",
+            "F:/Projects/Education/fleet/knowledge/flywheel/audit_20260326_053220.md",
+            "F:/Projects/Education/fleet/knowledge/flywheel/audit_20260326_050721.md",
+            "F:/Projects/Education/fleet/knowledge/flywheel/audit_20260326_052925.md"
+          ],
+          "n_delivered": 12,
+          "content_chars": 27181,
+          "score": {
+            "pointer_full": false,
+            "pointer_partial": 0.0,
+            "content_full": false,
+            "content_partial": 0.5,
+            "group_hits": [
+              false,
+              false
+            ],
+            "answer_found": [
+              false,
+              true
+            ]
+          }
+        },
         "helix_only": {
           "cell": "helix_only",
-          "latency_s": 0.303,
+          "latency_s": 0.284,
           "delivered_srcs": [
             "F:/Projects/helix-context/helix_context/context_manager.py",
             "F:/Projects/Education/fleet/audit_scorer.py",
@@ -824,7 +1055,7 @@
         },
         "helix_rag": {
           "cell": "helix_rag",
-          "latency_s": 0.301,
+          "latency_s": 0.273,
           "delivered_srcs": [
             "F:/Projects/helix-context/helix_context/context_manager.py",
             "F:/Projects/Education/fleet/audit_scorer.py",
@@ -867,9 +1098,9 @@
         "5555"
       ],
       "cells": {
-        "pure_rag": {
-          "cell": "pure_rag",
-          "latency_s": 0.053,
+        "pure_rag_bm25": {
+          "cell": "pure_rag_bm25",
+          "latency_s": 0.051,
           "delivered_srcs": [
             "F:/Projects/helix-context/tests/test_launcher_supervisor.py",
             "F:/Projects/Education/fleet/skills/security_suite.py",
@@ -899,9 +1130,39 @@
             ]
           }
         },
+        "pure_rag_embedding": {
+          "cell": "pure_rag_embedding",
+          "latency_s": 0.145,
+          "delivered_srcs": [
+            "F:/Projects/helix-context/tests/test_launcher_state.py",
+            "F:/Projects/helix-context/backend-with-otel.bat",
+            "F:/Projects/helix-context/tests/test_status.py",
+            "F:/Projects/helix-context/helix_context/config.py",
+            "F:/Projects/helix-context/launcher-with-otel.bat",
+            "F:/Projects/Education/docs/superpowers/plans/2026-03-28-module-deps-versioning.md",
+            "F:/Projects/Education/.mcp.json",
+            "F:/Projects/helix-context/tests/test_pipeline.py"
+          ],
+          "n_delivered": 8,
+          "content_chars": 17919,
+          "score": {
+            "pointer_full": false,
+            "pointer_partial": 0.0,
+            "content_full": false,
+            "content_partial": 0.5,
+            "group_hits": [
+              false,
+              false
+            ],
+            "answer_found": [
+              true,
+              false
+            ]
+          }
+        },
         "helix_only": {
           "cell": "helix_only",
-          "latency_s": 3.128,
+          "latency_s": 2.88,
           "delivered_srcs": [
             "F:/Projects/Education/deploy/helm/biged-cc/values.yaml",
             "F:/Projects/Education/biged-rs/Cargo.toml",
@@ -944,7 +1205,7 @@
         },
         "helix_rag": {
           "cell": "helix_rag",
-          "latency_s": 3.048,
+          "latency_s": 2.892,
           "delivered_srcs": [
             "F:/Projects/Education/deploy/helm/biged-cc/values.yaml",
             "F:/Projects/Education/biged-rs/Cargo.toml",
