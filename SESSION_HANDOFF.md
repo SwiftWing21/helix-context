@@ -1,173 +1,166 @@
-# Session Handoff — 2026-04-14 (late evening PT)
+# Session Handoff — 2026-04-19
 
-> **Previous handoff:** 2026-04-13 (Sprints 1/2/4 landing). See git history for
-> `f4dcdcc`, `c9367f8`, `5184ea8`. This handoff supersedes it.
+> **Previous handoff:** 2026-04-14 (late evening PT). See git history for
+> commits through `daa85e6`. This handoff supersedes it.
 
 ---
 
-## What Landed Today (2026-04-14)
+## What landed today (8 commits on master, all pushed)
 
-Four commits from a Raude session. The work split across three arcs:
-(1) PWPC collab response, (2) infrastructure debugging wins worth preserving,
-(3) an AI-consumer-perspective roadmap for future Helix improvements.
+```
+6f04e1c  feat(claims): edge detection + cache & external-retriever benches
+8308956  feat(adapters): cache + retriever adapter + full-stack bench cell
+e94d00e  feat(adapters): DAG walker + DAL reference adapter + router framing
+532568b  bench+docs: embedding cell + Helix×RAG composition integration guide
+157762b  bench: Helix + RAG composition NIAH (3-cell, dual-scored)
+daa85e6  bench: multi-needle NIAH + headroom E2E latency
+d05d62a  feat(launcher): make [headroom] autostart=true by default
+9390403  feat(launcher): Tier 2 Headroom integration — tray menu + adoption
+```
 
-| Commit | One-line summary |
-|---|---|
-| `10286cc` | `feat(cwola)`: `sliding_window_features()` + 12 tests |
-| `363ae4f` | `feat(scripts/pwpc)`: 9×9 matrix test + windowed export tool |
-| `6533eaa` | `docs(collab)`: PWPC reply — matrix findings, counter-mode spec, D1-D9 critique |
-| `ccd103e` | `docs(future)`: AI-consumer roadmap — session-aware Helix |
+Plus a sibling session's `6db30e9 Hide paused ribosome from launcher tools`
+pushed earlier in the day.
 
-## In-Flight Collab State (PWPC with Todd + Gordon + Batman)
+## Load-bearing reframe this session
 
-**Last exchange:** Todd's `PWPC_UPDATE_FOR_MAX.md` (today AM) arrived with 4
-explicit asks. Our reply `docs/collab/comms/REPLY_TO_PWPC_UPDATE_2026-04-14.md`
-answers all 4 but three of them as "partial" or "awaiting your framing":
+**Helix is the router ABOVE the stack, not half of it.**
 
-1. **9×9 agreement head** — extractor shipped (`cwola.sliding_window_features`);
-   trained-head architecture still owed pending their design input.
-2. **Per-tier raw scores in cwola_log** — already shipped (commit `6a96ead`);
-   verified and ready to consume.
-3. **D1–D9 coordinate critique** — proposed collapse from 9 independent
-   coordinates to 5 empirically-grounded axes (D1 structural-agreement,
-   D2 semantic-grounding, D3 topological-span, D4 name-exact, D5–D9 reserve
-   for HPC precision-field slots).
-4. **Counter-mode dispatch** — `docs/collab/comms/COUNTER_MODE_SPEC_2026-04-14.md`
-   lays out 4 regimes with 2 fallbacks (SR multi-hop for isolated-semantic
-   antiresonance; cross-encoder rerank for template-lockstep antiresonance).
+Prior framing ("Helix emits half of a RAG+DAG+DAL stack") was wrong.
+The packet fields (task_type, coord_confidence, verdict, volatility,
+contradictions, supersedes, refresh_targets) are routing signals; the
+stack (RAG/DAG/DAL) is the execution layer below.
 
-**Important correction in the reply:** the v1 LOCKSTEP_MATRIX_FINDINGS
-claim ("sema_boost is THE diagnostic tier") was partly sampling noise at
-N=791. At N=2209 the effect weakens (top-pair ΔC drops +0.529 → +0.156) and
-the dominant diagnostic tier shifts to `harmonic`. The 4-regime decomposition
-still works; the antiresonance carve-outs are less stark than v1 suggested.
+Example of the choice math Helix already does:
+- `verified` + `coord_conf > 0.5` → RAG only
+- `stale_risk` + `hot` volatility → DAL refetch, then RAG
+- `contradictions` non-empty → DAG walk first, then DAL on winner
+- `task_type=edit` + `needs_refresh` → all three in order
 
-**Next on the collab:**
-- Query-type segmentation on LOCKSTEP data (template vs general)
-- Fresh `bench_dimensional_lock.py` solo-load run (today had Raude+Taude
-  contention — honest baseline still owed)
-- Awaiting Gordon+Todd response to our 4 questions in §7 of the reply
+Documented as the central pattern in `docs/INTEGRATING_WITH_EXISTING_RAG.md`.
 
-## AI-Consumer Roadmap (new — not yet started)
+## New surface area
 
-`docs/FUTURE/AI_CONSUMER_ROADMAP_2026-04-14.md` captures what the LLM
-consumer actually needs from Helix (vs what the operator wants). 5 sprints,
-~520 LOC total, additive.
+### Phase 2 claims layer — now fully operational
 
-| Sprint | Work | LoC | Critical-path |
-|---|---|---|---|
-| 1 | Legibility pack: fired-tier tags + hash previews + confidence markers | ~90 | no deps — free money |
-| 2 | Session working-set register (`session_delivery_log` table + API) | ~170 | **YES — blocks 3 & 5** |
-| 3 | `/context/expand?gene_id=X` 1-hop neighborhood | ~80 | depends on 2 |
-| 4 | Streaming `/context` response | ~120 | independent |
-| 5 | Session gravity attractor (re-rank bonus on touched genes) | ~60 | depends on 2 |
+- **Extraction**: `helix_context/claims.py` (code/config/doc/benchmark
+  extractors + key_values fallback). Shipped commit `bc5cc9f`.
+- **Edges**: `helix_context/claims_analyze.py` (contradicts /
+  duplicates / supersedes via Jaccard over entity_key groups).
+  Shipped commit `6f04e1c`.
+- **Walker**: `helix_context/claims_graph.py` (supersedes chain,
+  contradiction clusters, topo sort, resolve + resolve_from_packet).
+  Shipped commit `e94d00e`.
+- **Backfill script**: `scripts/backfill_claims.py` now runs both
+  extraction AND edge detection passes.
 
-Predicted consumer-side impact: -53% /context calls per multi-turn
-conversation after Sprints 1-3 ship. Compounds with existing ~80% API-
-level savings.
+**Live state (genomes/main.db):** 78,472 claims + 95,382 edges
+(50,362 contradicts + 45,020 duplicates + 0 supersedes) across 20,978
+entity_key groups.
 
-**Recommendation for next session:** ship Sprint 1 in one session (~90 LOC,
-1-2 hrs). It's no-schema-change, no-new-endpoint, pure response-shape
-improvements that immediately upgrade every conversation.
+### Post-Helix composition adapters (reference)
 
-## Current Flag State (`helix.toml`)
+All in `helix_context/adapters/`:
+- **`dal.py`** — scheme-dispatch fetcher (`file://` + `http(s)://`
+  default; `fetch_s3` opt-in). Soft-fail FetchResult.
+- **`cache.py`** — TTL-bounded LRU wrapping a DAL. TTLs from Helix's
+  `volatility_class` (stable=7d, medium=12h, hot=15min).
+- **`retriever.py`** — duck-typed `Retriever` protocol + LlamaIndex
+  and LangChain wrappers + `HelixNarrowedRetriever` for the
+  shortlist-narrowing pattern.
 
-Unchanged from 2026-04-13 handoff. All dark flags still dark:
+### Launcher — Headroom integration (Tier 2)
 
-| Flag | State |
-|---|---|
-| `cymatics.distance_metric` | `"cosine"` (not W1) |
-| `retrieval.sr_enabled` | `false` (dark) |
-| `retrieval.ray_trace_theta` | `false` (dark) |
-| `retrieval.seeded_edges_enabled` | `false` (dark) |
+- New `[headroom]` config section in `helix.toml`
+- `HeadroomSupervisor` with orphan adoption (never spawns duplicates)
+- Tray menu: Open Headroom Dashboard + Start/Restart/Stop Headroom
+- Default `autostart=true` when `enabled=true`
+- `start-helix-tray.bat` documented with HELIX_HEADROOM_* env opts
 
-**Today's A/B test on `sr_enabled`** (during Grafana validation): flipped
-true, verified SR tier fires on 100% of queries (10/10 — was a load-bearing
-engagement signal, not a subtle lift). Flipped back to false for commit
-cleanliness. Decision on promotion is pending a clean bench re-run.
+## Benchmark table (2026-04-19 snapshot)
 
-## Infrastructure Wins Worth Remembering
+### Multi-needle NIAH (8 needles, 7846-gene genome)
 
-Saved to memory (`~/.claude/projects/F--Projects/memory/`):
+| Cell | ptr_partial | ans_full | ans_partial | latency |
+|---|---|---|---|---|
+| pure_rag_bm25 | 0.19 | 4/8 | 0.62 | 30 ms |
+| pure_rag_embedding | 0.00 | 1/8 | 0.44 | 1083 ms |
+| helix_only | 0.19 | 0/8 | 0.19 | 849 ms |
+| helix_rag | 0.19 | 5/8 | **0.81** | 849 ms |
+| helix_full_stack | 0.19 | 5/8 | **0.81** | 873 ms |
 
-1. `feedback_launch_json_cmd_env.md` — Claude Preview's `cmd /c "set X=1 && python"`
-   silently drops env vars even with quoted syntax. Use a `.bat` wrapper.
-   Already committed: `launcher-with-otel.bat` + `backend-with-otel.bat`.
-2. `reference_helix_telemetry_diagnosis.md` — Don't trust log output to confirm
-   OTel is running under launcher supervision; query Prometheus directly.
+Full-stack matches `helix_rag` — DAG walks but content-presence
+doesn't change. The right measurement for DAG value is
+decision-quality (stale-claim avoidance), not content recall.
 
-Both files already in repo; memory entries point to them.
+### External retriever — pattern 2 validation
 
-## Bench Baseline (today, 2026-04-14)
+| Metric | Raw SEMA | Helix-Narrowed |
+|---|---|---|
+| content_recall | 0.44 | **0.56** (+27%) |
+| search space | 6,682 | ~13 (**516× smaller**) |
+| latency | 903 ms | 1098 ms |
 
-### `bench_skill_activation.py`
-- 10 prompt shapes, 0/10 match expected tier activation
-- Test expectations are STALE vs current genome state (ingestion drift)
-- `sema_boost` and `sema_cold` silent across all 10 shapes
-- Dominant tier on 7/10 shapes: `lex_anchor`
-- Raw results: `benchmarks/skill_activation_results.json`
-- Log: `benchmarks/_bench_skill_activation_2026-04-14.log` (gitignored)
+### Cache hit-rate (3 agents × 6 queries, 70/30 overlap)
 
-### `bench_dimensional_lock.py` (Apr 13 baseline — not re-run today)
-- SR-enabled lift: +10pp `in_context_pct` on variant 4
-- `all_on` suppresses SR lift (flag interaction worth investigating)
-- `answer_pct = 0%` across all configs — benchmark's downstream model
-  can't answer from the compressed context regardless. Retrieval-level
-  signal is real; end-to-end signal is noisy.
+41.67% hit rate, 4.5% wall savings (modest — local files are <1ms).
+HTTP/S3 backends would show 10× or more.
 
-## Open Todos (as of session end)
+### Headroom E2E
 
-Full list is 18 items; highest-leverage clusters:
+| Content | Headroom on | Fallback |
+|---|---|---|
+| code | 300ms | <1ms |
+| doc | 460ms | <1ms |
+| config | 275ms | <1ms |
 
-**Next up (unblocked, ready to start):**
-- AI-CONSUMER Sprint 1 legibility pack (~90 LOC, single session)
-- Fresh solo-load `bench_dimensional_lock.py` run (overnight)
-- Query-type segmentation on LOCKSTEP data
+Compression benefit flips by budget: at 200 chars, pure overhead;
+at 1000, saves 9-17k chars/call for code+config.
 
-**Blocked or waiting:**
-- AI-CONSUMER Sprints 2-5 (architectural, need explicit user green-light)
-- PWPC 9×9 head architecture (awaiting Gordon+Todd design input)
-- CWoLa trainer ship (blocked on label clock — A=161, need ≥1500;
-  ~10-15 days out at current rate)
-- Stacked PLR GBT fusion (blocked on CWoLa labels)
-- Kalman session tracking (optional, gate on SR+velocity+seeded proving
-  insufficient first)
+## Open docs gap follow-on
 
-**Low-priority A/B:**
-- `retrieval.ray_trace_theta` — needs TCM session depth ≥ 2
-- `retrieval.seeded_edges_enabled` — long-horizon provenance study
+[Issue #8](https://github.com/SwiftWing21/helix-context/issues/8) —
+SETUP.md with 14-extra decision matrix, implicit-req callouts,
+TROUBLESHOOTING.md, Phase 2 claims layer mention in README,
+Linux/macOS launcher parity. Not blocking; filed for next owner.
 
-## Pointers for Fast Resume
+## What's NOT shipped (stretch moves for next session)
 
-If you're a future Claude session picking this up:
+1. **Stale-claim avoidance bench** — seed contradictory facts, measure
+   whether the DAG walker routes agents to the current one. This is
+   the RIGHT question for DAG value — content-presence benches don't
+   measure it.
+2. **HTTP/S3 DAL bench** — same cache workload, slower backend, to
+   convert the 41% hit rate into a 10× wall savings number.
+3. **N=50 multi-needle set** — 8 needles is probative; 50 is
+   publishable. Rerun every cell.
+4. **External retriever narrowing on a REAL retriever** — we wrapped
+   the SEMA retriever to prove the adapter; actual LlamaIndex /
+   pgvector / Weaviate integration test is still pending.
 
-1. **Read this file first**, then:
-   - `docs/collab/comms/REPLY_TO_PWPC_UPDATE_2026-04-14.md` — the current
-     collab state; most of our recent thinking is in there
-   - `docs/FUTURE/AI_CONSUMER_ROADMAP_2026-04-14.md` — the forward plan
-   - `docs/collab/comms/COUNTER_MODE_SPEC_2026-04-14.md` — design locus
-     for the next PWPC milestone
+## Live state at session close
 
-2. **Key design shift to internalize:** the scalar "lockstep = failure"
-   antiresonance finding is narrower than v1 suggested. The real signal
-   at N=2209 is that A-bucket correlation matrices have `harmonic`
-   co-firing strongly with all structural tiers, whereas B-bucket has
-   weaker coupling. Four regimes with sign-dependent interpretation,
-   not one.
+- Server up at :11437 (pushed + restarted multiple times across session)
+- Grafana panels populating if OTel collector is running
+- main.db holds 78,472 claims + 95,382 edges — DO NOT drop these,
+  they represent 3+ hours of compute and enable the DAG walker
+- Test totals: ~180 tests, all green (37 claims_graph + 35 dal/retriever
+  + 15 claims_analyze + 19 headroom_supervisor + 77 existing)
+- Working tree has 10 unstaged files NOT from my session (ribosome /
+  launcher UI work by sibling agents) — leave untouched
 
-3. **The extractor is live but the head isn't.** `cwola.sliding_window_features()`
-   produces 36-d feature vectors per retrieval; batman's PWPC manifold
-   is the consumer. We haven't trained a head ourselves — that's
-   Gordon+Todd's court with our feature input.
+## For future sessions
 
-4. **Two ops-posture choices pending:**
-   - Promote `sr_enabled` based on today's A/B? (It fires 100% of
-     queries; not a subtle lift — but we haven't measured NDCG delta on
-     a clean bench.)
-   - Ship Sprint 1 legibility pack first, or continue collab iteration?
+- **Read `docs/INTEGRATING_WITH_EXISTING_RAG.md` first** if you're
+  touching retrieval/adapter code. It's the authoritative
+  composition guide now.
+- **Don't treat Helix as half a stack** — it's the router above.
+  The packet fields dispatch to RAG/DAG/DAL layers; Helix doesn't
+  execute, it routes.
+- **Don't re-measure DAG on content recall** — that bench is
+  concluded (0.81 vs 0.81). Measure DAG on stale-claim avoidance or
+  decision-quality metrics.
+- **Adapters live in `helix_context/adapters/` as opt-in references.**
+  They're meant to be copied / subclassed / swapped, not treated as
+  core Helix dependencies.
 
-5. **Contention to remember:** today Raude + Taude both hit the server
-   concurrently during bench runs. Solo-load re-runs are pending for
-   clean numbers.
-
-— Raude (Claude Opus 4.6, 1M context), 2026-04-14 late evening PT
+— Laude, 2026-04-19
