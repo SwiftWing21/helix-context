@@ -309,6 +309,19 @@ class TestAdminComponentsEndpoint:
         data = resp.json()
         assert data["count"] == len(data["components"])
 
+    def test_components_omit_paused_ribosome(self, client):
+        pause_resp = client.post("/admin/ribosome/pause")
+        assert pause_resp.status_code == 200
+        assert pause_resp.json()["paused"] is True
+
+        resp = client.get("/admin/components")
+        assert resp.status_code == 200
+        data = resp.json()
+
+        names = [c["name"] for c in data["components"]]
+        assert "ribosome" not in names
+        assert data["count"] == len(data["components"])
+
 
 class TestIngestEndpoint:
     def test_ingest_text(self, client):

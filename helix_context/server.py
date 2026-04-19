@@ -2382,19 +2382,22 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
         idle_threshold_s = 60.0
         age = _time.time() - getattr(helix, "_last_activity_ts", 0.0)
         active_status = "running" if age < idle_threshold_s else "idle"
+        ribosome_paused = id(helix.ribosome.backend) in _paused_ribosomes
 
         components = []
 
-        # Ribosome — always loaded (required). Decoder: pack/splice/replicate.
-        ribosome_backend = "unknown"
-        if hasattr(helix.ribosome, "backend") and hasattr(helix.ribosome.backend, "model"):
-            ribosome_backend = helix.ribosome.backend.model
-        components.append({
-            "name": "ribosome",
-            "kind": "decoder",
-            "status": active_status,
-            "backend": ribosome_backend,
-        })
+        # Ribosome — hide it when paused so the launcher only shows
+        # active/online tools, matching the panel contract.
+        if not ribosome_paused:
+            ribosome_backend = "unknown"
+            if hasattr(helix.ribosome, "backend") and hasattr(helix.ribosome.backend, "model"):
+                ribosome_backend = helix.ribosome.backend.model
+            components.append({
+                "name": "ribosome",
+                "kind": "decoder",
+                "status": active_status,
+                "backend": ribosome_backend,
+            })
 
         # ΣĒMA codec — encoder, optional (loaded if sentence-transformers available).
         if getattr(helix, "_sema_codec", None) is not None:
