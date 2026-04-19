@@ -267,11 +267,145 @@ SentenceTransformer('all-MiniLM-L6-v2')"`.
 
 ---
 
+## Helix as the router above the stack
+
+The integration patterns above focus on RAG (content retrieval).
+Real agents also need a *dependency* layer (DAG — claim resolution,
+contradiction handling, supersedes chains) and an *access* layer
+(DAL — uniform fetch across heterogeneous stores). Helix doesn't
+ship the stack, but it **emits the signals that tell the stack which
+path to take**:
+
+```
+              ┌────────────────── Helix (router) ─────────────────┐
+query ──▶    │  emits: task_type, coord_confidence, verdict,     │
+              │         volatility_class, contradictions,         │
+              │         supersedes edges, refresh_targets         │
+              └──┬──────────────────┬──────────────────┬──────────┘
+                 │                  │                  │
+     verified +  │   stale_risk  +  │  contradictions  │
+     high conf   │   + hot vol      │  + supersedes    │
+                 ▼                  ▼                  ▼
+              ┌─ RAG ─┐         ┌─ DAL ─┐        ┌─ DAG ─┐
+              │ fetch │         │ scheme│        │ walk  │
+              │ bytes │         │ refetch        │ edges │
+              └───────┘         └───────┘        └───────┘
+```
+
+The packet's fields are the routing signals. Choice-math examples:
+
+| Packet shape | Which layer(s) to engage |
+|---|---|
+| `verified` + `coord_conf > 0.5` | RAG only |
+| `stale_risk` + `hot` volatility | DAL refetch, then RAG |
+| `contradictions` non-empty | DAG walk first, then DAL on the winner |
+| Claim has `supersedes_claim_id` | DAG resolves to latest before any fetch |
+| `task_type = "edit"` + any `needs_refresh` | All three in order |
+
+Helix ships reference implementations of both the DAG walker and the
+DAL — use them as drop-ins or copy the patterns.
+
+### DAG layer — `helix_context.claims_graph`
+
+Walks the Phase 2 `claims` + `claim_edges` tables. Supersedes chains,
+contradiction clusters, topological ordering, and the one-call
+resolver that composes them:
+
+```python
+from helix_context.claims_graph import resolve_from_packet
+from helix_context.shard_schema import open_main_db
+
+main_db = open_main_db("genomes/main.db")
+result = resolve_from_packet(main_db, packet, policy="latest_then_authority")
+
+for claim in result["accepted"]:
+    # Supersedes-resolved, contradiction-winner claims
+    act_on(claim)
+
+for claim in result["rejected"]:
+    # Why: "superseded_by c_42" or "contradicts_winner c_17"
+    log.debug("dropped %s: %s", claim["claim_id"], claim["rejected_reason"])
+```
+
+Policies:
+- `latest_then_authority` (default) — follow supersedes to head, then
+  within each contradiction cluster pick the highest-authority claim.
+- `keep_all_with_flags` — return every claim with `superseded_by` +
+  `contradicts_ids` annotations. Use when the agent needs to see the
+  conflict surface rather than resolve it.
+
+### DAL layer — `helix_context.adapters.dal`
+
+Uniform `fetch(source_id) → bytes` across schemes. Ships with
+`file://` and `http(s)://` fetchers registered by default. Register
+`s3://`, `git://`, or custom schemes per integration:
+
+```python
+from helix_context.adapters.dal import DAL, fetch_packet_sources, fetch_s3
+
+dal = DAL()
+dal.register("s3", fetch_s3)  # opt-in; requires boto3
+
+# Single fetch
+result = dal.fetch("s3://my-bucket/doc.md")
+if result.ok:
+    agent.process(result.text)
+
+# Batch-fetch every source in a packet
+for source_id, fetch_result in fetch_packet_sources(packet, dal=dal):
+    if not fetch_result.ok:
+        log.warning("fetch failed: %s — %s", source_id,
+                    fetch_result.meta["error"])
+        continue
+    agent.ingest(source_id, fetch_result.text)
+```
+
+Fetchers soft-fail (return `FetchResult(text=None, meta={"error": ...})`)
+instead of raising — a missing doc shouldn't crash the agent's flow.
+
+### Full router — all three layers composed
+
+The canonical post-Helix call path:
+
+```python
+from helix_context.claims_graph import resolve_from_packet
+from helix_context.adapters.dal import DAL, fetch_packet_sources
+from helix_context.shard_schema import open_main_db
+
+import httpx
+
+def answer(query: str, task_type: str = "edit") -> dict:
+    # 1. Ask Helix for the packet (the router signal)
+    packet = httpx.post(
+        "http://127.0.0.1:11437/context/packet",
+        json={"query": query, "task_type": task_type},
+    ).json()
+
+    # 2. DAG: resolve claim conflicts / supersedes chains
+    main_db = open_main_db("genomes/main.db")
+    claims = resolve_from_packet(main_db, packet).get("accepted", [])
+    main_db.close()
+
+    # 3. DAL: fetch the bytes at every source_id the packet points at
+    fetched = fetch_packet_sources(packet, dal=DAL())
+
+    # 4. Pass resolved claims + fetched content to your LLM / tool
+    return {"claims": claims, "content": fetched, "packet_notes": packet.get("notes", [])}
+```
+
+The three layers are independent and composable — use all, some, or
+none depending on what your agent needs. Helix's only opinion is that
+the packet fields carry enough signal to dispatch correctly.
+
 ## Further reading
 
 - [`docs/specs/2026-04-17-agent-context-index-build-spec.md`](specs/2026-04-17-agent-context-index-build-spec.md)
   — full packet-mode design spec
 - [`benchmarks/bench_helix_rag_composition.py`](../benchmarks/bench_helix_rag_composition.py)
   — the 4-cell composition benchmark source
+- [`helix_context/claims_graph.py`](../helix_context/claims_graph.py)
+  — DAG walker reference implementation
+- [`helix_context/adapters/dal.py`](../helix_context/adapters/dal.py)
+  — DAL reference implementation
 - [`README.md`](../README.md) §Two product surfaces — `/context` vs
   `/context/packet` decision guide
