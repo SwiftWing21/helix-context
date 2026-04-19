@@ -223,7 +223,7 @@ class HeadroomConfig:
     spawning a duplicate — the adopted process survives launcher Quit.
     """
     enabled: bool = False               # Master switch; false = do nothing
-    autostart: bool = False             # Start at launcher boot (if not already up)
+    autostart: bool = True              # When enabled: adopt if running, spawn if not
     host: str = "127.0.0.1"
     port: int = 8787
     mode: str = "token"                 # "token" | "cache" (passed to --mode)

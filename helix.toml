@@ -95,16 +95,20 @@ upstream = "http://localhost:11434"     # Ollama
 # http://{host}:{port}/dashboard. The launcher can spawn it as a child
 # at boot (autostart=true) and surface it in the tray menu.
 #
-# Graceful adoption: if a headroom process is already listening on the
-# configured port when the launcher starts, we adopt it (don't spawn a
-# duplicate) and leave it alive on Quit unless the user explicitly
-# clicked "Stop Headroom" in the tray.
+# When ``enabled=true`` (the one flag most users touch), the launcher:
+#   1. Adopts an existing headroom proxy if one is already listening on
+#      ``port`` — no duplicate spawn, and the adopted process survives
+#      launcher Quit.
+#   2. Otherwise spawns a fresh headroom child (``autostart=true`` default).
+#
+# Either way the tray gains "Open Headroom Dashboard" + Start/Restart/Stop
+# Headroom menu items.
 #
 # Requires: pip install "helix-context[codec]"  (pulls headroom-ai[proxy])
 # ──────────────────────────────────────────────────────────────────────
 [headroom]
-enabled = false                         # Master switch; false = launcher ignores headroom entirely
-autostart = false                       # If enabled + autostart, spawn on launcher boot (unless adopting)
+enabled = false                         # Master switch; flip to true to turn on the integration
+autostart = true                        # When enabled: adopt if running, spawn if not. Set false for menu-only mode.
 host = "127.0.0.1"
 port = 8787                             # Default headroom proxy port
 mode = "token"                          # "token" (compression-first) | "cache" (prefix-cache-stable)
