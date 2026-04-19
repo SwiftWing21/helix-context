@@ -16,6 +16,11 @@ the bytes (library). Together they should out-recall either alone.
    agent-safe index surface as it stands today.
 4. **helix_rag** — /context/packet for pointers, then read the source
    files from disk. The composition: Helix points, naive fetcher reads.
+5. **helix_full_stack** — /context/packet + DAG resolution (claims_graph)
+   + cached DAL fetch. Demonstrates the router framing — Helix emits,
+   the three-layer stack executes. Adds resolved claim text to the
+   content blob. Requires a backfilled main.db (see
+   scripts/backfill_claims.py).
 
 ## Dual scoring per needle
 
@@ -53,6 +58,10 @@ HELIX_URL = "http://127.0.0.1:11437"
 GENOME_PATH = os.environ.get(
     "HELIX_GENOME_PATH",
     str(Path(__file__).resolve().parents[1] / "genomes" / "main" / "genome.db"),
+)
+MAIN_DB_PATH = os.environ.get(
+    "HELIX_MAIN_DB_PATH",
+    str(Path(__file__).resolve().parents[1] / "genomes" / "main.db"),
 )
 GENE_SRC_RE = re.compile(r'<GENE src="([^"]+)"')
 
@@ -365,6 +374,78 @@ def cell_helix_rag(client: httpx.Client, needle: dict, max_files: int = 12,
     }
 
 
+# ── Cell E: Helix + full stack (DAG + cached DAL) ────────────────────
+
+
+def cell_helix_full_stack(client: httpx.Client, needle: dict,
+                          max_files: int = 12,
+                          chars_per_file: int = 5000) -> dict:
+    """Packet → DAG-resolved claims + cached DAL fetch.
+
+    The claims_graph adds structured-fact text to the content blob;
+    the cached DAL fetches bytes. Together they give the agent both
+    the pointer-resolution (claims) and the raw source (DAL) in one call.
+    """
+    t0 = time.time()
+    try:
+        resp = client.post(
+            f"{HELIX_URL}/context/packet",
+            json={"query": needle["query"], "task_type": "explain"},
+            timeout=60,
+        )
+        resp.raise_for_status()
+        packet = resp.json()
+    except Exception as exc:
+        return {"cell": "helix_full_stack", "error": f"packet: {exc}"}
+
+    # DAG: resolve claims for every gene the packet touched
+    resolved_claims: list[dict] = []
+    try:
+        from helix_context.claims_graph import resolve_from_packet
+        from helix_context.shard_schema import open_main_db
+        main_db = open_main_db(MAIN_DB_PATH)
+        try:
+            resolved = resolve_from_packet(main_db, packet)
+            resolved_claims = resolved.get("accepted", [])
+        finally:
+            main_db.close()
+    except Exception as exc:
+        # DAG optional — graceful fallback
+        log_msg = f"DAG resolution skipped: {exc}"
+
+    # DAL (cached): fetch every packet source
+    try:
+        from helix_context.adapters.cache import (
+            CachedDAL, fetch_packet_sources_cached,
+        )
+        from helix_context.adapters.dal import DAL
+        cache = CachedDAL(DAL(max_bytes=chars_per_file))
+        fetched = fetch_packet_sources_cached(
+            packet, cache=cache, max_sources=max_files,
+        )
+    except Exception as exc:
+        return {"cell": "helix_full_stack", "error": f"DAL: {exc}"}
+
+    # Build content blob: claim texts + fetched file contents
+    claim_text = "\n".join(c.get("claim_text", "") for c in resolved_claims)
+    file_text = "\n---\n".join(
+        r.text for _, r in fetched if r.ok and r.text
+    )
+    content = f"CLAIMS:\n{claim_text}\n\nFETCHED:\n{file_text}" \
+        if claim_text else file_text
+
+    delivered_srcs = [sid for sid, _ in fetched]
+    return {
+        "cell": "helix_full_stack",
+        "latency_s": round(time.time() - t0, 3),
+        "delivered_srcs": delivered_srcs,
+        "n_delivered": len(delivered_srcs),
+        "n_claims_resolved": len(resolved_claims),
+        "content": content,
+        "content_chars": len(content),
+    }
+
+
 # ── Scoring — dual signal ───────────────────────────────────────────
 
 
@@ -412,7 +493,8 @@ def score_cell(result: dict, needle: dict) -> dict:
 # ── Runner + reporting ──────────────────────────────────────────────
 
 
-CELL_ORDER = ("pure_rag_bm25", "pure_rag_embedding", "helix_only", "helix_rag")
+CELL_ORDER = ("pure_rag_bm25", "pure_rag_embedding", "helix_only",
+              "helix_rag", "helix_full_stack")
 
 
 def run_needle(client: httpx.Client, needle: dict) -> dict:
@@ -421,6 +503,7 @@ def run_needle(client: httpx.Client, needle: dict) -> dict:
         "pure_rag_embedding": cell_pure_rag_embedding(needle),
         "helix_only": cell_helix_only(client, needle),
         "helix_rag": cell_helix_rag(client, needle),
+        "helix_full_stack": cell_helix_full_stack(client, needle),
     }
     scores = {name: score_cell(r, needle) for name, r in cells.items()}
     return {

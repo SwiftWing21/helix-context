@@ -363,6 +363,107 @@ for source_id, fetch_result in fetch_packet_sources(packet, dal=dal):
 Fetchers soft-fail (return `FetchResult(text=None, meta={"error": ...})`)
 instead of raising — a missing doc shouldn't crash the agent's flow.
 
+### Cache layer — `helix_context.adapters.cache`
+
+Wraps a DAL with TTL-bounded LRU. TTLs come from Helix's
+`volatility_class` (`stable=7d`, `medium=12h`, `hot=15min`), so the
+cache stays honest about freshness without extra config:
+
+```python
+from helix_context.adapters.dal import DAL
+from helix_context.adapters.cache import CachedDAL, fetch_packet_sources_cached
+
+cache = CachedDAL(DAL(), max_entries=500)
+
+# Single fetch — volatility drives TTL
+result = cache.fetch("/repo/config.yaml", volatility_class="hot")
+
+# Packet-aware batch — stale_risk + refresh_targets automatically
+# bypass the cache (Helix already flagged them as needing a refresh,
+# serving cached bytes would defeat the verdict)
+for sid, r in fetch_packet_sources_cached(packet, cache=cache):
+    if r.ok:
+        agent.ingest(sid, r.text)
+```
+
+#### Multi-agent semantics
+
+The cache is **`source_id`-keyed, party-scoped, and free to share
+across agents on the same device.** Design table:
+
+| Layer | Scoping | Why |
+|---|---|---|
+| Cache key | `source_id` | Bytes are identity-independent |
+| Cache instance | Per party (= per device) | Different filesystems, different fetch results |
+| TTL | Per `volatility_class` | Helix owns freshness; cache honors it |
+| Invalidation | `invalidate(source_id)` / `invalidate_by_prefix()` / `invalidate_all()` | Wire to your ingest hooks |
+| Sharing across agents in one party | **Yes, by default** | Laude + Taude on one box see identical bytes; cache hit is correct |
+| Sharing across parties | **No** | Different machines; use shared genome + ingest instead |
+
+Practical pattern for a launcher running Laude + Taude + Raude as
+three agents: one `CachedDAL` instance in the launcher process,
+handed to each agent. Hit rate climbs as soon as two personas touch
+the same files. Cross-machine caching is **not** the cache's job —
+that's what Helix's shared genome metadata + ingest replication
+handles.
+
+For ingest-driven invalidation, wire your ingest pipeline to call
+the cache's invalidation methods:
+
+```python
+# In your ingest worker, after writing a gene:
+cache.invalidate(gene.source_id)
+
+# Or for bulk refreshes:
+cache.invalidate_by_prefix("/repo/docs/")
+```
+
+The cache stats (`.stats()`) expose `hits / misses / evictions /
+hit_rate` for diagnostics.
+
+### Retriever adapter — `helix_context.adapters.retriever`
+
+Wrap your existing RAG (LlamaIndex, LangChain, or any duck-typed
+retriever) behind the `Retriever` protocol, then compose with Helix's
+packet-shortlist via `HelixNarrowedRetriever`:
+
+```python
+from helix_context.adapters.retriever import (
+    LlamaIndexRetriever, LangChainRetriever, HelixNarrowedRetriever,
+)
+
+# Option A: LlamaIndex
+from llama_index.core.retrievers import VectorIndexRetriever
+li_retriever = VectorIndexRetriever(index=my_index, similarity_top_k=12)
+inner = LlamaIndexRetriever(li_retriever)
+
+# Option B: LangChain
+# inner = LangChainRetriever(my_langchain_retriever)
+
+# Compose with Helix
+narrowed = HelixNarrowedRetriever(inner, helix_url="http://127.0.0.1:11437")
+docs = narrowed.retrieve("where does auth middleware live", top_k=8)
+```
+
+Narrowed flow: Helix returns a shortlist of `source_id`s, the wrapper
+passes them as `filter_paths` to your retriever, and you get back
+`list[RetrievedDoc]` scoped to Helix's candidates. If Helix has
+nothing relevant or is unreachable, `fallback_unscoped=True` (default)
+runs an unscoped retrieve so the agent never starves.
+
+Custom retrievers don't need to subclass anything:
+
+```python
+from helix_context.adapters.retriever import Retriever, RetrievedDoc
+
+class MyRetriever:
+    def retrieve(self, query, *, filter_paths=None, top_k=8):
+        # ... your logic ...
+        return [RetrievedDoc(source_id=..., content=..., score=...)]
+
+# Duck-typed — isinstance(MyRetriever(), Retriever) is True
+```
+
 ### Full router — all three layers composed
 
 The canonical post-Helix call path:
@@ -396,6 +497,34 @@ def answer(query: str, task_type: str = "edit") -> dict:
 The three layers are independent and composable — use all, some, or
 none depending on what your agent needs. Helix's only opinion is that
 the packet fields carry enough signal to dispatch correctly.
+
+### Bench: 5-cell composition (2026-04-19)
+
+Empirical check of the stack against the multi-needle NIAH on a
+7,846-gene genome. 78,472 claims backfilled via
+[`scripts/backfill_claims.py`](../scripts/backfill_claims.py):
+
+| Cell | ptr_partial | ans_full | ans_partial | latency |
+|---|---|---|---|---|
+| pure_rag_bm25 | 0.19 | 4/8 | 0.62 | 35 ms |
+| pure_rag_embedding | 0.00 | 1/8 | 0.44 | 1092 ms |
+| helix_only | 0.19 | 0/8 | 0.19 | 1096 ms |
+| helix_rag | 0.19 | 5/8 | **0.81** | 923 ms |
+| helix_full_stack | 0.19 | 5/8 | **0.81** | 960 ms |
+
+The `helix_full_stack` cell (DAG resolve + cached DAL) **matches
+`helix_rag` exactly** at 0.81 today. That's expected — we extract
+literal claims at ingest but don't auto-populate `claim_edges`
+(contradiction / supersedes detection is a follow-on). The DAG layer
+is a no-op right now, so it's a pure +37ms overhead.
+
+When `claim_edges` gets populated (contradiction detection landing),
+this cell diverges: the DAG resolves conflicts before the agent
+commits to a belief, and the full-stack cell should lift recall on
+any needle where the genome holds both a stale and a current answer.
+
+Today the full-stack cell matters as **composition-correctness proof**
+— the router pattern works end-to-end — not as a recall boost.
 
 ## Further reading
 
