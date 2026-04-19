@@ -22,6 +22,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from helix_context.claims import extract_literal_claims, persist_claims  # noqa: E402
+from helix_context.claims_analyze import detect_and_persist_edges  # noqa: E402
 from helix_context.genome import Genome  # noqa: E402
 from helix_context.shard_schema import (  # noqa: E402
     init_main_db, open_main_db, register_shard, SHARD_CATEGORIES,
@@ -35,6 +36,7 @@ def backfill(
     shard_category: str = "reference",
     batch_size: int = 500,
     progress_every: int = 1000,
+    detect_edges: bool = True,
 ) -> dict:
     print(f"Opening genome: {genome_path}")
     print(f"Opening main.db: {main_db_path}")
@@ -103,6 +105,19 @@ def backfill(
     claim_count = main_db.execute(
         "SELECT COUNT(*) FROM claims"
     ).fetchone()[0]
+
+    edge_summary: dict = {}
+    if detect_edges:
+        print("\nDetecting claim edges (contradicts / duplicates / supersedes)…")
+        t_edge0 = time.time()
+        edge_summary = detect_and_persist_edges(main_db)
+        t_edge = time.time() - t_edge0
+        print(f"  {edge_summary.get('n_groups', 0)} entity_key groups scanned "
+              f"in {t_edge:.1f}s")
+        print(f"  contradicts={edge_summary.get('contradicts', 0)}  "
+              f"duplicates={edge_summary.get('duplicates', 0)}  "
+              f"supersedes={edge_summary.get('supersedes', 0)}")
+
     main_db.close()
 
     print(f"\nBackfill complete in {elapsed:.1f}s")
@@ -115,6 +130,7 @@ def backfill(
         "genes_processed": n_processed,
         "claims_inserted": n_claims,
         "claims_total": claim_count,
+        "edges": edge_summary,
     }
 
 
@@ -126,6 +142,8 @@ def main() -> int:
     p.add_argument("--shard-category", default="reference",
                    choices=list(SHARD_CATEGORIES))
     p.add_argument("--batch-size", type=int, default=500)
+    p.add_argument("--no-detect-edges", action="store_true",
+                   help="Skip the claim-edge detection pass")
     args = p.parse_args()
 
     backfill(
@@ -134,6 +152,7 @@ def main() -> int:
         shard_name=args.shard_name,
         shard_category=args.shard_category,
         batch_size=args.batch_size,
+        detect_edges=not args.no_detect_edges,
     )
     return 0
 

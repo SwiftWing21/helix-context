@@ -1,0 +1,63 @@
+{
+  "no_cache": {
+    "config": {
+      "n_agents": 3,
+      "queries_per_agent": 6,
+      "use_shared_cache": false,
+      "seed": 42
+    },
+    "per_agent": {
+      "laude": {
+        "wall_time_s": 4.17,
+        "fetches_ok": 70,
+        "fetches_err": 2
+      },
+      "taude": {
+        "wall_time_s": 3.11,
+        "fetches_ok": 58,
+        "fetches_err": 2
+      },
+      "raude": {
+        "wall_time_s": 5.97,
+        "fetches_ok": 72,
+        "fetches_err": 0
+      }
+    },
+    "total_wall_s": 13.25
+  },
+  "with_cache": {
+    "config": {
+      "n_agents": 3,
+      "queries_per_agent": 6,
+      "use_shared_cache": true,
+      "seed": 42
+    },
+    "per_agent": {
+      "laude": {
+        "wall_time_s": 3.89,
+        "fetches_ok": 70,
+        "fetches_err": 2
+      },
+      "taude": {
+        "wall_time_s": 2.94,
+        "fetches_ok": 58,
+        "fetches_err": 2
+      },
+      "raude": {
+        "wall_time_s": 5.81,
+        "fetches_ok": 72,
+        "fetches_err": 0
+      }
+    },
+    "total_wall_s": 12.65,
+    "cache_stats": {
+      "entries": 115,
+      "max_entries": 500,
+      "hits": 85,
+      "misses": 119,
+      "evictions": 0,
+      "hit_rate": 0.4166666666666667
+    }
+  },
+  "delta_s": 0.6
+}

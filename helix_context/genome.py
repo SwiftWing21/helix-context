@@ -1494,6 +1494,18 @@ class Genome:
                 claims = extract_literal_claims(gene, shard_name=self._shard_name)
                 if claims:
                     persist_claims(self._main_conn, claims)
+                    # Edge detection scoped to the new claims' entity_keys.
+                    # Narrow scan keeps per-ingest cost bounded; groups
+                    # larger than max_group_size are skipped anyway.
+                    from .claims_analyze import detect_and_persist_edges
+                    touched_keys = {
+                        c.entity_key for c in claims if c.entity_key
+                    }
+                    if touched_keys:
+                        detect_and_persist_edges(
+                            self._main_conn,
+                            entity_keys=touched_keys,
+                        )
             except Exception:
                 log.warning("claim extraction failed at ingest", exc_info=True)
 

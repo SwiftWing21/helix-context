@@ -526,6 +526,65 @@ any needle where the genome holds both a stale and a current answer.
 Today the full-stack cell matters as **composition-correctness proof**
 — the router pattern works end-to-end — not as a recall boost.
 
+## Three further benches (2026-04-19)
+
+### External retriever — narrowing pattern (`bench_external_retriever.py`)
+
+Wraps the SEMA cosine retriever as a `Retriever` (pattern 2), runs it
+raw vs Helix-narrowed across the same 8 multi-needle queries:
+
+| Metric | Raw SEMA | Helix-Narrowed | Delta |
+|---|---|---|---|
+| mean content_recall | 0.44 | **0.56** | +12pp (+27%) |
+| mean search space | 6,682 | ~13 | **~516× smaller** |
+| mean latency | 903 ms | 1098 ms | +195 ms (packet call) |
+
+**Narrowing lifts recall by 27% while cutting the candidate set by
+~500×.** Latency goes up by the packet call cost, but on a retriever
+with expensive search (ANN over 1M vectors, cross-encoder rerank)
+this tradeoff flips — most of raw retrieval's cost is per-candidate,
+so cutting candidates dominates.
+
+### Cache hit-rate — multi-agent workload (`bench_cache_hitrate.py`)
+
+Simulates 3 agents (laude/taude/raude personas) × 6 queries with
+70% shared topic pool + 30% per-agent specialty:
+
+- **Hit rate: 41.67%** with one shared CachedDAL across all three.
+- Total wall saved: 4.5% (~600 ms).
+
+Modest savings because fetches are local files (<1 ms each) — the
+Helix packet call dominates wall time, not the DAL. For HTTP- or
+S3-backed DALs (order of magnitude slower), the 41% hit rate
+translates to proportionally bigger savings.
+
+The bench validates the multi-agent pattern empirically: a shared
+cache correctly dedups across personas without cross-contamination.
+
+### Claim-edge detection + full-stack rerun
+
+After landing `helix_context/claims_analyze.py` and backfilling
+edges into the existing 78,472-claim main.db, we detected:
+
+- **50,362 contradicts** (same entity_key, low-Jaccard text)
+- **45,020 duplicates** (same entity_key, high-Jaccard text, diff genes)
+- **0 supersedes** (needs diverging `observed_at` on near-duplicate
+  pairs — most genes in the corpus were ingested together)
+- Total: **95,382 edges** across 20,978 entity_key groups (190s scan)
+
+With `claim_edges` populated, the `helix_full_stack` cell re-ran on
+the multi-needle bench — still **0.81 ans_partial**, matching
+`helix_rag`. The DAG layer is actively walking now (`resolve_from_packet`
+returns accepted/rejected claims), but the file-read content blob
+already contains the answer strings, so DAG resolution doesn't lift
+content recall on this bench.
+
+**Where DAG resolution starts mattering:** decision-quality metrics
+(does the agent act on a stale claim?), not content-presence
+metrics. This bench measures content; a future "stale-claim
+avoidance" bench is where DAG will show its teeth. Ship the
+infrastructure now, measure its value on the right question later.
+
 ## Further reading
 
 - [`docs/specs/2026-04-17-agent-context-index-build-spec.md`](specs/2026-04-17-agent-context-index-build-spec.md)

@@ -15,7 +15,7 @@
       "cells": {
         "pure_rag_bm25": {
           "cell": "pure_rag_bm25",
-          "latency_s": 0.026,
+          "latency_s": 0.025,
           "delivered_srcs": [
             "F:/Projects/Education/fleet/skills/security_suite.py",
             "F:/Projects/helix-context/helix_context/server.py",
@@ -77,7 +77,7 @@
         },
         "helix_only": {
           "cell": "helix_only",
-          "latency_s": 1.642,
+          "latency_s": 0.502,
           "delivered_srcs": [
             "F:/Projects/helix-context/helix_context/context_manager.py",
             "F:/Projects/helix-context/helix_context/context_manager.py",
@@ -120,7 +120,7 @@
         },
         "helix_rag": {
           "cell": "helix_rag",
-          "latency_s": 0.502,
+          "latency_s": 0.487,
           "delivered_srcs": [
             "F:/Projects/helix-context/helix_context/context_manager.py",
             "F:/Projects/helix-context/training/export_training_data.py",
@@ -156,7 +156,7 @@
         },
         "helix_full_stack": {
           "cell": "helix_full_stack",
-          "latency_s": 0.518,
+          "latency_s": 0.563,
           "delivered_srcs": [
             "F:/Projects/helix-context/helix_context/context_manager.py",
             "F:/Projects/helix-context/training/export_training_data.py",
@@ -172,8 +172,8 @@
             "F:/Projects/Education/docs/superpowers/specs/2026-04-07-helix-context-design.md"
           ],
           "n_delivered": 12,
-          "n_claims_resolved": 203,
-          "content_chars": 63343,
+          "n_claims_resolved": 190,
+          "content_chars": 63003,
           "score": {
             "pointer_full": false,
             "pointer_partial": 0.0,
@@ -235,7 +235,7 @@
         },
         "pure_rag_embedding": {
           "cell": "pure_rag_embedding",
-          "latency_s": 0.15,
+          "latency_s": 0.142,
           "delivered_srcs": [
             "F:/Projects/helix-context/NOTICE",
             "F:/Projects/helix-context/docs/architecture/LAUNCHER.md",
@@ -269,7 +269,7 @@
         },
         "helix_only": {
           "cell": "helix_only",
-          "latency_s": 1.114,
+          "latency_s": 1.018,
           "delivered_srcs": [
             "F:/Projects/helix-context/helix_context/context_manager.py",
             "F:/Projects/helix-context/training/export_training_data.py",
@@ -312,7 +312,7 @@
         },
         "helix_rag": {
           "cell": "helix_rag",
-          "latency_s": 1.163,
+          "latency_s": 1.032,
           "delivered_srcs": [
             "F:/Projects/helix-context/helix_context/context_manager.py",
             "F:/Projects/helix-context/training/export_training_data.py",
@@ -348,7 +348,7 @@
         },
         "helix_full_stack": {
           "cell": "helix_full_stack",
-          "latency_s": 1.171,
+          "latency_s": 1.018,
           "delivered_srcs": [
             "F:/Projects/helix-context/helix_context/context_manager.py",
             "F:/Projects/helix-context/training/export_training_data.py",
@@ -364,8 +364,8 @@
             "F:/Projects/helix-context/README.md"
           ],
           "n_delivered": 12,
-          "n_claims_resolved": 203,
-          "content_chars": 63473,
+          "n_claims_resolved": 183,
+          "content_chars": 62944,
           "score": {
             "pointer_full": false,
             "pointer_partial": 0.5,
@@ -393,7 +393,7 @@
       "cells": {
         "pure_rag_bm25": {
           "cell": "pure_rag_bm25",
-          "latency_s": 0.049,
+          "latency_s": 0.03,
           "delivered_srcs": [
             "F:/Projects/helix-context/helix.toml",
             "F:/Projects/helix-context/benchmarks/needle_results.json",
@@ -425,7 +425,7 @@
         },
         "pure_rag_embedding": {
           "cell": "pure_rag_embedding",
-          "latency_s": 0.164,
+          "latency_s": 0.139,
           "delivered_srcs": [
             "F:/Projects/helix-context/docs/DIMENSIONS.md",
             "F:/Projects/helix-context/docs/architecture/DIMENSIONS.md",
@@ -456,7 +456,7 @@
         },
         "helix_only": {
           "cell": "helix_only",
-          "latency_s": 0.854,
+          "latency_s": 0.724,
           "delivered_srcs": [
             "F:/Projects/helix-context/helix_context/context_manager.py",
             "F:/Projects/helix-context/training/export_training_data.py",
@@ -498,7 +498,7 @@
         },
         "helix_rag": {
           "cell": "helix_rag",
-          "latency_s": 0.795,
+          "latency_s": 0.729,
           "delivered_srcs": [
             "F:/Projects/helix-context/helix_context/context_manager.py",
             "F:/Projects/helix-context/training/export_training_data.py",
@@ -534,7 +534,7 @@
         },
         "helix_full_stack": {
           "cell": "helix_full_stack",
-          "latency_s": 0.966,
+          "latency_s": 0.737,
           "delivered_srcs": [
             "F:/Projects/helix-context/helix_context/context_manager.py",
             "F:/Projects/helix-context/training/export_training_data.py",
@@ -550,8 +550,8 @@
             "F:/Projects/helix-context/BENCHMARK_NOTES.md"
           ],
           "n_delivered": 12,
-          "n_claims_resolved": 189,
-          "content_chars": 63032,
+          "n_claims_resolved": 160,
+          "content_chars": 62095,
           "score": {
             "pointer_full": true,
             "pointer_partial": 1.0,
@@ -579,7 +579,7 @@
       "cells": {
         "pure_rag_bm25": {
           "cell": "pure_rag_bm25",
-          "latency_s": 0.029,
+          "latency_s": 0.024,
           "delivered_srcs": [
             "F:/Projects/Education/BigEd/research/agent_swarming_and_collaboration.md",
             "F:/Projects/helix-context/docs/positioning/ENTERPRISE.md",
@@ -612,7 +612,7 @@
         },
         "pure_rag_embedding": {
           "cell": "pure_rag_embedding",
-          "latency_s": 0.152,
+          "latency_s": 0.138,
           "delivered_srcs": [
             "F:/Projects/CosmicTasha/web/src/lib/compliance-kb/soc2/templates/encryption-policy.ts",
             "F:/Projects/Education/docs/superpowers/plans/2026-03-28-module-deps-versioning.md",
@@ -646,7 +646,7 @@
         },
         "helix_only": {
           "cell": "helix_only",
-          "latency_s": 0.839,
+          "latency_s": 0.51,
           "delivered_srcs": [
             "F:/Projects/helix-context/helix_context/context_manager.py",
             "F:/Projects/helix-context/training/export_training_data.py",
@@ -689,7 +689,7 @@
         },
         "helix_rag": {
           "cell": "helix_rag",
-          "latency_s": 0.6,
+          "latency_s": 0.53,
           "delivered_srcs": [
             "F:/Projects/helix-context/helix_context/context_manager.py",
             "F:/Projects/helix-context/training/export_training_data.py",
@@ -725,7 +725,7 @@
         },
         "helix_full_stack": {
           "cell": "helix_full_stack",
-          "latency_s": 0.671,
+          "latency_s": 0.556,
           "delivered_srcs": [
             "F:/Projects/helix-context/helix_context/context_manager.py",
             "F:/Projects/helix-context/training/export_training_data.py",
@@ -741,8 +741,8 @@
             "F:/Projects/helix-context/BENCHMARK_NOTES.md"
           ],
           "n_delivered": 12,
-          "n_claims_resolved": 178,
-          "content_chars": 62886,
+          "n_claims_resolved": 161,
+          "content_chars": 62409,
           "score": {
             "pointer_full": false,
             "pointer_partial": 0.0,
@@ -770,7 +770,7 @@
       "cells": {
         "pure_rag_bm25": {
           "cell": "pure_rag_bm25",
-          "latency_s": 0.048,
+          "latency_s": 0.034,
           "delivered_srcs": [
             "F:/Projects/helix-context/docs/benchmarks/BENCHMARKS.md",
             "F:/Projects/helix-context/docs/benchmarks/BENCHMARKS.md",
@@ -804,7 +804,7 @@
         },
         "pure_rag_embedding": {
           "cell": "pure_rag_embedding",
-          "latency_s": 0.176,
+          "latency_s": 0.145,
           "delivered_srcs": [
             "F:/Projects/CosmicTasha/web/postcss.config.mjs",
             "F:/Projects/Education/biged-rs/crates/biged-gui/src/lib.rs",
@@ -838,7 +838,7 @@
         },
         "helix_only": {
           "cell": "helix_only",
-          "latency_s": 0.978,
+          "latency_s": 0.949,
           "delivered_srcs": [
             "F:/Projects/Education/fleet/skills/api_health_probe.py",
             "F:/Projects/Education/fleet/knowledge/code_drafts/autoresearch_loop_evolved_20260402_coder_2.py",
@@ -881,7 +881,7 @@
         },
         "helix_rag": {
           "cell": "helix_rag",
-          "latency_s": 0.947,
+          "latency_s": 0.928,
           "delivered_srcs": [
             "F:/Projects/Education/fleet/skills/api_health_probe.py",
             "F:/Projects/Education/fleet/knowledge/code_drafts/autoresearch_loop_evolved_20260402_coder_2.py",
@@ -917,7 +917,7 @@
         },
         "helix_full_stack": {
           "cell": "helix_full_stack",
-          "latency_s": 0.95,
+          "latency_s": 0.945,
           "delivered_srcs": [
             "F:/Projects/Education/fleet/skills/api_health_probe.py",
             "F:/Projects/Education/fleet/knowledge/code_drafts/autoresearch_loop_evolved_20260402_coder_2.py",
@@ -933,8 +933,8 @@
             "F:/Projects/Education/docs/superpowers/plans/2026-03-25-api-governance.md"
           ],
           "n_delivered": 12,
-          "n_claims_resolved": 258,
-          "content_chars": 64155,
+          "n_claims_resolved": 249,
+          "content_chars": 63888,
           "score": {
             "pointer_full": false,
             "pointer_partial": 0.0,
@@ -962,7 +962,7 @@
       "cells": {
         "pure_rag_bm25": {
           "cell": "pure_rag_bm25",
-          "latency_s": 0.012,
+          "latency_s": 0.01,
           "delivered_srcs": [
             "F:/Projects/Education/fleet/factorio/state_encoder.py",
             "F:/Projects/Education/docs/superpowers/plans/2026-03-28-factorio-ml-overhaul.md",
@@ -996,7 +996,7 @@
         },
         "pure_rag_embedding": {
           "cell": "pure_rag_embedding",
-          "latency_s": 0.148,
+          "latency_s": 0.141,
           "delivered_srcs": [
             "F:/Projects/Education/fleet/db_tasks.py",
             "F:/Projects/BookKeeper/bookkeeper/ingestion/bank/csv_parser.py",
@@ -1030,7 +1030,7 @@
         },
         "helix_only": {
           "cell": "helix_only",
-          "latency_s": 0.2,
+          "latency_s": 0.177,
           "delivered_srcs": [
             "F:/Projects/Education/autoresearch/profiles.toml",
             "F:/Projects/helix-context/benchmarks/precision_tie_break_ab_2026-04-15.json",
@@ -1073,7 +1073,7 @@
         },
         "helix_rag": {
           "cell": "helix_rag",
-          "latency_s": 0.186,
+          "latency_s": 0.19,
           "delivered_srcs": [
             "F:/Projects/Education/autoresearch/profiles.toml",
             "F:/Projects/helix-context/benchmarks/precision_tie_break_ab_2026-04-15.json",
@@ -1109,7 +1109,7 @@
         },
         "helix_full_stack": {
           "cell": "helix_full_stack",
-          "latency_s": 0.2,
+          "latency_s": 0.183,
           "delivered_srcs": [
             "F:/Projects/Education/autoresearch/profiles.toml",
             "F:/Projects/helix-context/benchmarks/precision_tie_break_ab_2026-04-15.json",
@@ -1125,8 +1125,8 @@
             "F:/Projects/helix-context/docs/papers/PAPER_THREE_CONSTRAINTS.md"
           ],
           "n_delivered": 12,
-          "n_claims_resolved": 178,
-          "content_chars": 65361,
+          "n_claims_resolved": 164,
+          "content_chars": 65115,
           "score": {
             "pointer_full": false,
             "pointer_partial": 0.0,
@@ -1154,7 +1154,7 @@
       "cells": {
         "pure_rag_bm25": {
           "cell": "pure_rag_bm25",
-          "latency_s": 0.031,
+          "latency_s": 0.028,
           "delivered_srcs": [
             "F:/Projects/helix-context/docs/collab/from_todd/PWPC_EXPERIMENT_SPEC.md",
             "F:/Projects/helix-context/helix_context/context_manager.py",
@@ -1188,7 +1188,7 @@
         },
         "pure_rag_embedding": {
           "cell": "pure_rag_embedding",
-          "latency_s": 0.143,
+          "latency_s": 0.145,
           "delivered_srcs": [
             "F:/Projects/Education/BigEd/research/COMPARISON_security_posture.md",
             "F:/Projects/Education/BigEd/research/COMPARISON_stier_roadmap.md",
@@ -1222,7 +1222,7 @@
         },
         "helix_only": {
           "cell": "helix_only",
-          "latency_s": 0.26,
+          "latency_s": 0.204,
           "delivered_srcs": [
             "F:/Projects/helix-context/helix_context/context_manager.py",
             "F:/Projects/Education/fleet/audit_scorer.py",
@@ -1265,7 +1265,7 @@
         },
         "helix_rag": {
           "cell": "helix_rag",
-          "latency_s": 0.209,
+          "latency_s": 0.202,
           "delivered_srcs": [
             "F:/Projects/helix-context/helix_context/context_manager.py",
             "F:/Projects/Education/fleet/audit_scorer.py",
@@ -1300,7 +1300,7 @@
         },
         "helix_full_stack": {
           "cell": "helix_full_stack",
-          "latency_s": 0.213,
+          "latency_s": 0.217,
           "delivered_srcs": [
             "F:/Projects/helix-context/helix_context/context_manager.py",
             "F:/Projects/Education/fleet/audit_scorer.py",
@@ -1315,8 +1315,8 @@
             "F:/Projects/helix-context/docs/collab/from_todd/PWPC_EXPERIMENT_SPEC.md"
           ],
           "n_delivered": 11,
-          "n_claims_resolved": 137,
-          "content_chars": 58126,
+          "n_claims_resolved": 121,
+          "content_chars": 57796,
           "score": {
             "pointer_full": false,
             "pointer_partial": 0.0,
@@ -1344,7 +1344,7 @@
       "cells": {
         "pure_rag_bm25": {
           "cell": "pure_rag_bm25",
-          "latency_s": 0.053,
+          "latency_s": 0.051,
           "delivered_srcs": [
             "F:/Projects/helix-context/tests/test_launcher_supervisor.py",
             "F:/Projects/Education/fleet/skills/security_suite.py",
@@ -1376,7 +1376,7 @@
         },
         "pure_rag_embedding": {
           "cell": "pure_rag_embedding",
-          "latency_s": 0.145,
+          "latency_s": 0.151,
           "delivered_srcs": [
             "F:/Projects/helix-context/tests/test_launcher_state.py",
             "F:/Projects/helix-context/backend-with-otel.bat",
@@ -1406,7 +1406,7 @@
         },
         "helix_only": {
           "cell": "helix_only",
-          "latency_s": 2.879,
+          "latency_s": 2.706,
           "delivered_srcs": [
             "F:/Projects/Education/deploy/helm/biged-cc/values.yaml",
             "F:/Projects/Education/biged-rs/Cargo.toml",
@@ -1449,7 +1449,7 @@
         },
         "helix_rag": {
           "cell": "helix_rag",
-          "latency_s": 2.984,
+          "latency_s": 2.691,
           "delivered_srcs": [
             "F:/Projects/Education/deploy/helm/biged-cc/values.yaml",
             "F:/Projects/Education/biged-rs/Cargo.toml",
@@ -1485,7 +1485,7 @@
         },
         "helix_full_stack": {
           "cell": "helix_full_stack",
-          "latency_s": 2.989,
+          "latency_s": 2.763,
           "delivered_srcs": [
             "F:/Projects/Education/deploy/helm/biged-cc/values.yaml",
             "F:/Projects/Education/biged-rs/Cargo.toml",
@@ -1501,8 +1501,8 @@
             "F:/Projects/Education/biged-rs/docs/RUNBOOK.md"
           ],
           "n_delivered": 12,
-          "n_claims_resolved": 277,
-          "content_chars": 58717,
+          "n_claims_resolved": 268,
+          "content_chars": 58527,
           "score": {
             "pointer_full": false,
             "pointer_partial": 0.0,
