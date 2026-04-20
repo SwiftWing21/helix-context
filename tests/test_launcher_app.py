@@ -10,6 +10,7 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
+from helix_context.config import HeadroomConfig, HelixConfig
 from helix_context.launcher.app import create_app
 from helix_context.launcher.supervisor import (
     AlreadyRunning,
@@ -202,3 +203,96 @@ class TestNativeFailFast:
     def test_check_native_available_returns_bool(self):
         from helix_context.launcher.app import _check_native_available
         assert isinstance(_check_native_available(), bool)
+
+
+class TestMaybeBuildHeadroom:
+    def test_adopts_running_headroom_even_when_disabled(self, fake_store, monkeypatch):
+        from helix_context.launcher import app as app_mod
+        from helix_context import config as config_mod
+
+        class FakeHeadroomSupervisor:
+            def __init__(self, store, host, port, mode):
+                self.store = store
+                self.host = host
+                self.port = port
+                self.mode = mode
+                self.start_calls = 0
+
+            def adopt(self):
+                return True
+
+            def start(self):
+                self.start_calls += 1
+                return 4242
+
+        cfg = HelixConfig(
+            headroom=HeadroomConfig(
+                enabled=False,
+                autostart=True,
+                host="127.0.0.1",
+                port=8787,
+                mode="token",
+                dashboard_path="/dashboard",
+            )
+        )
+
+        monkeypatch.setattr(app_mod, "is_headroom_installed", lambda: True)
+        monkeypatch.setattr(app_mod, "HeadroomSupervisor", FakeHeadroomSupervisor)
+        monkeypatch.setattr(config_mod, "load_config", lambda: cfg)
+
+        headroom, dashboard_url = app_mod._maybe_build_headroom(fake_store)
+
+        assert headroom is not None
+        assert dashboard_url == "http://127.0.0.1:8787/dashboard"
+        assert headroom.start_calls == 0
+
+    def test_disabled_headroom_without_running_proxy_stays_hidden(
+        self,
+        fake_store,
+        monkeypatch,
+    ):
+        from helix_context.launcher import app as app_mod
+        from helix_context import config as config_mod
+
+        instances = []
+
+        class FakeHeadroomSupervisor:
+            def __init__(self, store, host, port, mode):
+                self.store = store
+                self.host = host
+                self.port = port
+                self.mode = mode
+                self.start_calls = 0
+                instances.append(self)
+
+            def adopt(self):
+                return False
+
+            def start(self):
+                self.start_calls += 1
+                return 4242
+
+        cfg = HelixConfig(
+            headroom=HeadroomConfig(
+                enabled=False,
+                autostart=True,
+                host="127.0.0.1",
+                port=8787,
+                mode="token",
+                dashboard_path="/dashboard",
+            )
+        )
+
+        monkeypatch.setattr(app_mod, "is_headroom_installed", lambda: True)
+        monkeypatch.setattr(app_mod, "HeadroomSupervisor", FakeHeadroomSupervisor)
+        monkeypatch.setattr(config_mod, "load_config", lambda: cfg)
+
+        headroom, dashboard_url = app_mod._maybe_build_headroom(
+            fake_store,
+            autostart_override=True,
+        )
+
+        assert headroom is None
+        assert dashboard_url is None
+        assert len(instances) == 1
+        assert instances[0].start_calls == 0

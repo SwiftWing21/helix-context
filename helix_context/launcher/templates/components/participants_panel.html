@@ -1,15 +1,22 @@
 <section class="panel panel--participants">
   <h2 class="panel-title">
-    Participants <span class="panel-count">{{ state.participants.count }}</span>
+    Identities <span class="panel-count">{{ state.participants.count }}</span>
+    {% if state.participants.identity_total_count and state.participants.identity_total_count != state.participants.count %}
+      <span class="panel-count-muted">of {{ state.participants.identity_total_count }} known</span>
+    {% endif %}
     {% if state.participants.total_count and state.participants.total_count != state.participants.count %}
-      <span class="panel-count-muted">of {{ state.participants.total_count }}</span>
+      <span class="panel-count-muted">· {{ state.participants.total_count }} sessions</span>
     {% endif %}
   </h2>
   <ul class="panel-list">
     {% for p in state.participants.entries %}
       <li class="panel-list__item">
         <span class="chip chip--participant">{{ p.handle }}</span>
+        <span class="muted">· {{ p.identifier }}</span>
         <span class="muted">· {{ p.status }} · {{ p.last_seen_s_ago }}s ago</span>
+        {% if p.session_count > 1 %}
+          <span class="muted">· {{ p.session_count }} sessions</span>
+        {% endif %}
       </li>
     {% endfor %}
   </ul>

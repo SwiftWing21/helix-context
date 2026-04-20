@@ -275,9 +275,11 @@ def _maybe_build_headroom(
 
     Resolution order:
         1. `helix-context[codec]` must be installed (headroom importable)
-        2. `[headroom] enabled = true` in helix.toml (or HELIX_HEADROOM_ENABLED=1)
-        3. Try to adopt an existing headroom proxy on the configured port.
-        4. If no orphan found AND (autostart=true OR HELIX_HEADROOM_AUTOSTART=1),
+        2. Try to adopt an existing headroom proxy on the configured port.
+        3. If no orphan found, require `[headroom] enabled = true` in
+           helix.toml (or HELIX_HEADROOM_ENABLED=1).
+        4. If enabled AND no orphan found AND
+           (autostart=true OR HELIX_HEADROOM_AUTOSTART=1),
            spawn a new headroom child.
 
     Never raises — returns (None, None) on any failure. Headroom is an
@@ -295,19 +297,13 @@ def _maybe_build_headroom(
         log.warning("Headroom: failed to load config, skipping (%s)", exc)
         return None, None
 
-    enabled = hcfg.enabled if enabled_override is None else enabled_override
-    if not enabled:
-        log.debug("Headroom: [headroom] enabled=false — skipping")
-        return None, None
-
-    autostart = hcfg.autostart if autostart_override is None else autostart_override
-
     headroom = HeadroomSupervisor(
         store=store,
         host=hcfg.host,
         port=hcfg.port,
         mode=hcfg.mode,
     )
+    dashboard_url = f"http://{hcfg.host}:{hcfg.port}{hcfg.dashboard_path}"
 
     # Stage 1: adopt if a headroom is already running.
     if headroom.adopt():
@@ -315,7 +311,17 @@ def _maybe_build_headroom(
             "Headroom: adopted existing process on %s:%d — will NOT stop on Quit",
             hcfg.host, hcfg.port,
         )
-    elif autostart:
+        return headroom, dashboard_url
+
+    enabled = hcfg.enabled if enabled_override is None else enabled_override
+    if not enabled:
+        log.debug(
+            "Headroom: [headroom] enabled=false and no running proxy found — skipping"
+        )
+        return None, None
+
+    autostart = hcfg.autostart if autostart_override is None else autostart_override
+    if autostart:
         # Stage 2: spawn a new one.
         try:
             log.info("Headroom: starting on %s:%d (mode=%s)",
@@ -328,7 +334,6 @@ def _maybe_build_headroom(
             log.warning("Headroom: autostart failed (%s); continuing without", exc)
             # Keep the supervisor so the tray still shows Start Headroom.
 
-    dashboard_url = f"http://{hcfg.host}:{hcfg.port}{hcfg.dashboard_path}"
     return headroom, dashboard_url
 
 
@@ -421,10 +426,10 @@ def main(argv: Optional[list] = None) -> int:
             log.error("Failed to start helix: %s", exc)
             log.info("Launcher will continue; use the Start button once the issue is fixed")
 
-    # Optional Headroom proxy — only provisioned when the package is
-    # importable AND [headroom] enabled=true in helix.toml (or
-    # HELIX_HEADROOM_ENABLED=1). Adoption is always attempted first so
-    # we never spawn a duplicate on top of an existing user-run proxy.
+    # Optional Headroom proxy — if a proxy is already running on the
+    # configured port, adopt it and surface it in the tray even when
+    # [headroom] enabled=false. The enabled flag still controls whether
+    # the launcher may provision a new Headroom child.
     headroom_supervisor, headroom_dashboard_url = _maybe_build_headroom(
         store=store,
         autostart_override=_env_truthy("HELIX_HEADROOM_AUTOSTART"),

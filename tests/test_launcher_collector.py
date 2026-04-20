@@ -169,11 +169,49 @@ class TestPartiesAndParticipants:
         assert "max@local" in state["parties"]["party_ids"]
         assert "other@remote" in state["parties"]["party_ids"]
 
-        # Only active participants in entries; total_count is all
+        # Main panel is active identities; total_count is raw session rows.
         assert state["participants"]["count"] == 2
+        assert state["participants"]["identity_total_count"] == 3
         assert state["participants"]["total_count"] == 3
         handles = [p["handle"] for p in state["participants"]["entries"]]
         assert handles == ["taude", "laude"]  # ordered by last_seen_s_ago
+        assert state["all_agents"]["count"] == 3
+
+    def test_duplicate_sessions_collapse_into_one_identity(self, collector):
+        participants = [
+            {
+                "participant_id": "aaaaaaaa11111111",
+                "handle": "laude",
+                "party_id": "swift_wing21",
+                "workspace": "f:\\Projects\\Education",
+                "status": "active",
+                "last_seen_s_ago": 2.0,
+                "started_at": 100.0,
+            },
+            {
+                "participant_id": "bbbbbbbb22222222",
+                "handle": "laude",
+                "party_id": "swift_wing21",
+                "workspace": "f:\\Projects\\Education",
+                "status": "active",
+                "last_seen_s_ago": 4.0,
+                "started_at": 101.0,
+            },
+        ]
+        responses = {
+            "/stats": {"total_genes": 0, "total_chars_raw": 0, "total_chars_compressed": 0, "compression_ratio": 1.0},
+            "/sessions": {"participants": participants},
+        }
+        with patch("httpx.Client", return_value=_mock_client(responses)):
+            with patch.object(collector, "_collect_models", return_value=None):
+                state = collector.collect()
+
+        assert state["participants"]["count"] == 1
+        assert state["participants"]["identity_total_count"] == 1
+        assert state["participants"]["total_count"] == 2
+        assert state["participants"]["entries"][0]["session_count"] == 2
+        assert state["all_agents"]["count"] == 2
+        assert state["all_agents"]["entries"][0]["participant_id_short"] == "aaaaaaaa"
 
     def test_no_participants_omits_panel(self, collector):
         responses = {
@@ -206,15 +244,33 @@ class TestToolsPanel:
             with patch.object(collector, "_collect_models", return_value=None):
                 state = collector.collect()
 
-        assert state["tools"]["count"] == 2
+        assert state["tools"]["count"] == 1
         assert state["tools"]["last_activity_s_ago"] == 12.4
-        assert len(state["tools"]["entries"]) == 2
+        assert len(state["tools"]["entries"]) == 1
+        assert state["tools"]["entries"][0]["name"] == "splade"
 
     def test_no_components_omits_tools_panel(self, collector):
         responses = {
             "/stats": {"total_genes": 0, "total_chars_raw": 0, "total_chars_compressed": 0, "compression_ratio": 1.0},
             "/sessions": {"participants": []},
             "/admin/components": {"components": [], "count": 0},
+        }
+        with patch("httpx.Client", return_value=_mock_client(responses)):
+            with patch.object(collector, "_collect_models", return_value=None):
+                state = collector.collect()
+        assert "tools" not in state
+
+    def test_ribosome_only_omits_tools_panel(self, collector):
+        responses = {
+            "/stats": {"total_genes": 0, "total_chars_raw": 0, "total_chars_compressed": 0, "compression_ratio": 1.0},
+            "/sessions": {"participants": []},
+            "/admin/components": {
+                "components": [
+                    {"name": "ribosome", "kind": "decoder", "status": "running", "backend": "gemma4:e2b"},
+                ],
+                "count": 1,
+                "last_activity_s_ago": 3.1,
+            },
         }
         with patch("httpx.Client", return_value=_mock_client(responses)):
             with patch.object(collector, "_collect_models", return_value=None):

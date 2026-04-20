@@ -55,8 +55,10 @@ class StateCollector:
 
             sessions = self._safe_get_json(client, "/sessions", params={"status": "all"})
             if sessions and sessions.get("participants"):
-                state["parties"] = self._parties_panel(sessions["participants"])
-                state["participants"] = self._participants_panel(sessions["participants"])
+                participants = sessions["participants"]
+                state["parties"] = self._parties_panel(participants)
+                state["participants"] = self._participants_panel(participants)
+                state["all_agents"] = self._all_agents_panel(participants)
 
             health = self._safe_get_json(client, "/health")
             if health:
@@ -86,11 +88,9 @@ class StateCollector:
 
             components = self._safe_get_json(client, "/admin/components")
             if components and components.get("components"):
-                state["tools"] = {
-                    "count": components.get("count", 0),
-                    "entries": components["components"],
-                    "last_activity_s_ago": components.get("last_activity_s_ago"),
-                }
+                tools = self._tools_panel(components)
+                if tools:
+                    state["tools"] = tools
 
             tokens = self._safe_get_json(client, "/metrics/tokens")
             if tokens and (tokens.get("session") or tokens.get("lifetime")):
@@ -177,22 +177,95 @@ class StateCollector:
         }
 
     def _participants_panel(self, participants: List[Dict[str, Any]]) -> Dict[str, Any]:
-        # Only show active participants in the main list, but count all.
-        active = [p for p in participants if p.get("status") == "active"]
-        entries = [
-            {
-                "handle": p["handle"],
-                "party_id": p["party_id"],
-                "status": p["status"],
-                "last_seen_s_ago": p["last_seen_s_ago"],
-            }
-            for p in sorted(active, key=lambda x: x["last_seen_s_ago"])
+        # Main panel is identity-oriented: collapse duplicate rows that share
+        # the same operator-visible identity and show how many live sessions
+        # are hiding underneath that identity.
+        grouped: Dict[tuple, Dict[str, Any]] = {}
+        for participant in participants:
+            key = self._identity_key(participant)
+            group = grouped.get(key)
+            if group is None:
+                group = {
+                    "handle": participant["handle"],
+                    "party_id": participant["party_id"],
+                    "workspace": participant.get("workspace"),
+                    "identifier": self._identity_label(participant),
+                    "status": participant["status"],
+                    "last_seen_s_ago": participant["last_seen_s_ago"],
+                    "session_count": 0,
+                    "active_session_count": 0,
+                }
+                grouped[key] = group
+
+            group["session_count"] += 1
+            if participant.get("status") == "active":
+                group["active_session_count"] += 1
+            if self._status_rank(participant.get("status")) < self._status_rank(group["status"]):
+                group["status"] = participant["status"]
+            if participant.get("last_seen_s_ago", 0) < group["last_seen_s_ago"]:
+                group["last_seen_s_ago"] = participant["last_seen_s_ago"]
+
+        active_entries = [
+            entry for entry in grouped.values()
+            if entry.get("status") == "active"
         ]
+        entries = sorted(active_entries, key=lambda x: x["last_seen_s_ago"])
         return {
-            "count": len(active),
+            "count": len(entries),
+            "identity_total_count": len(grouped),
             "total_count": len(participants),
             "entries": entries,
         }
+
+    def _all_agents_panel(self, participants: List[Dict[str, Any]]) -> Dict[str, Any]:
+        entries = []
+        for participant in sorted(
+            participants,
+            key=lambda item: (
+                self._status_rank(item.get("status")),
+                item.get("last_seen_s_ago", 0),
+            ),
+        ):
+            participant_id = str(participant.get("participant_id", ""))
+            entries.append(
+                {
+                    "handle": participant.get("handle"),
+                    "party_id": participant.get("party_id"),
+                    "workspace": participant.get("workspace"),
+                    "status": participant.get("status"),
+                    "last_seen_s_ago": participant["last_seen_s_ago"],
+                    "participant_id": participant_id,
+                    "participant_id_short": participant_id[:8],
+                    "identifier": self._identity_label(participant),
+                }
+            )
+        return {
+            "count": len(entries),
+            "active_count": sum(1 for item in entries if item["status"] == "active"),
+            "entries": entries,
+        }
+
+    def _identity_key(self, participant: Dict[str, Any]) -> tuple:
+        return (
+            str(participant.get("party_id", "")).strip().lower(),
+            str(participant.get("handle", "")).strip().lower(),
+            str(participant.get("workspace") or "").strip().lower(),
+        )
+
+    def _identity_label(self, participant: Dict[str, Any]) -> str:
+        workspace = participant.get("workspace")
+        if workspace:
+            return f"{participant['party_id']} · {workspace}"
+        return str(participant.get("party_id", ""))
+
+    def _status_rank(self, status: Optional[str]) -> int:
+        order = {
+            "active": 0,
+            "idle": 1,
+            "stale": 2,
+            "gone": 3,
+        }
+        return order.get(str(status or "").strip().lower(), 99)
 
     # ── tokens ─────────────────────────────────────────────────────
 
@@ -223,6 +296,30 @@ class StateCollector:
         }
 
     # ── models ─────────────────────────────────────────────────────
+
+    def _tools_panel(self, components: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Project /admin/components into the launcher tools panel.
+
+        The launcher already has dedicated Helix health and model panels.
+        Hide the ribosome here so Ollama/model activity does not get
+        mistaken for a separate operator-facing tool.
+        """
+        entries = [
+            component
+            for component in components.get("components", [])
+            if self._is_operator_tool(component)
+        ]
+        if not entries:
+            return None
+        return {
+            "count": len(entries),
+            "entries": entries,
+            "last_activity_s_ago": components.get("last_activity_s_ago"),
+        }
+
+    def _is_operator_tool(self, component: Dict[str, Any]) -> bool:
+        name = str(component.get("name", "")).strip().lower()
+        return name != "ribosome"
 
     def _collect_models(self) -> Optional[Dict[str, Any]]:
         """Pull currently-loaded models from Ollama. Soft-fails."""

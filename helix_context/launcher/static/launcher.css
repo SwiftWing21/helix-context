@@ -287,6 +287,19 @@ button {
   font-size: var(--font-size-sm);
 }
 
+.panel-list__item--stacked {
+  display: grid;
+  gap: var(--space-1);
+  align-items: start;
+}
+
+.panel-list__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
 .chip {
   display: inline-block;
   padding: 0.1em 0.6em;
@@ -307,6 +320,12 @@ button {
   color: var(--color-text);
   border-color: var(--color-accent);
   background: var(--color-accent-soft);
+}
+
+.chip--agent-id {
+  color: var(--color-warn);
+  border-color: var(--color-warn);
+  background: rgba(245, 185, 113, 0.08);
 }
 
 .chip--model {

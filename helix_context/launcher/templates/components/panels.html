@@ -18,6 +18,10 @@
     {% include "components/participants_panel.html" %}
   {% endif %}
 
+  {% if state.all_agents %}
+    {% include "components/all_agents_panel.html" %}
+  {% endif %}
+
   {% if state.models %}
     {% include "components/models_panel.html" %}
   {% endif %}

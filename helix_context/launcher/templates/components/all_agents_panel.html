@@ -1,0 +1,23 @@
+<section class="panel panel--all-agents">
+  <h2 class="panel-title">
+    All Agents <span class="panel-count">{{ state.all_agents.count }}</span>
+    {% if state.all_agents.active_count != state.all_agents.count %}
+      <span class="panel-count-muted">· {{ state.all_agents.active_count }} active</span>
+    {% endif %}
+  </h2>
+  <ul class="panel-list">
+    {% for agent in state.all_agents.entries %}
+      <li class="panel-list__item panel-list__item--stacked">
+        <div class="panel-list__row">
+          <span class="chip chip--participant">{{ agent.handle }}</span>
+          <span class="chip chip--agent-id">{{ agent.participant_id_short }}</span>
+          <span class="muted">· {{ agent.status }} · {{ agent.last_seen_s_ago }}s ago</span>
+        </div>
+        <div class="panel-list__row">
+          <span class="muted">identity: {{ agent.identifier }}</span>
+          <span class="muted">· full id {{ agent.participant_id }}</span>
+        </div>
+      </li>
+    {% endfor %}
+  </ul>
+</section>

@@ -112,8 +112,9 @@ class HelixTrayIcon:
         self._on_quit_extra = on_quit
         self.grafana_url = grafana_url
         self.prometheus_url = prometheus_url
-        # Optional — only provided when helix-context[codec] is installed
-        # AND [headroom] enabled=true in helix.toml.
+        # Optional — provided when helix-context[codec] is installed and
+        # the launcher either adopted a running Headroom proxy or is
+        # allowed to manage one from config.
         self.headroom = headroom_supervisor
         self.headroom_dashboard_url = headroom_dashboard_url
         self._icon = None  # type: ignore[assignment]
