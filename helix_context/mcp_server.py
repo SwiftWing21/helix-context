@@ -107,6 +107,16 @@ log = logging.getLogger("helix.mcp")
 HELIX_URL = os.environ.get("HELIX_MCP_URL", "http://127.0.0.1:11437").rstrip("/")
 TIMEOUT_S = float(os.environ.get("HELIX_MCP_TIMEOUT", "30"))
 
+# Stable session_id for this MCP subprocess lifetime. Used to attribute
+# every `helix_context` call from this host to the same row in
+# session_delivery_log, so already-delivered genes can be elided with a
+# pointer stub on subsequent calls within the same MCP session. Prefer
+# HELIX_MCP_HANDLE when set (hosts commonly set "laude", "raude", etc);
+# otherwise fall back to "mcp-<pid>" which is still stable for one
+# subprocess lifetime. Matches the _register_with_registry() handle
+# scheme, so the session_id here aligns with the registry participant.
+MCP_SESSION_ID = os.environ.get("HELIX_MCP_HANDLE", f"mcp-{os.getpid()}")
+
 mcp = FastMCP("helix")
 
 
@@ -266,6 +276,7 @@ def helix_context(
     query: str,
     decoder_mode: Optional[str] = None,
     downstream_model: Optional[str] = None,
+    session_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Build a compressed context window for `query` from the helix genome.
 
@@ -274,12 +285,17 @@ def helix_context(
         per-gene detail. "condensed" → fewer genes, more detail each.
     downstream_model: hint string so helix can size the budget for the
         target model (e.g. "claude-opus-4-6", "gpt-4").
+    session_id: explicit session id for the working-set register. When
+        omitted, defaults to MCP_SESSION_ID (HELIX_MCP_HANDLE or
+        mcp-<pid>) so every call from this MCP subprocess is attributed
+        to the same session. Pass a fresh value to isolate benches.
     """
     body: Dict[str, Any] = {"query": query}
     if decoder_mode:
         body["decoder_mode"] = decoder_mode
     if downstream_model:
         body["downstream_model"] = downstream_model
+    body["session_id"] = session_id or MCP_SESSION_ID
     return _http("POST", "/context", body)
 
 
@@ -759,17 +775,23 @@ def helix_document_query(
     query: str,
     decoder_mode: Optional[str] = None,
     downstream_model: Optional[str] = None,
+    session_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Build a compressed context window for ``query``. Canonical alias
     for ``helix_context``.
 
     Identical behavior. Prefer this name in new code.
+
+    session_id: explicit session id for the working-set register. When
+        omitted, defaults to MCP_SESSION_ID so repeated calls within
+        this MCP subprocess elide already-delivered genes.
     """
     body: Dict[str, Any] = {"query": query}
     if decoder_mode:
         body["decoder_mode"] = decoder_mode
     if downstream_model:
         body["downstream_model"] = downstream_model
+    body["session_id"] = session_id or MCP_SESSION_ID
     return _http("POST", "/context", body)
 
 
