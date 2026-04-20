@@ -386,7 +386,13 @@ class HelixContextManager:
         strands = self.chunker.chunk(content, content_type=content_type, metadata=metadata)
         gene_ids = []
 
-        source_path = metadata.get("path") if metadata else None
+        # Accept either metadata["path"] or metadata["source_id"] — the HTTP
+        # /ingest contract historically documented both, but only "path" was
+        # honored. Alias so callers using "source_id" get proper provenance
+        # (source_kind, volatility_class) populated downstream.
+        source_path = None
+        if metadata:
+            source_path = metadata.get("path") or metadata.get("source_id")
 
         # Batch-encode ΣĒMA vectors if codec available
         sema_vectors = None

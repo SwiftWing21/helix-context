@@ -546,8 +546,29 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
                     exc_info=True,
                 )
 
-        if not content:
-            return JSONResponse({"error": "No content provided"}, status_code=400)
+        if not content or not content.strip():
+            return JSONResponse(
+                {"error": "No content provided"},
+                status_code=400,
+            )
+
+        # Reject binary content declared as text. SQLite's TEXT column
+        # silently truncates at the first NULL byte, so a caller that
+        # utf-8-decodes raw bytes with errors="replace" and POSTs the
+        # result produces ghost genes with zero or near-zero stored
+        # content. Force callers to base64-encode binary payloads (no
+        # NULLs) or use a content-type that maps to BLOB storage later.
+        # See tests/diagnostics/test_file_type_ingest.py.
+        if "\x00" in content:
+            return JSONResponse(
+                {
+                    "error": (
+                        "content contains NULL bytes (binary payload declared as "
+                        "text). Base64-encode binary content before POSTing."
+                    ),
+                },
+                status_code=400,
+            )
 
         try:
             gene_ids = await helix.ingest_async(content, content_type, metadata)

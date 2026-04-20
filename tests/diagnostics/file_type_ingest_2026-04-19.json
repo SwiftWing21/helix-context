@@ -1,0 +1,171 @@
+{
+  "helix_url": "http://127.0.0.1:11437",
+  "genome_before": 7980,
+  "results": [
+    {
+      "name": "png_1x1",
+      "sending": "utf8_ignore",
+      "status": 200,
+      "error": "",
+      "gene_count": 1,
+      "retrievable": true,
+      "retrieval_top_sources": [
+        "F:/Projects/BookKeeper/bookkeeper.toml",
+        "F:/Projects/helix-context/tests/diagnostics/fixtures/png_1x1.png",
+        "F:/Projects/helix-context/tests/diagnostics/fixtures/html_media.html"
+      ],
+      "payload_bytes": 95,
+      "notes": ""
+    },
+    {
+      "name": "png_base64",
+      "sending": "base64",
+      "status": 200,
+      "error": "",
+      "gene_count": 1,
+      "retrievable": true,
+      "retrieval_top_sources": [
+        "F:/Projects/Education/fleet/knowledge/sync/manifest_2026-03-27.json",
+        "F:/Projects/Education/fleet/knowledge/sync/manifest_2026-03-26.json",
+        "F:/Projects/Education/fleet/knowledge/sync/manifest_2026-03-24.json"
+      ],
+      "payload_bytes": 92,
+      "notes": ""
+    },
+    {
+      "name": "jpg_min",
+      "sending": "utf8_ignore",
+      "status": 200,
+      "error": "",
+      "gene_count": 1,
+      "retrievable": true,
+      "retrieval_top_sources": [
+        "F:/Projects/helix-context/tests/diagnostics/fixtures/jpg_min.jpg",
+        "F:/Projects/BookKeeper/bookkeeper/processing/ml_categorizer.py",
+        "F:/Projects/Education/fleet/skills/token_optimizer.py"
+      ],
+      "payload_bytes": 34,
+      "notes": ""
+    },
+    {
+      "name": "mp4_ftyp",
+      "sending": "utf8_ignore",
+      "status": 200,
+      "error": "",
+      "gene_count": 1,
+      "retrievable": true,
+      "retrieval_top_sources": [
+        "F:/Projects/Education/fleet/data/integrity_manifest.json",
+        "F:/Projects/helix-context/benchmarks/snow/results/snow_qwen3_4b_2026-04-16.json",
+        "F:/Projects/helix-context/benchmarks/snow/results/snow_oracle-only_2026-04-16.json"
+      ],
+      "payload_bytes": 32,
+      "notes": ""
+    },
+    {
+      "name": "wav_empty",
+      "sending": "utf8_ignore",
+      "status": 200,
+      "error": "",
+      "gene_count": 1,
+      "retrievable": true,
+      "retrieval_top_sources": [
+        "F:/Projects/helix-context/tests/diagnostics/fixtures/wav_empty.wav",
+        "F:/Projects/BookKeeper/tests/test_csv_parser.py",
+        "F:/Projects/BookKeeper/bookkeeper/processing/vendor_aliases.py"
+      ],
+      "payload_bytes": 48,
+      "notes": ""
+    },
+    {
+      "name": "pdf_minimal",
+      "sending": "utf8_ignore",
+      "status": 200,
+      "error": "",
+      "gene_count": 1,
+      "retrievable": true,
+      "retrieval_top_sources": [
+        "F:/Projects/helix-context/tests/diagnostics/fixtures/pdf_minimal.pdf",
+        "F:/Projects/CosmicTasha/web/src/lib/export/pdf.ts",
+        "F:/Projects/CosmicTasha/web/src/lib/compliance-kb/soc2/dimensions/data-protection.ts"
+      ],
+      "payload_bytes": 99,
+      "notes": ""
+    },
+    {
+      "name": "csv_12rows",
+      "sending": "raw_text",
+      "status": 200,
+      "error": "",
+      "gene_count": 1,
+      "retrievable": true,
+      "retrieval_top_sources": [
+        "F:/Projects/helix-context/tests/diagnostics/fixtures/csv_12rows.csv",
+        "F:/Projects/CosmicTasha/web/src/lib/doc-gen/templates/access-review-templates.ts",
+        "F:/Projects/BookKeeper/tests/test_user_management.py"
+      ],
+      "payload_bytes": 497,
+      "notes": ""
+    },
+    {
+      "name": "html_bare",
+      "sending": "raw_text",
+      "status": 200,
+      "error": "",
+      "gene_count": 1,
+      "retrievable": true,
+      "retrieval_top_sources": [
+        "F:/Projects/helix-context/tests/diagnostics/fixtures/html_bare.html",
+        "F:/Projects/CosmicTasha/web/src/lib/export/docx.ts",
+        "F:/Projects/BookKeeper/bookkeeper/reports/xlsx_report.py"
+      ],
+      "payload_bytes": 188,
+      "notes": ""
+    },
+    {
+      "name": "html_media",
+      "sending": "raw_text",
+      "status": 200,
+      "error": "",
+      "gene_count": 1,
+      "retrievable": true,
+      "retrieval_top_sources": [
+        "F:/Projects/helix-context/tests/diagnostics/fixtures/html_media.html",
+        "F:/Projects/CosmicTasha/web/src/app/demo/page.tsx",
+        "F:/Projects/BookKeeper/bookkeeper/processing/vendor_aliases.py"
+      ],
+      "payload_bytes": 361,
+      "notes": ""
+    },
+    {
+      "name": "svg_circle",
+      "sending": "raw_text",
+      "status": 200,
+      "error": "",
+      "gene_count": 1,
+      "retrievable": true,
+      "retrieval_top_sources": [
+        "F:/Projects/helix-context/tests/diagnostics/fixtures/svg_circle.svg",
+        "/fake/path/diag_via_path.txt",
+        "F:/Projects/CosmicTasha/web/src/app/intake/_components/readiness-ring.tsx"
+      ],
+      "payload_bytes": 185,
+      "notes": ""
+    },
+    {
+      "name": "xlsx_min_zip",
+      "sending": "utf8_ignore",
+      "status": 200,
+      "error": "",
+      "gene_count": 1,
+      "retrievable": false,
+      "retrieval_top_sources": [
+        "F:/Projects/BookKeeper/tests/test_tax_export.py",
+        "F:/Projects/BookKeeper/bookkeeper/reports/xlsx_report.py",
+        "F:/Projects/BookKeeper/bookkeeper/exports/__init__.py"
+      ],
+      "payload_bytes": 8,
+      "notes": ""
+    }
+  ]
+}
