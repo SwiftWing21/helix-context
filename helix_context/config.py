@@ -23,12 +23,13 @@ except ImportError:
 
 @dataclass
 class RibosomeConfig:
+    enabled: bool = False              # Master switch; false = ignore ribosome config/runtime
     model: str = "auto"
     base_url: str = "http://localhost:11434"
     timeout: float = 10.0
     keep_alive: str = "30m"     # How long Ollama keeps the ribosome model loaded
     warmup: bool = True         # Pre-load model on server start
-    backend: str = "ollama"     # "ollama" | "deberta" | "claude" | "litellm"
+    backend: str = "ollama"     # legacy placeholder; only "deberta" or "litellm" are honored when enabled
     claude_model: str = "claude-haiku-4-5-20251001"   # Claude model when backend="claude"
     claude_base_url: str = ""   # Proxy URL (e.g. Headroom at http://127.0.0.1:8787); "" = direct
     litellm_model: str = "gemini/gemini-2.5-flash"    # LiteLLM model string when backend="litellm"
@@ -57,9 +58,28 @@ class RibosomeConfig:
     # classified separately by ``cost_class`` (see below).
 
     @property
-    def cost_class(self) -> str:
-        """Return one of ``local`` | ``api+free`` | ``api+paid``.
+    def normalized_backend(self) -> str:
+        return str(self.backend or "").strip().lower()
 
+    @property
+    def effective_backend(self) -> str:
+        """Return the backend Helix should actually run.
+
+        Ribosome is opt-in. Legacy/default backends like ``ollama`` are kept
+        in config for future reference but intentionally ignored unless a
+        supported backend is selected explicitly.
+        """
+        if not self.enabled:
+            return "disabled"
+        if self.normalized_backend in ("litellm", "deberta"):
+            return self.normalized_backend
+        return "disabled"
+
+    @property
+    def cost_class(self) -> str:
+        """Return one of ``disabled`` | ``local`` | ``api+free`` | ``api+paid``.
+
+        - ``disabled``= ribosome is intentionally inactive.
         - ``local``   = runs on the operator's machine (Ollama / DeBERTa).
         - ``api+free``= remote API with no metered cost (none today).
         - ``api+paid``= remote API that bills per call (Claude direct, or
@@ -69,7 +89,9 @@ class RibosomeConfig:
         local (the call goes to the local Ollama). Any other litellm
         model string is treated as paid.
         """
-        b = self.backend.lower()
+        b = self.effective_backend
+        if b == "disabled":
+            return "disabled"
         if b in self._LOCAL_BACKENDS:
             return "local"
         if b in self._PAID_API_BACKENDS:
@@ -81,7 +103,9 @@ class RibosomeConfig:
     @property
     def active_model(self) -> str:
         """Return the model string actually in use, given the backend."""
-        b = self.backend.lower()
+        b = self.effective_backend
+        if b == "disabled":
+            return "disabled"
         if b == "claude":
             return self.claude_model
         if b == "litellm":
@@ -267,6 +291,7 @@ def load_config(path: Optional[str] = None) -> HelixConfig:
     if "ribosome" in raw:
         r = raw["ribosome"]
         cfg.ribosome = RibosomeConfig(
+            enabled=bool(r.get("enabled", cfg.ribosome.enabled)),
             model=r.get("model", cfg.ribosome.model),
             base_url=r.get("base_url", cfg.ribosome.base_url),
             timeout=float(r.get("timeout", cfg.ribosome.timeout)),

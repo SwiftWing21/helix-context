@@ -96,9 +96,28 @@ class TestHealthEndpoint:
         data = resp.json()
         assert "ribosome_backend" in data
         assert "ribosome_cost_class" in data
-        # Test fixture uses RibosomeConfig defaults (backend=ollama),
-        # which classifies as local.
-        assert data["ribosome_cost_class"] in ("local", "api+free", "api+paid")
+        # Test fixture uses ribosome defaults (disabled unless explicitly
+        # enabled), but the field must still be present and well-formed.
+        assert data["ribosome_cost_class"] in ("disabled", "local", "api+free", "api+paid")
+
+    def test_health_reports_disabled_ribosome_by_default(self, monkeypatch):
+        monkeypatch.setattr(
+            server_mod,
+            "_probe_upstream",
+            lambda _url, timeout_s=1.0: {"reachable": True, "probe": "/api/tags", "status_code": 200},
+        )
+        app = create_app(HelixConfig(
+            genome=GenomeConfig(path=":memory:", cold_start_threshold=5),
+            server=ServerConfig(upstream="http://localhost:11434"),
+        ))
+        with TestClient(app) as default_client:
+            resp = default_client.get("/health")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["ribosome"] == "disabled"
+        assert data["ribosome_backend"] == "disabled"
+        assert data["ribosome_configured_backend"] == "ollama"
+        assert data["ribosome_cost_class"] == "disabled"
 
     def test_health_degrades_when_upstream_unreachable(self, client, monkeypatch):
         monkeypatch.setattr(
@@ -283,7 +302,7 @@ class TestAdminComponentsEndpoint:
         assert "idle_threshold_s" in data
 
         names = [c["name"] for c in data["components"]]
-        # Ribosome is always loaded.
+        # The test fixture injects a live mock backend, so ribosome is active.
         assert "ribosome" in names
         # Every component must have name/kind/status fields.
         for c in data["components"]:
@@ -321,6 +340,18 @@ class TestAdminComponentsEndpoint:
         names = [c["name"] for c in data["components"]]
         assert "ribosome" not in names
         assert data["count"] == len(data["components"])
+
+    def test_components_omit_disabled_ribosome(self):
+        app = create_app(HelixConfig(
+            genome=GenomeConfig(path=":memory:", cold_start_threshold=5),
+            server=ServerConfig(upstream="http://localhost:11434"),
+        ))
+        with TestClient(app) as default_client:
+            resp = default_client.get("/admin/components")
+        assert resp.status_code == 200
+        data = resp.json()
+        names = [c["name"] for c in data["components"]]
+        assert "ribosome" not in names
 
 
 class TestIngestEndpoint:

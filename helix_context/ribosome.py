@@ -346,6 +346,16 @@ class LiteLLMBackend:
             self._last_request_ts = self._time.monotonic()
 
 
+class DisabledBackend:
+    """No-op ribosome backend used when ribosome is intentionally disabled."""
+
+    model = "disabled"
+    is_disabled_backend = True
+
+    def complete(self, prompt: str, system: str = "", temperature: float = 0.0) -> str:
+        raise RuntimeError("Ribosome is disabled")
+
+
 # ── System prompts ──────────────────────────────────────────────────
 
 _PACK_SYSTEM = """You are a context compression engine. You receive raw text and produce structured JSON.

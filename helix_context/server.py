@@ -277,15 +277,21 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
         log.warning(
             "RIBOSOME PAID-API ACTIVE: backend=%s model=%s. Every "
             "ingest/replicate/rerank call hits a metered API. Flip "
-            "[ribosome] backend=ollama in helix.toml for local-only "
-            "operation.",
-            config.ribosome.backend,
+            "[ribosome] enabled=false (or switch to backend=deberta) "
+            "for non-metered operation.",
+            config.ribosome.effective_backend,
             config.ribosome.active_model,
+        )
+    elif _cost_class == "disabled":
+        log.info(
+            "Ribosome disabled: configured enabled=%s backend=%s",
+            config.ribosome.enabled,
+            config.ribosome.backend,
         )
     else:
         log.info(
             "Ribosome cost_class=%s backend=%s model=%s",
-            _cost_class, config.ribosome.backend, config.ribosome.active_model,
+            _cost_class, config.ribosome.effective_backend, config.ribosome.active_model,
         )
 
     helix = HelixContextManager(config)
@@ -297,7 +303,7 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
         ribosome_info_gauge().set(
             1,
             attributes={
-                "backend": config.ribosome.backend,
+                "backend": config.ribosome.effective_backend,
                 "model": config.ribosome.active_model,
                 "cost_class": _cost_class,
             },
@@ -2019,10 +2025,11 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
 
     @app.get("/health")
     async def health_endpoint():
-        ribosome_model = "unknown"
-        if hasattr(helix.ribosome, "backend") and hasattr(helix.ribosome.backend, "model"):
+        ribosome_disabled = getattr(helix.ribosome.backend, "is_disabled_backend", False)
+        ribosome_model = "disabled" if ribosome_disabled else "unknown"
+        if not ribosome_disabled and hasattr(helix.ribosome, "backend") and hasattr(helix.ribosome.backend, "model"):
             ribosome_model = helix.ribosome.backend.model
-        elif hasattr(helix.ribosome, "ollama_ribosome"):
+        elif not ribosome_disabled and hasattr(helix.ribosome, "ollama_ribosome"):
             ribosome_model = f"deberta+{helix.ribosome.ollama_ribosome.backend.model}"
 
         genome_ready = True
@@ -2054,7 +2061,8 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             # W2-B: cost classification surfaces local vs paid-API backends
             # without operators having to read helix.toml. Pair with the
             # startup WARNING (above in create_app) for visibility.
-            "ribosome_backend": config.ribosome.backend,
+            "ribosome_backend": config.ribosome.effective_backend,
+            "ribosome_configured_backend": config.ribosome.backend,
             "ribosome_cost_class": config.ribosome.cost_class,
             "genes": total_genes,
             "upstream": config.server.upstream,
@@ -2383,12 +2391,13 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
         age = _time.time() - getattr(helix, "_last_activity_ts", 0.0)
         active_status = "running" if age < idle_threshold_s else "idle"
         ribosome_paused = id(helix.ribosome.backend) in _paused_ribosomes
+        ribosome_disabled = getattr(helix.ribosome.backend, "is_disabled_backend", False)
 
         components = []
 
         # Ribosome — hide it when paused so the launcher only shows
         # active/online tools, matching the panel contract.
-        if not ribosome_paused:
+        if not ribosome_paused and not ribosome_disabled:
             ribosome_backend = "unknown"
             if hasattr(helix.ribosome, "backend") and hasattr(helix.ribosome.backend, "model"):
                 ribosome_backend = helix.ribosome.backend.model

@@ -35,7 +35,7 @@ from .budget_zone import is_enabled as _budget_zone_is_enabled, zone_cap as _bud
 from .headroom_bridge import compress_text
 from . import legibility
 from . import session_delivery as _session_delivery
-from .ribosome import ClaudeBackend, LiteLLMBackend, Ribosome, OllamaBackend
+from .ribosome import DisabledBackend, LiteLLMBackend, Ribosome, OllamaBackend
 from .provenance import apply_provenance
 from .schemas import (
     ChromatinState,
@@ -230,42 +230,18 @@ class HelixContextManager:
         self.chunker = CodonChunker(max_chars_per_strand=4000)
         self.encoder = CodonEncoder()
 
-        # Ribosome (small model codec)
-        ollama_backend = OllamaBackend(
-            model=config.ribosome.model,
-            base_url=config.ribosome.base_url,
-            timeout=config.ribosome.timeout,
-            keep_alive=config.ribosome.keep_alive,
-            warmup=config.ribosome.warmup,
-        )
-        ollama_ribosome = Ribosome(
-            backend=ollama_backend,
+        # Ribosome (small model codec) — explicit opt-in only. Legacy/default
+        # Ollama ribosome config stays in the file for future use but is
+        # intentionally ignored unless a supported backend is selected.
+        self.ribosome = Ribosome(
+            backend=DisabledBackend(),
             encoder=self.encoder,
             splice_aggressiveness=config.budget.splice_aggressiveness,
         )
 
-        if config.ribosome.backend == "claude":
-            try:
-                claude_backend = ClaudeBackend(
-                    model=config.ribosome.claude_model,
-                    base_url=config.ribosome.claude_base_url,
-                    max_tokens=config.budget.ribosome_tokens,
-                    timeout=config.ribosome.timeout,
-                )
-                self.ribosome = Ribosome(
-                    backend=claude_backend,
-                    encoder=self.encoder,
-                    splice_aggressiveness=config.budget.splice_aggressiveness,
-                )
-                log.info(
-                    "Using Claude API ribosome (model=%s, proxy=%s)",
-                    config.ribosome.claude_model,
-                    config.ribosome.claude_base_url or "direct",
-                )
-            except Exception:
-                log.warning("ClaudeBackend failed to load, falling back to Ollama", exc_info=True)
-                self.ribosome = ollama_ribosome
-        elif config.ribosome.backend == "litellm":
+        effective_backend = config.ribosome.effective_backend
+
+        if effective_backend == "litellm":
             try:
                 litellm_backend = LiteLLMBackend(
                     model=config.ribosome.litellm_model,
@@ -282,11 +258,22 @@ class HelixContextManager:
                          config.ribosome.litellm_model,
                          config.ribosome.claude_base_url or "direct")
             except Exception:
-                log.warning("LiteLLMBackend failed to load, falling back to Ollama", exc_info=True)
-                self.ribosome = ollama_ribosome
-        elif config.ribosome.backend == "deberta":
+                log.warning("LiteLLMBackend failed to load, disabling ribosome", exc_info=True)
+        elif effective_backend == "deberta":
             try:
                 from .deberta_backend import DeBERTaRibosome
+                ollama_backend = OllamaBackend(
+                    model=config.ribosome.model,
+                    base_url=config.ribosome.base_url,
+                    timeout=config.ribosome.timeout,
+                    keep_alive=config.ribosome.keep_alive,
+                    warmup=config.ribosome.warmup,
+                )
+                ollama_ribosome = Ribosome(
+                    backend=ollama_backend,
+                    encoder=self.encoder,
+                    splice_aggressiveness=config.budget.splice_aggressiveness,
+                )
                 self.ribosome = DeBERTaRibosome(
                     rerank_model_path=config.ribosome.rerank_model_path,
                     splice_model_path=config.ribosome.splice_model_path,
@@ -300,10 +287,14 @@ class HelixContextManager:
                 )
                 log.info("Using DeBERTa hybrid ribosome (re_rank + splice accelerated)")
             except Exception:
-                log.warning("DeBERTa backend failed to load, falling back to Ollama", exc_info=True)
-                self.ribosome = ollama_ribosome
+                log.warning("DeBERTa backend failed to load, disabling ribosome", exc_info=True)
         else:
-            self.ribosome = ollama_ribosome
+            log.info(
+                "Ribosome disabled — only explicit LiteLLM or DeBERTa backends are honored "
+                "(configured enabled=%s backend=%s)",
+                config.ribosome.enabled,
+                config.ribosome.backend,
+            )
 
         # CPU tagger (Phase 1: spaCy + regex, no LLM calls)
         self._cpu_tagger = None
@@ -326,7 +317,7 @@ class HelixContextManager:
         # with long-range extraction. Applies to:
         #   1. MoE models (gemma4) — sliding-window attention misses distant tokens
         #   2. Sub-4B models — limited capacity can't attend across 15K tokens
-        model_name = config.ribosome.model.lower()
+        model_name = config.ribosome.active_model.lower()
         is_moe = any(model_name.startswith(fam) for fam in MOE_MODEL_FAMILIES)
         is_small = SMALL_MODEL_PATTERNS.get(model_name, 999) <= SMALL_MODEL_THRESHOLD_B
         self._is_moe = is_moe or is_small
@@ -1216,6 +1207,9 @@ class HelixContextManager:
 
         # Only expand when we have a real LLM backend (skip for paused/Ollama-warmup)
         if not hasattr(self.ribosome, "backend"):
+            self._intent_cache[query] = query
+            return query
+        if getattr(self.ribosome.backend, "is_disabled_backend", False):
             self._intent_cache[query] = query
             return query
 

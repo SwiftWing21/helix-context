@@ -18,7 +18,8 @@
 # this seam without forking.
 # ──────────────────────────────────────────────────────────────────────
 [ribosome]
-backend = "ollama"                      # "ollama" (local, default) | "claude" | "deberta" | "litellm"
+enabled = false                        # Explicit opt-in. Disabled/legacy ribosome config is ignored unless you turn this on.
+backend = "ollama"                      # Legacy/default placeholder. Only "litellm" and "deberta" are honored when enabled=true.
 model = "gemma4:e2b"                    # Ollama model for pack + replicate (light, ~2GB VRAM)
 base_url = "http://localhost:11434"
 timeout = 120                            # Increased for bulk ingestion
