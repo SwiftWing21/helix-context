@@ -1,0 +1,77 @@
+{
+  "fixture": {
+    "n_entities": 20,
+    "n_versioned_mono": 4,
+    "n_versioned_nonmono": 4,
+    "n_contradicted": 5,
+    "n_clean": 7
+  },
+  "modes": {
+    "raw_newest": {
+      "latency_ms_p50": 0.029,
+      "latency_ms_mean": 0.037,
+      "versioned_mono": {
+        "n": 4,
+        "correct_current_rate": 1.0,
+        "stale_leak_rate": 0.0
+      },
+      "versioned_nonmono": {
+        "n": 4,
+        "correct_current_rate": 0.0,
+        "stale_leak_rate": 1.0
+      },
+      "contradicted": {
+        "n": 5,
+        "contradiction_flag_rate": 0.0
+      },
+      "clean": {
+        "n": 7,
+        "correct_current_rate": 1.0
+      }
+    },
+    "raw_all": {
+      "latency_ms_p50": 0.03,
+      "latency_ms_mean": 0.032,
+      "versioned_mono": {
+        "n": 4,
+        "correct_current_rate": 1.0,
+        "stale_leak_rate": 0.0
+      },
+      "versioned_nonmono": {
+        "n": 4,
+        "correct_current_rate": 0.0,
+        "stale_leak_rate": 1.0
+      },
+      "contradicted": {
+        "n": 5,
+        "contradiction_flag_rate": 0.0
+      },
+      "clean": {
+        "n": 7,
+        "correct_current_rate": 1.0
+      }
+    },
+    "helix_dag": {
+      "latency_ms_p50": 0.136,
+      "latency_ms_mean": 0.161,
+      "versioned_mono": {
+        "n": 4,
+        "correct_current_rate": 1.0,
+        "stale_leak_rate": 0.0
+      },
+      "versioned_nonmono": {
+        "n": 4,
+        "correct_current_rate": 1.0,
+        "stale_leak_rate": 0.0
+      },
+      "contradicted": {
+        "n": 5,
+        "contradiction_flag_rate": 1.0
+      },
+      "clean": {
+        "n": 7,
+        "correct_current_rate": 1.0
+      }
+    }
+  }
+}

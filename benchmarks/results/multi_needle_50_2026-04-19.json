@@ -1,0 +1,974 @@
+{
+  "genome": {
+    "total_genes": 7846,
+    "compression_ratio": 2.5889416344929184
+  },
+  "needles": [
+    {
+      "name": "helix_port_and_pipeline_steps",
+      "query": "what port does helix listen on and how many steps are in the pipeline",
+      "n_delivered": 12,
+      "context_latency_s": 6.807,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 1,
+      "all_delivered": false,
+      "any_delivered": true,
+      "partial_recall": 0.5,
+      "group_hit_counts": [
+        0,
+        1
+      ]
+    },
+    {
+      "name": "compression_target_and_genome_count",
+      "query": "what is the target compression ratio and how many genes are in the main genome",
+      "n_delivered": 12,
+      "context_latency_s": 4.642,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 0,
+      "all_delivered": false,
+      "any_delivered": false,
+      "partial_recall": 0.0,
+      "group_hit_counts": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "coord_confidence_floor_and_path_token_coverage",
+      "query": "what is the coordinate confidence floor and what is path token coverage",
+      "n_delivered": 12,
+      "context_latency_s": 4.636,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 0,
+      "all_delivered": false,
+      "any_delivered": false,
+      "partial_recall": 0.0,
+      "group_hit_counts": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "packet_task_types_and_verdict_values",
+      "query": "what are the allowed task_type values for a helix packet and what verdict values exist",
+      "n_delivered": 12,
+      "context_latency_s": 4.286,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 0,
+      "all_delivered": false,
+      "any_delivered": false,
+      "partial_recall": 0.0,
+      "group_hit_counts": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "volatility_hot_half_life_and_stable_half_life",
+      "query": "what is the hot volatility half-life and what is the stable volatility half-life",
+      "n_delivered": 6,
+      "context_latency_s": 2.517,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 0,
+      "all_delivered": false,
+      "any_delivered": false,
+      "partial_recall": 0.0,
+      "group_hit_counts": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "volatility_medium_and_authority_primary",
+      "query": "what is the medium volatility class half-life and what is the primary authority class weight",
+      "n_delivered": 12,
+      "context_latency_s": 3.999,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 0,
+      "all_delivered": false,
+      "any_delivered": false,
+      "partial_recall": 0.0,
+      "group_hit_counts": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "ribosome_paused_and_codec_extra",
+      "query": "why is the ribosome paused by default and which pip extra enables codec support",
+      "n_delivered": 12,
+      "context_latency_s": 4.301,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 2,
+      "all_delivered": true,
+      "any_delivered": true,
+      "partial_recall": 1.0,
+      "group_hit_counts": [
+        6,
+        1
+      ]
+    },
+    {
+      "name": "headroom_port_and_dashboard_path",
+      "query": "what port does headroom serve on and what is the dashboard path",
+      "n_delivered": 12,
+      "context_latency_s": 6.076,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 2,
+      "all_delivered": true,
+      "any_delivered": true,
+      "partial_recall": 1.0,
+      "group_hit_counts": [
+        1,
+        1
+      ]
+    },
+    {
+      "name": "headroom_mode_default_and_autostart_default",
+      "query": "what is the default headroom compression mode and the default autostart setting",
+      "n_delivered": 12,
+      "context_latency_s": 4.632,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 0,
+      "all_delivered": false,
+      "any_delivered": false,
+      "partial_recall": 0.0,
+      "group_hit_counts": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "tray_menu_and_orphan_adoption",
+      "query": "how does the tray menu expose headroom controls and how is a running headroom orphan adopted",
+      "n_delivered": 12,
+      "context_latency_s": 4.608,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 0,
+      "all_delivered": false,
+      "any_delivered": false,
+      "partial_recall": 0.0,
+      "group_hit_counts": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "helix_supervisor_and_restart_protocol",
+      "query": "how does helix supervisor manage the child process and what is the restart protocol",
+      "n_delivered": 12,
+      "context_latency_s": 4.478,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 0,
+      "all_delivered": false,
+      "any_delivered": false,
+      "partial_recall": 0.0,
+      "group_hit_counts": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "tray_icon_source_and_launcher_entry",
+      "query": "where does the tray icon png live and what is the launcher entry point",
+      "n_delivered": 12,
+      "context_latency_s": 4.212,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 2,
+      "all_delivered": true,
+      "any_delivered": true,
+      "partial_recall": 1.0,
+      "group_hit_counts": [
+        6,
+        5
+      ]
+    },
+    {
+      "name": "dal_default_schemes_and_s3_opt_in",
+      "query": "which url schemes does the DAL handle by default and how do you opt into s3",
+      "n_delivered": 11,
+      "context_latency_s": 4.826,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 0,
+      "all_delivered": false,
+      "any_delivered": false,
+      "partial_recall": 0.0,
+      "group_hit_counts": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "cache_ttl_stable_and_max_entries",
+      "query": "what is the stable TTL on the cache and what is the default max_entries",
+      "n_delivered": 12,
+      "context_latency_s": 5.571,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 0,
+      "all_delivered": false,
+      "any_delivered": false,
+      "partial_recall": 0.0,
+      "group_hit_counts": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "retriever_protocol_and_narrowed_wrapper",
+      "query": "what signature defines the retriever protocol and what does HelixNarrowedRetriever do",
+      "n_delivered": 12,
+      "context_latency_s": 3.543,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 0,
+      "all_delivered": false,
+      "any_delivered": false,
+      "partial_recall": 0.0,
+      "group_hit_counts": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "llamaindex_wrapper_and_langchain_wrapper",
+      "query": "how is LlamaIndex wrapped as a helix retriever and how is LangChain wrapped",
+      "n_delivered": 12,
+      "context_latency_s": 4.056,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 0,
+      "all_delivered": false,
+      "any_delivered": false,
+      "partial_recall": 0.0,
+      "group_hit_counts": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "cache_stale_risk_bypass_and_refresh_targets",
+      "query": "how does the cache handle stale_risk items and what are refresh_targets",
+      "n_delivered": 12,
+      "context_latency_s": 5.315,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 0,
+      "all_delivered": false,
+      "any_delivered": false,
+      "partial_recall": 0.0,
+      "group_hit_counts": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "claim_types_and_extraction_kinds",
+      "query": "what are the allowed claim_type values and the extraction_kind values",
+      "n_delivered": 12,
+      "context_latency_s": 4.209,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 0,
+      "all_delivered": false,
+      "any_delivered": false,
+      "partial_recall": 0.0,
+      "group_hit_counts": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "claim_edge_types_and_jaccard_thresholds",
+      "query": "what claim_edge types exist and what jaccard thresholds trigger contradicts vs duplicates",
+      "n_delivered": 12,
+      "context_latency_s": 4.551,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 0,
+      "all_delivered": false,
+      "any_delivered": false,
+      "partial_recall": 0.0,
+      "group_hit_counts": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "supersedes_chain_and_topological_sort",
+      "query": "how does the dag walker walk supersedes chains and how is topological sort implemented",
+      "n_delivered": 12,
+      "context_latency_s": 3.814,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 0,
+      "all_delivered": false,
+      "any_delivered": false,
+      "partial_recall": 0.0,
+      "group_hit_counts": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "resolve_policies_and_authority_rank",
+      "query": "what resolve policies exist and what is the authority rank order",
+      "n_delivered": 12,
+      "context_latency_s": 4.387,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 0,
+      "all_delivered": false,
+      "any_delivered": false,
+      "partial_recall": 0.0,
+      "group_hit_counts": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "ingest_hook_and_backfill_script",
+      "query": "where does claim extraction happen during ingest and what does the backfill script do",
+      "n_delivered": 12,
+      "context_latency_s": 4.434,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 0,
+      "all_delivered": false,
+      "any_delivered": false,
+      "partial_recall": 0.0,
+      "group_hit_counts": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "shard_categories_and_register_shard",
+      "query": "what shard categories exist and how do you register a shard",
+      "n_delivered": 12,
+      "context_latency_s": 4.423,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 0,
+      "all_delivered": false,
+      "any_delivered": false,
+      "partial_recall": 0.0,
+      "group_hit_counts": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "key_values_extractor_and_code_extractor",
+      "query": "how does the key_values fallback extractor work and how does the code extractor work",
+      "n_delivered": 12,
+      "context_latency_s": 4.693,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 0,
+      "all_delivered": false,
+      "any_delivered": false,
+      "partial_recall": 0.0,
+      "group_hit_counts": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "fleet_skill_count_and_dashboard_endpoints",
+      "query": "how many skills does the fleet have and how many dashboard endpoints",
+      "n_delivered": 12,
+      "context_latency_s": 6.467,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 0,
+      "all_delivered": false,
+      "any_delivered": false,
+      "partial_recall": 0.0,
+      "group_hit_counts": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "fleet_worker_small_ram_and_large_ram",
+      "query": "how many fleet workers are allowed on 8GB and how many on 64GB+",
+      "n_delivered": 12,
+      "context_latency_s": 5.14,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 0,
+      "all_delivered": false,
+      "any_delivered": false,
+      "partial_recall": 0.0,
+      "group_hit_counts": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "ollama_path_autodiscover_and_qwen_default",
+      "query": "how is the ollama path auto-discovered on windows and what is the default qwen model",
+      "n_delivered": 11,
+      "context_latency_s": 4.46,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 0,
+      "all_delivered": false,
+      "any_delivered": false,
+      "partial_recall": 0.0,
+      "group_hit_counts": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "skill_contract_and_lazy_imports",
+      "query": "what is the SKILL_NAME contract in a fleet skill and why must db be imported lazily",
+      "n_delivered": 12,
+      "context_latency_s": 5.242,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 1,
+      "all_delivered": false,
+      "any_delivered": true,
+      "partial_recall": 0.5,
+      "group_hit_counts": [
+        1,
+        0
+      ]
+    },
+    {
+      "name": "db_retry_write_and_wal_busy_timeout",
+      "query": "what is db._retry_write for and what is the WAL busy timeout",
+      "n_delivered": 12,
+      "context_latency_s": 4.239,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 2,
+      "all_delivered": true,
+      "any_delivered": true,
+      "partial_recall": 1.0,
+      "group_hit_counts": [
+        2,
+        2
+      ]
+    },
+    {
+      "name": "ram_ceiling_default_and_dev_mode_flag",
+      "query": "what is the default ram_ceiling_pct and what flag enables DEV_MODE",
+      "n_delivered": 11,
+      "context_latency_s": 4.664,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 1,
+      "all_delivered": false,
+      "any_delivered": true,
+      "partial_recall": 0.5,
+      "group_hit_counts": [
+        1,
+        0
+      ]
+    },
+    {
+      "name": "fleetdb_file_and_rag_db_file",
+      "query": "where does the fleet sqlite database live and where does the rag database live",
+      "n_delivered": 12,
+      "context_latency_s": 4.454,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 1,
+      "all_delivered": false,
+      "any_delivered": true,
+      "partial_recall": 0.5,
+      "group_hit_counts": [
+        1,
+        0
+      ]
+    },
+    {
+      "name": "lead_client_status_and_dispatch",
+      "query": "how do you check fleet status from the cli and how do you dispatch a task",
+      "n_delivered": 12,
+      "context_latency_s": 5.1,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 2,
+      "all_delivered": true,
+      "any_delivered": true,
+      "partial_recall": 1.0,
+      "group_hit_counts": [
+        2,
+        2
+      ]
+    },
+    {
+      "name": "backup_manager_interval_and_location",
+      "query": "how often does auto-save backup run and where are backups stored",
+      "n_delivered": 12,
+      "context_latency_s": 3.853,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 2,
+      "all_delivered": true,
+      "any_delivered": true,
+      "partial_recall": 1.0,
+      "group_hit_counts": [
+        2,
+        2
+      ]
+    },
+    {
+      "name": "hw_supervisor_responsibility_and_thermal_thresholds",
+      "query": "what does dr ders hw supervisor manage and where are thermal thresholds configured",
+      "n_delivered": 6,
+      "context_latency_s": 2.383,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 2,
+      "all_delivered": true,
+      "any_delivered": true,
+      "partial_recall": 1.0,
+      "group_hit_counts": [
+        1,
+        1
+      ]
+    },
+    {
+      "name": "window_flash_fix_and_subprocess_creationflags",
+      "query": "how is the windows console window flash suppressed in subprocess calls",
+      "n_delivered": 12,
+      "context_latency_s": 5.112,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 2,
+      "all_delivered": true,
+      "any_delivered": true,
+      "partial_recall": 1.0,
+      "group_hit_counts": [
+        1,
+        1
+      ]
+    },
+    {
+      "name": "icon_master_source_and_generate_deleted",
+      "query": "what is the master source for the icon and why was generate_icon deleted",
+      "n_delivered": 12,
+      "context_latency_s": 4.639,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 2,
+      "all_delivered": true,
+      "any_delivered": true,
+      "partial_recall": 1.0,
+      "group_hit_counts": [
+        1,
+        1
+      ]
+    },
+    {
+      "name": "federation_router_and_tenant_admin",
+      "query": "what does federation_router do and what does tenant_admin manage",
+      "n_delivered": 12,
+      "context_latency_s": 2.695,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 1,
+      "all_delivered": false,
+      "any_delivered": true,
+      "partial_recall": 0.5,
+      "group_hit_counts": [
+        0,
+        3
+      ]
+    },
+    {
+      "name": "sso_providers_and_billing_metering",
+      "query": "which sso providers does the fleet support and how is billing metered",
+      "n_delivered": 12,
+      "context_latency_s": 5.051,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 1,
+      "all_delivered": false,
+      "any_delivered": true,
+      "partial_recall": 0.5,
+      "group_hit_counts": [
+        2,
+        0
+      ]
+    },
+    {
+      "name": "control_plane_and_experiment_autonomy",
+      "query": "what does the saas control plane do and what is the experiment autonomy dial",
+      "n_delivered": 12,
+      "context_latency_s": 4.003,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 1,
+      "all_delivered": false,
+      "any_delivered": true,
+      "partial_recall": 0.5,
+      "group_hit_counts": [
+        5,
+        0
+      ]
+    },
+    {
+      "name": "smoke_test_fast_count_and_total_count",
+      "query": "how many smoke tests in fast mode and how many in total",
+      "n_delivered": 12,
+      "context_latency_s": 4.234,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 0,
+      "all_delivered": false,
+      "any_delivered": false,
+      "partial_recall": 0.0,
+      "group_hit_counts": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "needle_bench_genome_size_and_gold_regex",
+      "query": "what genome size does the needle bench report and what regex extracts gene sources",
+      "n_delivered": 12,
+      "context_latency_s": 4.207,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 0,
+      "all_delivered": false,
+      "any_delivered": false,
+      "partial_recall": 0.0,
+      "group_hit_counts": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "composition_bench_cells_and_sema_codec",
+      "query": "how many cells does the composition bench compare and what is the SEMA codec projection",
+      "n_delivered": 12,
+      "context_latency_s": 4.448,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 0,
+      "all_delivered": false,
+      "any_delivered": false,
+      "partial_recall": 0.0,
+      "group_hit_counts": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "headroom_latency_bench_toggle_and_budget_flip",
+      "query": "how does the headroom latency bench toggle headroom and at what budget does compression flip from overhead",
+      "n_delivered": 12,
+      "context_latency_s": 4.27,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 0,
+      "all_delivered": false,
+      "any_delivered": false,
+      "partial_recall": 0.0,
+      "group_hit_counts": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "test_claims_graph_and_test_claims_analyze",
+      "query": "what does test_claims_graph assert and what does test_claims_analyze cover",
+      "n_delivered": 12,
+      "context_latency_s": 3.816,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 0,
+      "all_delivered": false,
+      "any_delivered": false,
+      "partial_recall": 0.0,
+      "group_hit_counts": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "session_handoff_file_and_composition_stack_handoff",
+      "query": "where is the session handoff kept and where do composition stack handoffs go",
+      "n_delivered": 12,
+      "context_latency_s": 5.604,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 2,
+      "all_delivered": true,
+      "any_delivered": true,
+      "partial_recall": 1.0,
+      "group_hit_counts": [
+        1,
+        1
+      ]
+    },
+    {
+      "name": "integrating_with_existing_rag_doc_and_helix_narrowing",
+      "query": "what does the integrating-with-existing-rag doc cover and what is pattern 2 narrowing",
+      "n_delivered": 12,
+      "context_latency_s": 5.32,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 0,
+      "all_delivered": false,
+      "any_delivered": false,
+      "partial_recall": 0.0,
+      "group_hit_counts": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "fingerprint_index_columns_and_push_payload_size",
+      "query": "what columns does fingerprint_index have and what is the target push payload size",
+      "n_delivered": 12,
+      "context_latency_s": 4.423,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 0,
+      "all_delivered": false,
+      "any_delivered": false,
+      "partial_recall": 0.0,
+      "group_hit_counts": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "claim_id_hash_and_entity_key_extraction",
+      "query": "how is claim_id computed and how are entity_keys extracted from claim text",
+      "n_delivered": 6,
+      "context_latency_s": 2.291,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 0,
+      "all_delivered": false,
+      "any_delivered": false,
+      "partial_recall": 0.0,
+      "group_hit_counts": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sibling_session_ribosome_and_launcher_paused",
+      "query": "which sibling session worked on ribosome config cleanup and which worked on paused ribosome UI",
+      "n_delivered": 12,
+      "context_latency_s": 5.328,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 1,
+      "all_delivered": false,
+      "any_delivered": true,
+      "partial_recall": 0.5,
+      "group_hit_counts": [
+        1,
+        0
+      ]
+    },
+    {
+      "name": "roadmap_version_scheme_and_audit_coverage",
+      "query": "what version scheme does the bigEd roadmap follow and what must every roadmap item reference",
+      "n_delivered": 12,
+      "context_latency_s": 6.676,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 0,
+      "all_delivered": false,
+      "any_delivered": false,
+      "partial_recall": 0.0,
+      "group_hit_counts": [
+        0,
+        0
+      ]
+    }
+  ],
+  "summary": {
+    "n": 50,
+    "full_recall": 10,
+    "any_hit": 18,
+    "zero_hit": 32,
+    "avg_partial_recall": 0.28,
+    "avg_resolution_confidence": 0.0,
+    "avg_context_latency_s": 4.5427
+  },
+  "clusters": {
+    "A_helix_core": {
+      "n": 10,
+      "full_recall": 1,
+      "any_hit": 2,
+      "avg_partial_recall": 0.15
+    },
+    "B_launcher": {
+      "n": 7,
+      "full_recall": 3,
+      "any_hit": 3,
+      "avg_partial_recall": 0.429
+    },
+    "C_adapters": {
+      "n": 6,
+      "full_recall": 0,
+      "any_hit": 0,
+      "avg_partial_recall": 0.0
+    },
+    "D_claims": {
+      "n": 6,
+      "full_recall": 0,
+      "any_hit": 0,
+      "avg_partial_recall": 0.0
+    },
+    "E_fleet_config": {
+      "n": 7,
+      "full_recall": 1,
+      "any_hit": 4,
+      "avg_partial_recall": 0.357
+    },
+    "F_biged_ops": {
+      "n": 7,
+      "full_recall": 4,
+      "any_hit": 7,
+      "avg_partial_recall": 0.786
+    },
+    "G_benches": {
+      "n": 4,
+      "full_recall": 1,
+      "any_hit": 1,
+      "avg_partial_recall": 0.25
+    },
+    "H_cross": {
+      "n": 3,
+      "full_recall": 0,
+      "any_hit": 1,
+      "avg_partial_recall": 0.167
+    }
+  },
+  "summary_adjusted": {
+    "note": "Excludes clusters C_adapters and D_claims. Those target code shipped 2026-04-19; the /ingest re-ingest call stored genes but source_id metadata did not flow through to gene.path/source, so retrieval cannot rank them. Fixing that ingest-path is a separate follow-on (see BUG_INGEST_METADATA.md once filed).",
+    "n": 38,
+    "full_recall": 10,
+    "any_hit": 18,
+    "avg_partial_recall": 0.368
+  }
+}

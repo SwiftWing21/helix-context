@@ -123,19 +123,108 @@ SETUP.md with 14-extra decision matrix, implicit-req callouts,
 TROUBLESHOOTING.md, Phase 2 claims layer mention in README,
 Linux/macOS launcher parity. Not blocking; filed for next owner.
 
-## What's NOT shipped (stretch moves for next session)
+## Stretch-move bench addendum (2026-04-19 evening)
 
-1. **Stale-claim avoidance bench** — seed contradictory facts, measure
-   whether the DAG walker routes agents to the current one. This is
-   the RIGHT question for DAG value — content-presence benches don't
-   measure it.
-2. **HTTP/S3 DAL bench** — same cache workload, slower backend, to
-   convert the 41% hit rate into a 10× wall savings number.
-3. **N=50 multi-needle set** — 8 needles is probative; 50 is
-   publishable. Rerun every cell.
-4. **External retriever narrowing on a REAL retriever** — we wrapped
-   the SEMA retriever to prove the adapter; actual LlamaIndex /
-   pgvector / Weaviate integration test is still pending.
+All four queued stretch moves shipped. New files in this batch:
+
+- `benchmarks/bench_stale_claim_avoidance.py` + results
+- `benchmarks/bench_dal_http_s3.py` + results
+- `benchmarks/bench_multi_needle_50.py` + results
+- `benchmarks/bench_chroma_integration.py` + results
+
+### 1. Stale-claim avoidance — DAG lift is now measurable
+
+20-entity synthetic corpus (4 versioned-monotonic, 4 versioned-nonmono,
+5 contradicted, 7 clean). Three retrieval modes:
+
+| Mode | mono correct | nonmono correct | contradiction flag | p50 |
+|---|---|---|---|---|
+| raw_newest | 1.00 | **0.00** (100% stale leak) | 0.00 | 29 μs |
+| raw_all | 1.00 | **0.00** (100% stale leak) | 0.00 | 30 μs |
+| helix_dag | 1.00 | **1.00** | **1.00** | 136 μs |
+
+The non-monotonic case (a stale claim ingested LATER than the current
+one) is the realistic failure mode. Raw retrieval leaks stale 100% of
+the time; DAG resolves it 100% of the time. Contradiction flagging
+moves from 0 → 100%. Cost: ~100 μs per query.
+
+### 2. DAL HTTP/S3 wall-savings curve
+
+Sweep per-fetch latency from 1→200 ms on the same 3-agent × 24-fetch
+workload (70% overlap):
+
+| latency | cold wall | warm wall | saved | speedup |
+|---|---|---|---|---|
+| 1 ms   | 108 ms   | 62 ms    | 43.2% | 1.76× |
+| 20 ms  | 1.47 s   | 841 ms   | 42.9% | 1.75× |
+| 100 ms | 7.23 s   | 4.11 s   | 43.1% | 1.76× |
+| 200 ms | 14.4 s   | 8.22 s   | 43.0% | 1.76× |
+
+Hit rate = 0.431 is latency-invariant. Wall savings = hit_rate. At
+200 ms/fetch (representative of cold-cache S3), the cache saves
+6.2 seconds on a 14.4 s workload.
+
+### 3. N=50 multi-needle — honest sampling finds real retrieval gaps
+
+Went from N=8 (handpicked, 0.81 partial recall) to N=50 across 8
+topic clusters. Raw result: 10/50 full, 18/50 any_hit, 0.28 avg
+partial recall. Per-cluster:
+
+| cluster | n | full | any | avg_partial |
+|---|---|---|---|---|
+| A helix core | 10 | 1 | 2 | 0.15 |
+| B launcher | 7 | 3 | 3 | 0.43 |
+| C adapters | 6 | 0 | 0 | **0.00** |
+| D claims | 6 | 0 | 0 | **0.00** |
+| E fleet config | 7 | 1 | 4 | 0.36 |
+| F biged ops | 7 | 4 | 7 | 0.79 |
+| G benches | 4 | 1 | 1 | 0.25 |
+| H cross | 3 | 0 | 1 | 0.17 |
+
+Clusters C+D sit at 0.00 because the helix-context files shipped 2026-04-19
+(adapters/, claims_graph.py, claims_analyze.py) were re-ingested via
+`/ingest` but the `metadata.source_id` did not flow through to
+`gene.path`/`gene.source`, so `/context` can't rank them. This is a
+real ingest bug, not a retrieval regression. Excluding those two
+clusters (unfair sample): adjusted avg_partial = 0.37 over 38 needles.
+
+The honest headline: on a diverse query set, N=8's 0.81 does NOT
+generalize. Retrieval has room to grow; "publishable" numbers need
+the ingest-metadata bug fixed first.
+
+### 4. Third-party retriever (Chroma) integration
+
+Wrapped chromadb 1.5.8 behind the `Retriever` protocol via a
+~30-LOC `ChromaRetriever` adapter. Harvested 162 gene contents from
+the running genome, indexed into Chroma with MiniLM embeddings, ran
+15 benchmark queries through two cells:
+
+| cell | recall@10 | p50 | mean candidate space |
+|---|---|---|---|
+| raw_chroma | 0.43 | 141 ms | 162 (full) |
+| helix_narrowed_chroma | 0.36 | 786 ms | 20 (8× narrower) |
+
+Narrowing worked (162 → 20 candidates, 8× search-space reduction),
+but recall dropped 7 pp and latency rose 5× from the packet-fetch
+tax. Interpretation: on a small, focused index (162 docs), narrowing
+is counterproductive because the corpus was already Helix-curated.
+The SEMA bench showed +27% recall on a 6,682-doc index where
+narrowing genuinely reduces noise. Rule of thumb: narrowing wins
+when the underlying index is noisy; unscoped wins when it isn't.
+
+**Protocol validation is the real win here** — production Chroma
+slotted behind `Retriever` with no changes to helix-context. The
+LlamaIndex / pgvector / Weaviate adapter pattern is the same.
+
+## Open follow-ups
+
+- **Ingest-metadata bug** — `/ingest` payload's `metadata.source_id` is
+  stored but not exposed on `gene.path`/`gene.source`; anything ingested
+  through the HTTP endpoint is invisible to path-token scoring. Fix
+  before re-running N=50 for publishable numbers.
+- **[Issue #8](https://github.com/SwiftWing21/helix-context/issues/8)**
+  docs gap still open (SETUP.md extras matrix, TROUBLESHOOTING.md,
+  Phase 2 README mention). Not blocking.
 
 ## Live state at session close
 

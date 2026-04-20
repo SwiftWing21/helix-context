@@ -1,0 +1,390 @@
+{
+  "genome_total_genes": 7968,
+  "corpus_size": 162,
+  "chroma_index_ms": 3662.8,
+  "n_queries": 15,
+  "cells": {
+    "raw_chroma": {
+      "label": "raw_chroma",
+      "per_query": [
+        {
+          "query": "what port does helix listen on",
+          "gold": "helix.toml",
+          "hit": 0,
+          "latency_ms": 140.41,
+          "top_sources": [
+            "F:/Projects/helix-context/NOTICE",
+            "F:/Projects/helix-context/docs/collab/ROADMAP_FOR_TODD.md",
+            "F:/Projects/helix-context/docs/architecture/SESSION_REGISTRY.md"
+          ],
+          "candidate_space": 162
+        },
+        {
+          "query": "how does claim extraction work",
+          "gold": "claims.py",
+          "hit": 0,
+          "latency_ms": 139.56,
+          "top_sources": [
+            "F:/Projects/Education/fleet/audit_blueprint.py",
+            "F:/Projects/Education/fleet/supervisor.py",
+            "F:/Projects/Education/tests/test_compliance.py"
+          ],
+          "candidate_space": 162
+        },
+        {
+          "query": "what is the supersedes chain walker",
+          "gold": "claims_graph",
+          "hit": 0,
+          "latency_ms": 138.66,
+          "top_sources": [
+            "F:/Projects/Education/docs/superpowers/specs/2026-03-24-rust-hybrid-architecture-design.md",
+            "F:/Projects/Education/ROADMAP.md",
+            "F:/Projects/Education/docs/superpowers/plans/2026-04-01-two-brain-audit-plan.md"
+          ],
+          "candidate_space": 162
+        },
+        {
+          "query": "cache TTL volatility classes",
+          "gold": "cache.py",
+          "hit": 0,
+          "latency_ms": 140.23,
+          "top_sources": [
+            "F:/Projects/Education/fleet/cache_manager.py",
+            "F:/Projects/helix-context/README.md",
+            "F:/Projects/helix-context/docs/benchmarks/BENCHMARKS.md"
+          ],
+          "candidate_space": 162
+        },
+        {
+          "query": "DAL scheme dispatch file http s3",
+          "gold": "dal.py",
+          "hit": 0,
+          "latency_ms": 140.65,
+          "top_sources": [
+            "F:/Projects/Education/deploy/helm/biged-cc/templates/service-dashboard.yaml",
+            "F:/Projects/Education/fleet/knowledge/code_discussion/ollama_call_latency_and_timeout_tuning_round1.md",
+            "F:/Projects/helix-context/SESSION_HANDOFF.md"
+          ],
+          "candidate_space": 162
+        },
+        {
+          "query": "headroom supervisor orphan adoption",
+          "gold": "headroom",
+          "hit": 0,
+          "latency_ms": 141.02,
+          "top_sources": [
+            "F:/Projects/Education/SESSION_HANDOFF.md",
+            "F:/Projects/helix-context/tests/test_launcher_tray.py",
+            "F:/Projects/helix-context/SESSION_HANDOFF.md"
+          ],
+          "candidate_space": 162
+        },
+        {
+          "query": "fleet worker ram tier scaling",
+          "gold": "CLAUDE.md",
+          "hit": 0,
+          "latency_ms": 139.07,
+          "top_sources": [
+            "F:/Projects/Education/fleet/system_info.py",
+            "F:/Projects/Education/CLAUDE.USER.md",
+            "F:/Projects/Education/docs/superpowers/specs/2026-03-30-parallel-training-design.md"
+          ],
+          "candidate_space": 162
+        },
+        {
+          "query": "SKILL_NAME contract",
+          "gold": "skill",
+          "hit": 1,
+          "latency_ms": 144.96,
+          "top_sources": [
+            "F:/Projects/Education/fleet/knowledge/freshness/freshness_2026-03-25.md",
+            "F:/Projects/Education/fleet/knowledge/freshness/freshness_2026-03-31.md",
+            "F:/Projects/Education/fleet/knowledge/freshness/freshness_2026-04-01.md"
+          ],
+          "candidate_space": 162
+        },
+        {
+          "query": "db retry write WAL",
+          "gold": "db",
+          "hit": 1,
+          "latency_ms": 146.67,
+          "top_sources": [
+            "F:/Projects/Education/fleet/knowledge/code_discussion/web_crawl_timeout_and_connection_pooling_round1.md",
+            "F:/Projects/helix-context/.gitignore",
+            "F:/Projects/Education/fleet/reinforcement.py"
+          ],
+          "candidate_space": 162
+        },
+        {
+          "query": "dashboard endpoints blueprint",
+          "gold": "dashboard",
+          "hit": 1,
+          "latency_ms": 141.47,
+          "top_sources": [
+            "F:/Projects/Education/BigEd/launcher/deploy/helm/biged-cc/values.yaml",
+            "F:/Projects/Education/fleet/tests/test_endpoints.py",
+            "F:/Projects/Education/fleet/knowledge/freshness/freshness_2026-03-23.md"
+          ],
+          "candidate_space": 162
+        },
+        {
+          "query": "packet verified stale_risk contradictions",
+          "gold": "context",
+          "hit": 1,
+          "latency_ms": 146.0,
+          "top_sources": [
+            "F:/Projects/helix-context/helix_context/ribosome.py",
+            "F:/Projects/Education/docs/superpowers/specs/2026-03-29-multi-agent-bodies-design.md",
+            "F:/Projects/Education/fleet/soak_test.py"
+          ],
+          "candidate_space": 162
+        },
+        {
+          "query": "retriever protocol LlamaIndex",
+          "gold": "retriever",
+          "hit": 0,
+          "latency_ms": 143.73,
+          "top_sources": [
+            "F:/Projects/helix-context/docs/FUTURE/GENOME_SHARDING.md",
+            "F:/Projects/Education/deploy/helm/biged-cc/values.yaml",
+            "F:/Projects/helix-context/README.md"
+          ],
+          "candidate_space": 162
+        },
+        {
+          "query": "ingest pipeline steps",
+          "gold": "",
+          "hit": null,
+          "latency_ms": 143.92,
+          "top_sources": [
+            "F:/Projects/Education/docs/superpowers/specs/2026-03-26-ingestion-hub-design.md",
+            "__session__",
+            "F:/Projects/helix-context/docs/ops/SKILLS_BUNDLE.md"
+          ],
+          "candidate_space": 162
+        },
+        {
+          "query": "bench multi needle NIAH",
+          "gold": "bench",
+          "hit": 1,
+          "latency_ms": 142.51,
+          "top_sources": [
+            "F:/Projects/helix-context/BENCHMARK_NOTES.md",
+            "F:/Projects/helix-context/docs/collab/batman_output/retrieval_manifold.py",
+            "F:/Projects/Education/fleet/knowledge/freshness/freshness_2026-03-23.md"
+          ],
+          "candidate_space": 162
+        },
+        {
+          "query": "ribosome paused by default",
+          "gold": "ribosome",
+          "hit": 1,
+          "latency_ms": 142.85,
+          "top_sources": [
+            "F:/Projects/helix-context/helix_context/ribosome.py",
+            "F:/Projects/helix-context/tests/test_pipeline.py",
+            "F:/Projects/helix-context/docs/research/RESEARCH.md"
+          ],
+          "candidate_space": 162
+        }
+      ],
+      "hits": 6,
+      "n_scorable": 14,
+      "recall_at_10": 0.42857142857142855,
+      "p50_latency_ms": 141.47,
+      "mean_latency_ms": 142.12,
+      "mean_candidate_space": 162.0
+    },
+    "helix_narrowed_chroma": {
+      "label": "helix_narrowed_chroma",
+      "per_query": [
+        {
+          "query": "what port does helix listen on",
+          "gold": "helix.toml",
+          "hit": 0,
+          "latency_ms": 2067.02,
+          "top_sources": [
+            "F:/Projects/helix-context/tests/test_pipeline.py",
+            "F:/Projects/helix-context/docs/ROSETTA.md",
+            "F:/Projects/helix-context/BENCHMARK_NOTES.md"
+          ],
+          "candidate_space": 14
+        },
+        {
+          "query": "how does claim extraction work",
+          "gold": "claims.py",
+          "hit": 0,
+          "latency_ms": 609.56,
+          "top_sources": [
+            "F:/Projects/Education/fleet/soak_test.py",
+            "F:/Projects/Education/BigEd/research/COMPARISON_gemini_and_reviews.md",
+            "F:/Projects/Education/fleet/tba_claim_schema.py"
+          ],
+          "candidate_space": 11
+        },
+        {
+          "query": "what is the supersedes chain walker",
+          "gold": "claims_graph",
+          "hit": 0,
+          "latency_ms": 563.38,
+          "top_sources": [
+            "F:/Projects/helix-context/docs/architecture/KNOWLEDGE_GRAPH.md",
+            "F:/Projects/helix-context/docs/FUTURE/WALKER_PATTERNS.md",
+            "F:/Projects/helix-context/docs/FUTURE/PUSH_PULL_CONTEXT.md"
+          ],
+          "candidate_space": 3
+        },
+        {
+          "query": "cache TTL volatility classes",
+          "gold": "cache.py",
+          "hit": 0,
+          "latency_ms": 1000.45,
+          "top_sources": [
+            "F:/Projects/Education/fleet/cache_manager.py",
+            "F:/Projects/helix-context/README.md",
+            "F:/Projects/helix-context/tests/fixtures/essay_caching.txt"
+          ],
+          "candidate_space": 5
+        },
+        {
+          "query": "DAL scheme dispatch file http s3",
+          "gold": "dal.py",
+          "hit": 0,
+          "latency_ms": 785.62,
+          "top_sources": [
+            "F:/Projects/Education/docs/superpowers/specs/2026-03-26-ingestion-hub-design.md",
+            "F:/Projects/Education/fleet/skills/swarm_intelligence.py",
+            "F:/Projects/Education/fleet/dependency_check.py"
+          ],
+          "candidate_space": 11
+        },
+        {
+          "query": "headroom supervisor orphan adoption",
+          "gold": "headroom",
+          "hit": 1,
+          "latency_ms": 705.49,
+          "top_sources": [
+            "F:/Projects/helix-context/helix_context/headroom_bridge.py",
+            "F:/Projects/helix-context/docs/architecture/SESSION_REGISTRY.md",
+            "F:/Projects/Education/fleet/hw_supervisor.py"
+          ],
+          "candidate_space": 6
+        },
+        {
+          "query": "fleet worker ram tier scaling",
+          "gold": "CLAUDE.md",
+          "hit": 0,
+          "latency_ms": 1748.11,
+          "top_sources": [
+            "F:/Projects/Education/fleet/system_info.py",
+            "F:/Projects/Education/docs/superpowers/specs/2026-03-30-parallel-training-design.md",
+            "F:/Projects/Education/fleet/knowledge/code_discussion/fleet_task_throughput_\u2014_how_many_workers_round1.md"
+          ],
+          "candidate_space": 11
+        },
+        {
+          "query": "SKILL_NAME contract",
+          "gold": "skill",
+          "hit": 0,
+          "latency_ms": 736.38,
+          "top_sources": [
+            "F:/Projects/Education/docs/superpowers/plans/2026-03-23-ml-data-scientists.md",
+            "F:/Projects/Education/docs/audit/2026-03-27-integration-audit.md",
+            "F:/Projects/Education/docs/superpowers/plans/2026-04-01-two-brain-audit-plan.md"
+          ],
+          "candidate_space": 14
+        },
+        {
+          "query": "db retry write WAL",
+          "gold": "db",
+          "hit": 0,
+          "latency_ms": 707.11,
+          "top_sources": [
+            "F:/Projects/Education/fleet/knowledge/code_discussion/web_crawl_timeout_and_connection_pooling_round1.md",
+            "F:/Projects/Education/fleet/update_manager.py",
+            "F:/Projects/Education/fleet/supervisor.py"
+          ],
+          "candidate_space": 14
+        },
+        {
+          "query": "dashboard endpoints blueprint",
+          "gold": "dashboard",
+          "hit": 1,
+          "latency_ms": 921.17,
+          "top_sources": [
+            "F:/Projects/Education/docs/superpowers/plans/2026-04-01-tkinter-removal-updater-overhaul.md",
+            "F:/Projects/Education/docs/superpowers/plans/2026-04-01-two-brain-audit-plan.md",
+            "F:/Projects/Education/docs/superpowers/plans/2026-03-31-dashboard-decomposition.md"
+          ],
+          "candidate_space": 15
+        },
+        {
+          "query": "packet verified stale_risk contradictions",
+          "gold": "context",
+          "hit": 1,
+          "latency_ms": 840.05,
+          "top_sources": [
+            "F:/Projects/helix-context/helix_context/ribosome.py",
+            "F:/Projects/Education/docs/superpowers/specs/2026-03-29-multi-agent-bodies-design.md",
+            "F:/Projects/Education/fleet/soak_test.py"
+          ],
+          "candidate_space": 162
+        },
+        {
+          "query": "retriever protocol LlamaIndex",
+          "gold": "retriever",
+          "hit": 0,
+          "latency_ms": 628.94,
+          "top_sources": [
+            "F:/Projects/helix-context/docs/FUTURE/PUSH_PULL_CONTEXT.md",
+            "F:/Projects/Education/deploy/helm/biged-cc/templates/service-dashboard.yaml",
+            "F:/Projects/helix-context/docs/architecture/SESSION_REGISTRY.md"
+          ],
+          "candidate_space": 7
+        },
+        {
+          "query": "ingest pipeline steps",
+          "gold": "",
+          "hit": null,
+          "latency_ms": 830.28,
+          "top_sources": [
+            "__session__",
+            "F:/Projects/Education/fleet/workflows/crm_pipeline.toml",
+            "F:/Projects/Education/fleet/workflows.py"
+          ],
+          "candidate_space": 10
+        },
+        {
+          "query": "bench multi needle NIAH",
+          "gold": "bench",
+          "hit": 1,
+          "latency_ms": 594.03,
+          "top_sources": [
+            "F:/Projects/helix-context/docs/benchmarks/BENCHMARKS.md",
+            "F:/Projects/helix-context/docs/benchmarks/BENCHMARK_RATIONALE.md",
+            "F:/Projects/helix-context/benchmarks/bench_babilong.py"
+          ],
+          "candidate_space": 8
+        },
+        {
+          "query": "ribosome paused by default",
+          "gold": "ribosome",
+          "hit": 1,
+          "latency_ms": 803.22,
+          "top_sources": [
+            "F:/Projects/helix-context/helix_context/ribosome.py",
+            "F:/Projects/helix-context/tests/test_stress.py",
+            "F:/Projects/helix-context/tests/test_ribosome.py"
+          ],
+          "candidate_space": 10
+        }
+      ],
+      "hits": 5,
+      "n_scorable": 14,
+      "recall_at_10": 0.35714285714285715,
+      "p50_latency_ms": 785.62,
+      "mean_latency_ms": 902.72,
+      "mean_candidate_space": 20.1
+    }
+  }
+}

@@ -1,0 +1,89 @@
+{
+  "config": {
+    "n_agents": 3,
+    "fetches_per_agent": 24,
+    "overlap": 0.7,
+    "seed": 42,
+    "total_fetches_per_run": 72
+  },
+  "results": [
+    {
+      "latency_ms_per_fetch": 1.0,
+      "cold_wall_ms": 108.41,
+      "warm_wall_ms": 61.57,
+      "savings_ms": 46.84,
+      "savings_pct": 43.2,
+      "speedup_x": 1.76,
+      "cache_hit_rate": 0.431,
+      "cache_hits": 31,
+      "cache_misses": 41,
+      "cache_entries": 41,
+      "total_fetches": 72
+    },
+    {
+      "latency_ms_per_fetch": 5.0,
+      "cold_wall_ms": 394.08,
+      "warm_wall_ms": 226.15,
+      "savings_ms": 167.93,
+      "savings_pct": 42.6,
+      "speedup_x": 1.74,
+      "cache_hit_rate": 0.431,
+      "cache_hits": 31,
+      "cache_misses": 41,
+      "cache_entries": 41,
+      "total_fetches": 72
+    },
+    {
+      "latency_ms_per_fetch": 20.0,
+      "cold_wall_ms": 1473.29,
+      "warm_wall_ms": 841.1,
+      "savings_ms": 632.19,
+      "savings_pct": 42.9,
+      "speedup_x": 1.75,
+      "cache_hit_rate": 0.431,
+      "cache_hits": 31,
+      "cache_misses": 41,
+      "cache_entries": 41,
+      "total_fetches": 72
+    },
+    {
+      "latency_ms_per_fetch": 50.0,
+      "cold_wall_ms": 3620.56,
+      "warm_wall_ms": 2063.61,
+      "savings_ms": 1556.95,
+      "savings_pct": 43.0,
+      "speedup_x": 1.75,
+      "cache_hit_rate": 0.431,
+      "cache_hits": 31,
+      "cache_misses": 41,
+      "cache_entries": 41,
+      "total_fetches": 72
+    },
+    {
+      "latency_ms_per_fetch": 100.0,
+      "cold_wall_ms": 7228.2,
+      "warm_wall_ms": 4113.77,
+      "savings_ms": 3114.43,
+      "savings_pct": 43.1,
+      "speedup_x": 1.76,
+      "cache_hit_rate": 0.431,
+      "cache_hits": 31,
+      "cache_misses": 41,
+      "cache_entries": 41,
+      "total_fetches": 72
+    },
+    {
+      "latency_ms_per_fetch": 200.0,
+      "cold_wall_ms": 14425.64,
+      "warm_wall_ms": 8216.85,
+      "savings_ms": 6208.79,
+      "savings_pct": 43.0,
+      "speedup_x": 1.76,
+      "cache_hit_rate": 0.431,
+      "cache_hits": 31,
+      "cache_misses": 41,
+      "cache_entries": 41,
+      "total_fetches": 72
+    }
+  ]
+}
