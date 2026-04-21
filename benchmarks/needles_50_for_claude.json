@@ -1,0 +1,352 @@
+[
+  {
+    "idx": 0,
+    "category": "helix",
+    "key": "queries_path",
+    "value": "os.path.join",
+    "query": "What is the queries path mentioned in the code?"
+  },
+  {
+    "idx": 1,
+    "category": "steam",
+    "key": "_flexiblenavigationitem",
+    "value": "flexibleNavigationItem",
+    "query": "What is the value of flexiblenavigationitem?"
+  },
+  {
+    "idx": 2,
+    "category": "education_public",
+    "key": "rbac",
+    "value": "report",
+    "query": "What is the value of rbac?"
+  },
+  {
+    "idx": 3,
+    "category": "education_public",
+    "key": "current",
+    "value": "stat.S_IMODE",
+    "query": "What is the value of current?"
+  },
+  {
+    "idx": 4,
+    "category": "education_public",
+    "key": "payload",
+    "value": "days",
+    "query": "What is the value of payload?"
+  },
+  {
+    "idx": 5,
+    "category": "cosmic",
+    "key": "priority",
+    "value": "0.8",
+    "query": "What is the value of priority?"
+  },
+  {
+    "idx": 6,
+    "category": "steam",
+    "key": "product",
+    "value": "WiX",
+    "query": "What is the value of product?"
+  },
+  {
+    "idx": 7,
+    "category": "cosmic",
+    "key": "stored",
+    "value": "loadFromLocalStorage",
+    "query": "What is the value of stored?"
+  },
+  {
+    "idx": 8,
+    "category": "education_public",
+    "key": "days",
+    "value": "Option",
+    "query": "What is the value of days?"
+  },
+  {
+    "idx": 9,
+    "category": "steam",
+    "key": "dxpixelshaderfile",
+    "value": "shaders/common/lighting/basic/shadowFilterP.hlsl",
+    "query": "What is the dxpixelshaderfile mentioned in the code?"
+  },
+  {
+    "idx": 10,
+    "category": "helix",
+    "key": "model",
+    "value": "SentenceTransformer",
+    "query": "What is the value of model?"
+  },
+  {
+    "idx": 11,
+    "category": "education_public",
+    "key": "peers_urls",
+    "value": "return",
+    "query": "What is the peers urls mentioned in the code?"
+  },
+  {
+    "idx": 12,
+    "category": "other",
+    "key": "manager",
+    "value": "AgentomeManager",
+    "query": "What is the value of manager?"
+  },
+  {
+    "idx": 13,
+    "category": "scorerift",
+    "key": "args",
+    "value": "engine",
+    "query": "What is the value of args?"
+  },
+  {
+    "idx": 14,
+    "category": "cosmic",
+    "key": "linenumber",
+    "value": "59",
+    "query": "What is the value of linenumber?"
+  },
+  {
+    "idx": 15,
+    "category": "education_public",
+    "key": "knowledge_dir",
+    "value": "knowledge_dir",
+    "query": "What is the value of knowledge dir?"
+  },
+  {
+    "idx": 16,
+    "category": "education_public",
+    "key": "dot",
+    "value": "dot-red",
+    "query": "What is the value of dot?"
+  },
+  {
+    "idx": 17,
+    "category": "helix",
+    "key": "response",
+    "value": "status",
+    "query": "What is the value of response?"
+  },
+  {
+    "idx": 18,
+    "category": "steam",
+    "key": "randomswapname",
+    "value": "GetRandomValue",
+    "query": "What is the randomswapname?"
+  },
+  {
+    "idx": 19,
+    "category": "helix",
+    "key": "mgr",
+    "value": "HelixContextManager",
+    "query": "What is the value of mgr?"
+  },
+  {
+    "idx": 20,
+    "category": "cosmic",
+    "key": "logs",
+    "value": "docker",
+    "query": "What is the value of logs?"
+  },
+  {
+    "idx": 21,
+    "category": "cosmic",
+    "key": "transmit",
+    "value": "energy",
+    "query": "What is the value of transmit?"
+  },
+  {
+    "idx": 22,
+    "category": "education_public",
+    "key": "reranker",
+    "value": "model_name",
+    "query": "What is the value of reranker?"
+  },
+  {
+    "idx": 23,
+    "category": "steam",
+    "key": "balloondirection",
+    "value": "up",
+    "query": "What is the value of balloondirection?"
+  },
+  {
+    "idx": 24,
+    "category": "steam",
+    "key": "starttimestamp",
+    "value": "enabled",
+    "query": "What is the value of starttimestamp?"
+  },
+  {
+    "idx": 25,
+    "category": "education_public",
+    "key": "default",
+    "value": "sales",
+    "query": "What is the value of default?"
+  },
+  {
+    "idx": 26,
+    "category": "steam",
+    "key": "description",
+    "value": "missions.italy.rallyStage.norte.description",
+    "query": "What is the value of description?"
+  },
+  {
+    "idx": 27,
+    "category": "steam",
+    "key": "_framesperseconddividermap",
+    "value": "new",
+    "query": "What is the value of framesperseconddividermap?"
+  },
+  {
+    "idx": 28,
+    "category": "education_public",
+    "key": "Summary",
+    "value": "The file is empty and contains no executable code.",
+    "query": "What is the value of summary?"
+  },
+  {
+    "idx": 29,
+    "category": "steam",
+    "key": "_eventlistenerssectiongroup",
+    "value": "new",
+    "query": "What is the value of eventlistenerssectiongroup?"
+  },
+  {
+    "idx": 30,
+    "category": "education_public",
+    "key": "vram_needed",
+    "value": "_PROFILE_VRAM.get",
+    "query": "What is the value of vram needed?"
+  },
+  {
+    "idx": 31,
+    "category": "tally",
+    "key": "asset_1000_id",
+    "value": "accounts_map.get",
+    "query": "What is the value of asset 1000 id?"
+  },
+  {
+    "idx": 32,
+    "category": "tally",
+    "key": "xero_client_id",
+    "value": "your-client-id",
+    "query": "What is the value of xero client id?"
+  },
+  {
+    "idx": 33,
+    "category": "steam",
+    "key": "_timingelement",
+    "value": "this._timingContainer.createChild",
+    "query": "What is the value of timingelement?"
+  },
+  {
+    "idx": 34,
+    "category": "steam",
+    "key": "collection",
+    "value": "new",
+    "query": "What is the value of collection?"
+  },
+  {
+    "idx": 35,
+    "category": "tally",
+    "key": "left",
+    "value": "Navigation",
+    "query": "What is the value of left?"
+  },
+  {
+    "idx": 36,
+    "category": "education_public",
+    "key": "skill",
+    "value": "skill_lifecycle_suite",
+    "query": "What is the value of skill?"
+  },
+  {
+    "idx": 37,
+    "category": "cosmic",
+    "key": "linenumber",
+    "value": "47",
+    "query": "What is the value of linenumber?"
+  },
+  {
+    "idx": 38,
+    "category": "steam",
+    "key": "databasename",
+    "value": "objectStore.parentDatabase.name",
+    "query": "What is the databasename?"
+  },
+  {
+    "idx": 39,
+    "category": "scorerift",
+    "key": "_qualitative_keywords",
+    "value": "frozenset",
+    "query": "What is the value of qualitative keywords?"
+  },
+  {
+    "idx": 40,
+    "category": "helix",
+    "key": "encoder",
+    "value": "Optional",
+    "query": "What is the value of encoder?"
+  },
+  {
+    "idx": 41,
+    "category": "education_public",
+    "key": "url",
+    "value": "http://localhost:{port}/data.json",
+    "query": "What is the url mentioned in the code?"
+  },
+  {
+    "idx": 42,
+    "category": "education_public",
+    "key": "results",
+    "value": "read-only",
+    "query": "What is the value of results?"
+  },
+  {
+    "idx": 43,
+    "category": "other",
+    "key": "Context Preparation",
+    "value": "** Compiling the full context package.",
+    "query": "What is the value of context preparation?"
+  },
+  {
+    "idx": 44,
+    "category": "helix",
+    "key": "pooled",
+    "value": "activated.max",
+    "query": "What is the value of pooled?"
+  },
+  {
+    "idx": 45,
+    "category": "education_public",
+    "key": "row",
+    "value": "db.get_task_result",
+    "query": "What is the value of row?"
+  },
+  {
+    "idx": 46,
+    "category": "tally",
+    "key": "summary",
+    "value": "get_dashboard_summary",
+    "query": "What is the value of summary?"
+  },
+  {
+    "idx": 47,
+    "category": "education_public",
+    "key": "modulehub",
+    "value": "def",
+    "query": "What is the value of modulehub?"
+  },
+  {
+    "idx": 48,
+    "category": "steam",
+    "key": "triggerobjecttype",
+    "value": "WeaponShop",
+    "query": "What is the value of triggerobjecttype?"
+  },
+  {
+    "idx": 49,
+    "category": "helix",
+    "key": "include_heterochromatin",
+    "value": "Include",
+    "query": "What is the value of include heterochromatin?"
+  }
+]

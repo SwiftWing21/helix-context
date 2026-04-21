@@ -54,7 +54,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import httpx  # noqa: E402
 
-HELIX_URL = "http://127.0.0.1:11437"
+HELIX_URL = os.environ.get("HELIX_URL", "http://127.0.0.1:11437")
 GENOME_PATH = os.environ.get(
     "HELIX_GENOME_PATH",
     str(Path(__file__).resolve().parents[1] / "genomes" / "main" / "genome.db"),
@@ -277,7 +277,11 @@ def cell_helix_only(client: httpx.Client, needle: dict) -> dict:
     try:
         resp = client.post(
             f"{HELIX_URL}/context/packet",
-            json={"query": needle["query"], "task_type": "explain"},
+            json={
+                "query": needle["query"],
+                "task_type": "explain",
+                "read_only": True,
+            },
             timeout=60,
         )
         resp.raise_for_status()
@@ -328,7 +332,11 @@ def cell_helix_rag(client: httpx.Client, needle: dict, max_files: int = 12,
     try:
         resp = client.post(
             f"{HELIX_URL}/context/packet",
-            json={"query": needle["query"], "task_type": "explain"},
+            json={
+                "query": needle["query"],
+                "task_type": "explain",
+                "read_only": True,
+            },
             timeout=60,
         )
         resp.raise_for_status()
@@ -390,7 +398,11 @@ def cell_helix_full_stack(client: httpx.Client, needle: dict,
     try:
         resp = client.post(
             f"{HELIX_URL}/context/packet",
-            json={"query": needle["query"], "task_type": "explain"},
+            json={
+                "query": needle["query"],
+                "task_type": "explain",
+                "read_only": True,
+            },
             timeout=60,
         )
         resp.raise_for_status()

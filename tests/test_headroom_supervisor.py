@@ -65,7 +65,7 @@ def test_cmdline_markers_reject_other_processes(supervisor):
 
 def test_command_uses_configured_host_port_mode(supervisor):
     cmd = supervisor._command()
-    assert "headroom" in cmd
+    assert "headroom.cli" in cmd
     assert "proxy" in cmd
     assert "--host" in cmd and "127.0.0.1" in cmd
     assert "--port" in cmd and "18787" in cmd

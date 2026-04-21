@@ -45,6 +45,9 @@ SKIP_DIRS = {
     "dist", "build", ".pytest_cache", "target", ".claude",
     "$RECYCLE.BIN", "System Volume Information", "WpSystem",
     "WUDownloadCache", "WindowsApps",
+    # Keep benchmark prompts, docs, and result artifacts out of the
+    # live working genome so they cannot be retrieved as evidence.
+    "benchmarks",
 }
 
 MAX_FILE_SIZE = 200_000   # 200KB — avoids stalls on giant JSON/XML

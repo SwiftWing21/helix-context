@@ -1,0 +1,32 @@
+{
+  "timestamp": "2026-04-12T16:22:57",
+  "db_path": "F:\\Projects\\helix-context\\genome.db",
+  "dry_run": true,
+  "pre_stats": {
+    "total_genes": 17748,
+    "open": 12353,
+    "euchromatin": 1965,
+    "heterochromatin": 3430,
+    "total_chars_raw": 107350189,
+    "total_chars_compressed": 48849796,
+    "compression_ratio": 2.197556546602569,
+    "compression_tiers": {
+      "open_full": 12356,
+      "euchromatin_summary": 1953,
+      "heterochromatin_cold": 3439
+    }
+  },
+  "compact_stats": {
+    "scanned": 12356,
+    "to_euchromatin": 0,
+    "to_heterochromatin": 0,
+    "kept_open": 12356,
+    "skipped_no_embedding": 0,
+    "by_reason": {
+      "open": 12310,
+      "access_override": 28,
+      "access_rate_override": 18
+    }
+  },
+  "elapsed_s": 0.65
+}

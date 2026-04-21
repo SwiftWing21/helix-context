@@ -195,11 +195,13 @@ class HelixNarrowedRetriever:
         *,
         task_type: str = "explain",
         fallback_unscoped: bool = True,
+        read_only: bool = False,
     ) -> None:
         self._inner = inner
         self._helix_url = helix_url.rstrip("/")
         self._task_type = task_type
         self._fallback_unscoped = fallback_unscoped
+        self._read_only = read_only
 
     def _get_packet(self, query: str) -> dict:
         try:
@@ -210,7 +212,11 @@ class HelixNarrowedRetriever:
         try:
             resp = httpx.post(
                 f"{self._helix_url}/context/packet",
-                json={"query": query, "task_type": self._task_type},
+                json={
+                    "query": query,
+                    "task_type": self._task_type,
+                    "read_only": self._read_only,
+                },
                 timeout=15.0,
             )
             resp.raise_for_status()

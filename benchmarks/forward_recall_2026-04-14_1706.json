@@ -1,0 +1,80 @@
+{
+  "bench": "forward_recall_asymmetry",
+  "timestamp": "2026-04-14_1706",
+  "n_items": 10,
+  "n_seeds": 5,
+  "base_seed": 42,
+  "tcm_bonus_weight": 0.3,
+  "decision": "REGRESSION",
+  "rationale": "Reverse asymmetry observed at mean_tcm_fai < 0.45. Phase 4 is actively misranking; investigate.",
+  "aggregate": {
+    "mean_tcm_fai": 0.3288888888888889,
+    "stdev_tcm_fai": 0.045542003404264904,
+    "mean_tier1_fai": 0.3333333333333333,
+    "mean_last_gene_tcm_rank": 1.2,
+    "mean_first_gene_tcm_rank": 0.2,
+    "mean_max_bonus": 0.2618655651945731
+  },
+  "runs": [
+    {
+      "seed": 42,
+      "n": 10,
+      "weight": 0.3,
+      "tcm_fai": 0.3333333333333333,
+      "tier1_fai": 0.3333333333333333,
+      "last_gene_tcm_rank": 2,
+      "first_gene_tcm_rank": 0,
+      "mean_bonus": 0.11494441902673998,
+      "max_bonus": 0.25136551206071933,
+      "n_candidates": 10
+    },
+    {
+      "seed": 43,
+      "n": 10,
+      "weight": 0.3,
+      "tcm_fai": 0.28888888888888886,
+      "tier1_fai": 0.3333333333333333,
+      "last_gene_tcm_rank": 2,
+      "first_gene_tcm_rank": 0,
+      "mean_bonus": 0.10624659974350228,
+      "max_bonus": 0.26850153427556983,
+      "n_candidates": 10
+    },
+    {
+      "seed": 44,
+      "n": 10,
+      "weight": 0.3,
+      "tcm_fai": 0.28888888888888886,
+      "tier1_fai": 0.3333333333333333,
+      "last_gene_tcm_rank": 0,
+      "first_gene_tcm_rank": 1,
+      "mean_bonus": 0.15452193125031352,
+      "max_bonus": 0.27483866744871077,
+      "n_candidates": 10
+    },
+    {
+      "seed": 45,
+      "n": 10,
+      "weight": 0.3,
+      "tcm_fai": 0.4,
+      "tier1_fai": 0.3333333333333333,
+      "last_gene_tcm_rank": 1,
+      "first_gene_tcm_rank": 0,
+      "mean_bonus": 0.13317127412412916,
+      "max_bonus": 0.25220054476224574,
+      "n_candidates": 10
+    },
+    {
+      "seed": 46,
+      "n": 10,
+      "weight": 0.3,
+      "tcm_fai": 0.3333333333333333,
+      "tier1_fai": 0.3333333333333333,
+      "last_gene_tcm_rank": 1,
+      "first_gene_tcm_rank": 0,
+      "mean_bonus": 0.1248915356028518,
+      "max_bonus": 0.2624215674256199,
+      "n_candidates": 10
+    }
+  ]
+}

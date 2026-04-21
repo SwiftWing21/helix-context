@@ -331,3 +331,43 @@ class TestQueryGenesHebbianIntegration:
         ).fetchone()
         assert row[0] == 1, "Hebbian hook should have incremented co_count"
         g.close()
+
+    def test_query_genes_read_only_skips_hebbian_writeback(self):
+        from helix_context.genome import Genome
+        from helix_context.schemas import (
+            Gene, PromoterTags, EpigeneticMarkers, ChromatinState,
+        )
+
+        g = Genome(":memory:", seeded_edges_enabled=True)
+
+        def _gene(gid, domain):
+            return Gene(
+                gene_id=gid,
+                content=f"content for {gid}",
+                complement=f"summary for {gid}",
+                codons=["codon1"],
+                promoter=PromoterTags(domains=[domain], entities=["Entity"]),
+                epigenetics=EpigeneticMarkers(),
+                chromatin=ChromatinState.OPEN,
+            )
+
+        g.upsert_gene(_gene("a", "auth"), apply_gate=False)
+        g.upsert_gene(_gene("b", "auth"), apply_gate=False)
+        g.conn.execute(
+            """INSERT INTO harmonic_links
+               (gene_id_a, gene_id_b, weight, updated_at, source, co_count, miss_count, created_at)
+               VALUES ('a', 'b', 1.0, 0.0, 'seeded', 0, 0.0, 0.0)"""
+        )
+        g.conn.commit()
+
+        g.query_genes(
+            domains=["auth"],
+            entities=["Entity"],
+            max_genes=4,
+            read_only=True,
+        )
+        row = g.conn.execute(
+            "SELECT co_count FROM harmonic_links WHERE gene_id_a='a' AND gene_id_b='b'"
+        ).fetchone()
+        assert row[0] == 0, "read_only queries must not mutate harmonic_links"
+        g.close()

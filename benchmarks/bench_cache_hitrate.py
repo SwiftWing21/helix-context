@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import random
 import sys
 import time
@@ -32,7 +33,7 @@ import httpx  # noqa: E402
 from helix_context.adapters.cache import CachedDAL  # noqa: E402
 from helix_context.adapters.dal import DAL  # noqa: E402
 
-HELIX_URL = "http://127.0.0.1:11437"
+HELIX_URL = os.environ.get("HELIX_URL", "http://127.0.0.1:11437")
 
 # Queries overlap — shared interest pool across agents. Some unique
 # per agent to simulate working sets that diverge.
@@ -61,7 +62,7 @@ def _get_packet(client, query: str) -> dict:
     try:
         r = client.post(
             f"{HELIX_URL}/context/packet",
-            json={"query": query, "task_type": "explain"},
+            json={"query": query, "task_type": "explain", "read_only": True},
             timeout=60,
         )
         r.raise_for_status()

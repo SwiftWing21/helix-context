@@ -38,7 +38,7 @@ from helix_context.adapters.retriever import (  # noqa: E402
     HelixNarrowedRetriever, RetrievedDoc, Retriever,
 )
 
-HELIX_URL = "http://127.0.0.1:11437"
+HELIX_URL = os.environ.get("HELIX_URL", "http://127.0.0.1:11437")
 GENOME_PATH = os.environ.get(
     "HELIX_GENOME_PATH",
     str(Path(__file__).resolve().parents[1] / "genomes" / "main" / "genome.db"),
@@ -194,7 +194,11 @@ def run(raw: SemaEmbeddingRetriever,
         try:
             pkt = httpx.post(
                 f"{HELIX_URL}/context/packet",
-                json={"query": needle["query"], "task_type": "explain"},
+                json={
+                    "query": needle["query"],
+                    "task_type": "explain",
+                    "read_only": True,
+                },
                 timeout=30,
             ).json()
             shortlist = set()
@@ -239,8 +243,12 @@ def main() -> int:
     raw = SemaEmbeddingRetriever(GENOME_PATH)
     print(f"  {raw.corpus_size} vectors loaded\n")
 
-    narrowed = HelixNarrowedRetriever(raw, helix_url=HELIX_URL,
-                                      fallback_unscoped=True)
+    narrowed = HelixNarrowedRetriever(
+        raw,
+        helix_url=HELIX_URL,
+        fallback_unscoped=True,
+        read_only=True,
+    )
 
     print(f"=== External-retriever composition ({len(NEEDLES)} needles) ===\n")
     data = run(raw, narrowed, NEEDLES)

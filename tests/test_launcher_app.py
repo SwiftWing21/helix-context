@@ -5,12 +5,13 @@ supervisor + collector. No real helix process is spawned.
 
 from __future__ import annotations
 
+import os
 from unittest.mock import MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
 
-from helix_context.config import HeadroomConfig, HelixConfig
+from helix_context.config import HeadroomConfig, HelixConfig, ServerConfig
 from helix_context.launcher.app import create_app
 from helix_context.launcher.supervisor import (
     AlreadyRunning,
@@ -296,3 +297,39 @@ class TestMaybeBuildHeadroom:
         assert dashboard_url is None
         assert len(instances) == 1
         assert instances[0].start_calls == 0
+
+
+class TestHeadroomAutoRoute:
+    def test_remote_upstream_routes_helix_via_headroom(self, monkeypatch):
+        from helix_context.launcher import app as app_mod
+
+        cfg = HelixConfig(
+            server=ServerConfig(upstream="https://api.openai.com/v1"),
+            headroom=HeadroomConfig(host="127.0.0.1", port=8787),
+        )
+
+        monkeypatch.delenv("HELIX_SERVER_UPSTREAM", raising=False)
+        monkeypatch.delenv("OPENAI_TARGET_API_URL", raising=False)
+
+        routed = app_mod._configure_helix_upstream_routing(cfg, auto_override=True)
+
+        assert routed is True
+        assert os.environ["HELIX_SERVER_UPSTREAM"] == "http://127.0.0.1:8787"
+        assert os.environ["OPENAI_TARGET_API_URL"] == "https://api.openai.com/v1"
+
+    def test_local_ollama_upstream_stays_direct(self, monkeypatch):
+        from helix_context.launcher import app as app_mod
+
+        cfg = HelixConfig(
+            server=ServerConfig(upstream="http://localhost:11434"),
+            headroom=HeadroomConfig(host="127.0.0.1", port=8787),
+        )
+
+        monkeypatch.setenv("HELIX_SERVER_UPSTREAM", "http://127.0.0.1:8787")
+        monkeypatch.setenv("OPENAI_TARGET_API_URL", "https://api.openai.com/v1")
+
+        routed = app_mod._configure_helix_upstream_routing(cfg, auto_override=True)
+
+        assert routed is False
+        assert "HELIX_SERVER_UPSTREAM" not in os.environ
+        assert "OPENAI_TARGET_API_URL" not in os.environ

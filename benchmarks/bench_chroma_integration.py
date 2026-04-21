@@ -53,7 +53,7 @@ from helix_context.adapters.retriever import (  # noqa: E402
 )
 
 
-HELIX_URL = "http://127.0.0.1:11437"
+HELIX_URL = os.environ.get("HELIX_URL", "http://127.0.0.1:11437")
 INDEX_SIZE_TARGET = 200
 
 
@@ -155,7 +155,12 @@ def harvest_corpus(client: httpx.Client, target_size: int) -> list[dict]:
         try:
             r = client.post(
                 f"{HELIX_URL}/context/packet",
-                json={"query": q, "task_type": "explain", "top_k": 30},
+                json={
+                    "query": q,
+                    "task_type": "explain",
+                    "top_k": 30,
+                    "read_only": True,
+                },
                 timeout=60,
             ).json()
         except Exception as exc:
@@ -224,7 +229,12 @@ def helix_shortlist(client: httpx.Client, query: str) -> list[str]:
     try:
         r = client.post(
             f"{HELIX_URL}/context/packet",
-            json={"query": query, "task_type": "explain", "top_k": 30},
+            json={
+                "query": query,
+                "task_type": "explain",
+                "top_k": 30,
+                "read_only": True,
+            },
             timeout=60,
         ).json()
     except Exception:
@@ -321,7 +331,11 @@ def main():
     print(f"  indexed in {idx_ms:.0f} ms ({coll.count()} docs)")
 
     raw = ChromaRetriever(coll)
-    narrowed = HelixNarrowedRetriever(inner=raw, helix_url=HELIX_URL)
+    narrowed = HelixNarrowedRetriever(
+        inner=raw,
+        helix_url=HELIX_URL,
+        read_only=True,
+    )
 
     print("\nRunning benchmark cells...")
     raw_stats = run_cell("raw_chroma", raw, BENCH_QUERIES)

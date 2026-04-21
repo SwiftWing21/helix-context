@@ -246,3 +246,15 @@ def test_narrowed_no_fallback_returns_empty_when_helix_empty():
     with patch("httpx.post", return_value=fake_resp):
         docs = narrowed.retrieve("q")
     assert docs == []
+
+
+def test_narrowed_forwards_read_only_flag_to_packet_request():
+    inner = MagicMock(spec=Retriever)
+    inner.retrieve.return_value = []
+    narrowed = HelixNarrowedRetriever(inner, read_only=True, fallback_unscoped=False)
+    fake_resp = MagicMock()
+    fake_resp.json.return_value = _mock_packet([])
+    fake_resp.raise_for_status = MagicMock()
+    with patch("httpx.post", return_value=fake_resp) as post:
+        narrowed.retrieve("q")
+    assert post.call_args.kwargs["json"]["read_only"] is True

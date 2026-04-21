@@ -20,6 +20,7 @@ Usage:
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
 import time
@@ -30,7 +31,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import httpx  # noqa: E402
 
-HELIX_URL = "http://127.0.0.1:11437"
+HELIX_URL = os.environ.get("HELIX_URL", "http://127.0.0.1:11437")
 GENE_SRC_RE = re.compile(r'<GENE src="([^"]+)"')
 
 
@@ -121,7 +122,7 @@ def fetch_delivered_srcs(client: httpx.Client, query: str,
     """Issue /context, return (delivered source_ids, context_health)."""
     r = client.post(
         f"{HELIX_URL}/context",
-        json={"query": query, "task_type": task_type},
+        json={"query": query, "task_type": task_type, "read_only": True},
         timeout=60,
     )
     r.raise_for_status()

@@ -40,6 +40,11 @@ _TASK_RISK = {
 
 _HIGH_RISK_TASKS = {"edit", "debug", "ops", "quote"}
 _LITERAL_SOURCE_KINDS = {"code", "config", "db", "benchmark", "tool_output"}
+_DOC_LIKE_SOURCE_KINDS = {
+    "doc", "log", "session_note", "html", "pdf",
+    "office", "spreadsheet", "transcript",
+}
+_MEDIA_SOURCE_KINDS = {"image", "audio", "video"}
 
 
 def _row_value(row: sqlite3.Row | None, key: str):
@@ -123,8 +128,10 @@ def _specificity_score(meta: dict) -> float:
         return 1.0
     if support_span and source_id:
         return 0.9
-    if source_kind in {"doc", "log", "session_note"} and source_id:
+    if source_kind in _DOC_LIKE_SOURCE_KINDS and source_id:
         return 0.75
+    if source_kind in _MEDIA_SOURCE_KINDS and source_id:
+        return 0.50
     if source_kind == "user_assertion":
         return 0.45
     return 0.60
@@ -354,7 +361,14 @@ def _refresh_target(item: ContextItem, task_type: str) -> RefreshTarget | None:
     )
 
 
-def _query_genes(query: str, *, genome=None, router=None, max_genes: int = 8) -> tuple[list[Gene], dict]:
+def _query_genes(
+    query: str,
+    *,
+    genome=None,
+    router=None,
+    max_genes: int = 8,
+    read_only: bool = False,
+) -> tuple[list[Gene], dict]:
     domains, entities = extract_query_signals(query)
     if not domains and not entities and query.strip():
         fallback = query.strip().lower()
@@ -362,12 +376,22 @@ def _query_genes(query: str, *, genome=None, router=None, max_genes: int = 8) ->
             domains = [fallback]
 
     if router is not None:
-        genes = router.query_genes(domains=domains, entities=entities, max_genes=max_genes)
+        genes = router.query_genes(
+            domains=domains,
+            entities=entities,
+            max_genes=max_genes,
+            read_only=read_only,
+        )
         score_map = dict(getattr(router, "last_query_scores", {}))
         return genes, score_map
 
     if genome is not None:
-        genes = genome.query_genes(domains=domains, entities=entities, max_genes=max_genes)
+        genes = genome.query_genes(
+            domains=domains,
+            entities=entities,
+            max_genes=max_genes,
+            read_only=read_only,
+        )
         score_map = dict(getattr(genome, "last_query_scores", {}))
         return genes, score_map
 
@@ -383,6 +407,7 @@ def build_context_packet(
     main_conn: sqlite3.Connection | None = None,
     max_genes: int = 8,
     now_ts: float | None = None,
+    read_only: bool = False,
 ) -> ContextPacket:
     """Return a freshness-labeled packet for the given query."""
     if not query or not query.strip():
@@ -397,7 +422,13 @@ def build_context_packet(
         import time
         now_ts = time.time()
 
-    genes, score_map = _query_genes(query, genome=genome, router=router, max_genes=max_genes)
+    genes, score_map = _query_genes(
+        query,
+        genome=genome,
+        router=router,
+        max_genes=max_genes,
+        read_only=read_only,
+    )
     packet = ContextPacket(task_type=task_type, query=query)
 
     if effective_main_conn is None:
@@ -469,6 +500,7 @@ def get_refresh_targets(
     main_conn: sqlite3.Connection | None = None,
     max_genes: int = 8,
     now_ts: float | None = None,
+    read_only: bool = False,
 ) -> list[RefreshTarget]:
     """Convenience helper for just the reread plan."""
     packet = build_context_packet(
@@ -479,5 +511,6 @@ def get_refresh_targets(
         main_conn=main_conn,
         max_genes=max_genes,
         now_ts=now_ts,
+        read_only=read_only,
     )
     return packet.refresh_targets

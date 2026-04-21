@@ -1,0 +1,140 @@
+{
+  "bench": "forward_recall_asymmetry",
+  "timestamp": "2026-04-14_1709",
+  "n_items": 10,
+  "n_seeds": 10,
+  "base_seed": 42,
+  "tcm_bonus_weight": 1.0,
+  "decision": "REGRESSION",
+  "rationale": "Reverse asymmetry observed at mean_tcm_fai < 0.45. Phase 4 is actively misranking; investigate.",
+  "aggregate": {
+    "mean_tcm_fai": 0.33999999999999997,
+    "stdev_tcm_fai": 0.0457223684800325,
+    "mean_tier1_fai": 0.3333333333333333,
+    "mean_last_gene_tcm_rank": 1.1,
+    "mean_first_gene_tcm_rank": 0.1,
+    "mean_max_bonus": 0.877435770320059
+  },
+  "runs": [
+    {
+      "seed": 42,
+      "n": 10,
+      "weight": 1.0,
+      "tcm_fai": 0.3333333333333333,
+      "tier1_fai": 0.3333333333333333,
+      "last_gene_tcm_rank": 2,
+      "first_gene_tcm_rank": 0,
+      "mean_bonus": 0.3831480634224666,
+      "max_bonus": 0.8378850402023977,
+      "n_candidates": 10
+    },
+    {
+      "seed": 43,
+      "n": 10,
+      "weight": 1.0,
+      "tcm_fai": 0.28888888888888886,
+      "tier1_fai": 0.3333333333333333,
+      "last_gene_tcm_rank": 2,
+      "first_gene_tcm_rank": 0,
+      "mean_bonus": 0.35415533247834097,
+      "max_bonus": 0.8950051142518995,
+      "n_candidates": 10
+    },
+    {
+      "seed": 44,
+      "n": 10,
+      "weight": 1.0,
+      "tcm_fai": 0.28888888888888886,
+      "tier1_fai": 0.3333333333333333,
+      "last_gene_tcm_rank": 0,
+      "first_gene_tcm_rank": 1,
+      "mean_bonus": 0.5150731041677117,
+      "max_bonus": 0.9161288914957025,
+      "n_candidates": 10
+    },
+    {
+      "seed": 45,
+      "n": 10,
+      "weight": 1.0,
+      "tcm_fai": 0.4,
+      "tier1_fai": 0.3333333333333333,
+      "last_gene_tcm_rank": 1,
+      "first_gene_tcm_rank": 0,
+      "mean_bonus": 0.4439042470804305,
+      "max_bonus": 0.8406684825408192,
+      "n_candidates": 10
+    },
+    {
+      "seed": 46,
+      "n": 10,
+      "weight": 1.0,
+      "tcm_fai": 0.3333333333333333,
+      "tier1_fai": 0.3333333333333333,
+      "last_gene_tcm_rank": 1,
+      "first_gene_tcm_rank": 0,
+      "mean_bonus": 0.4163051186761727,
+      "max_bonus": 0.8747385580853997,
+      "n_candidates": 10
+    },
+    {
+      "seed": 47,
+      "n": 10,
+      "weight": 1.0,
+      "tcm_fai": 0.4222222222222222,
+      "tier1_fai": 0.3333333333333333,
+      "last_gene_tcm_rank": 1,
+      "first_gene_tcm_rank": 0,
+      "mean_bonus": 0.41515996310202563,
+      "max_bonus": 0.8765533024866246,
+      "n_candidates": 10
+    },
+    {
+      "seed": 48,
+      "n": 10,
+      "weight": 1.0,
+      "tcm_fai": 0.28888888888888886,
+      "tier1_fai": 0.3333333333333333,
+      "last_gene_tcm_rank": 1,
+      "first_gene_tcm_rank": 0,
+      "mean_bonus": 0.39647794156446026,
+      "max_bonus": 0.9009832032619295,
+      "n_candidates": 10
+    },
+    {
+      "seed": 49,
+      "n": 10,
+      "weight": 1.0,
+      "tcm_fai": 0.3333333333333333,
+      "tier1_fai": 0.3333333333333333,
+      "last_gene_tcm_rank": 1,
+      "first_gene_tcm_rank": 0,
+      "mean_bonus": 0.38914020548398137,
+      "max_bonus": 0.8598498836880336,
+      "n_candidates": 10
+    },
+    {
+      "seed": 50,
+      "n": 10,
+      "weight": 1.0,
+      "tcm_fai": 0.35555555555555557,
+      "tier1_fai": 0.3333333333333333,
+      "last_gene_tcm_rank": 1,
+      "first_gene_tcm_rank": 0,
+      "mean_bonus": 0.4306186980857822,
+      "max_bonus": 0.8845116406249607,
+      "n_candidates": 10
+    },
+    {
+      "seed": 51,
+      "n": 10,
+      "weight": 1.0,
+      "tcm_fai": 0.35555555555555557,
+      "tier1_fai": 0.3333333333333333,
+      "last_gene_tcm_rank": 1,
+      "first_gene_tcm_rank": 0,
+      "mean_bonus": 0.36388953886178943,
+      "max_bonus": 0.8880335865628228,
+      "n_candidates": 10
+    }
+  ]
+}

@@ -132,6 +132,7 @@ class ShardRouter:
         entities: List[str],
         max_genes: int = 8,
         party_id: Optional[str] = None,
+        read_only: bool = False,
     ) -> List[Gene]:
         """Fan query across routed shards, merge by score, top-K.
 
@@ -161,6 +162,7 @@ class ShardRouter:
                     entities=entities,
                     max_genes=max_genes,
                     party_id=party_id,
+                    read_only=read_only,
                 )
             except Exception:
                 log.warning("shard %s query failed; skipping", shard_name, exc_info=True)
