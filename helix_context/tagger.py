@@ -28,6 +28,22 @@ from .schemas import EpigeneticMarkers, Gene, PromoterTags
 log = logging.getLogger("helix.tagger")
 
 
+# ── Minimal stop words for codon filtering ────────────────────────
+#
+# Defined at module top because the CpuTagger class below references
+# it at method-call time — if loaded later in the file, any caller
+# invoking the referencing method before the module finishes loading
+# (rare, but possible under partial-import edge cases) would hit a
+# NameError. Keeping it here also surfaces the constant for anyone
+# reading top-down.
+
+STOP_WORDS_SMALL = frozenset({
+    "the", "a", "an", "is", "are", "was", "were", "this", "that",
+    "these", "those", "it", "its", "and", "or", "but", "not",
+    "all", "some", "any", "each", "every", "no", "more", "most",
+})
+
+
 # ── Lazy spaCy loading (avoid import-time model download check) ────
 
 _nlp = None
@@ -539,12 +555,3 @@ class CpuTagger:
             return text[:200]
 
         return sentences[0].text.strip()[:200]
-
-
-# ── Minimal stop words for codon filtering ────────────────────────
-
-STOP_WORDS_SMALL = frozenset({
-    "the", "a", "an", "is", "are", "was", "were", "this", "that",
-    "these", "those", "it", "its", "and", "or", "but", "not",
-    "all", "some", "any", "each", "every", "no", "more", "most",
-})

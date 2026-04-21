@@ -232,6 +232,18 @@ class CodonEncoder:
     """
 
     def __init__(self, chunk_target: int = 3, overlap: int = 0):
+        if chunk_target <= 0:
+            raise ValueError(
+                f"chunk_target must be positive, got {chunk_target}"
+            )
+        if overlap < 0:
+            raise ValueError(f"overlap must be non-negative, got {overlap}")
+        # If overlap >= chunk_target the windowed loop in chunk_text()
+        # would never advance (i = end - overlap <= i), producing an
+        # infinite loop. Clamp instead of raising so existing callers
+        # that default to overlap=0 are unaffected.
+        if overlap >= chunk_target:
+            overlap = chunk_target - 1
         self.chunk_target = chunk_target
         self.overlap = overlap
 

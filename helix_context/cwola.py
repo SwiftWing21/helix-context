@@ -121,10 +121,11 @@ def sweep_buckets(conn: sqlite3.Connection, now: Optional[float] = None) -> int:
             (cutoff,),
         ).fetchall()
     except Exception:
-        log.debug("sweep_buckets read failed", exc_info=True)
+        log.warning("sweep_buckets read failed", exc_info=True)
         return 0
 
     updates = 0
+    updated_rids: List[Any] = []
     for rid, session_id, ts in rows:
         if not session_id:
             bucket, delta = "A", None
@@ -146,8 +147,9 @@ def sweep_buckets(conn: sqlite3.Connection, now: Optional[float] = None) -> int:
                 (bucket, now, delta, rid),
             )
             updates += 1
+            updated_rids.append(rid)
         except Exception:
-            log.debug("sweep_buckets update failed for %s", rid, exc_info=True)
+            log.warning("sweep_buckets update failed for %s", rid, exc_info=True)
     if updates:
         conn.commit()
         # Emit one counter tick per newly-assigned bucket + a gauge .set()
@@ -155,14 +157,25 @@ def sweep_buckets(conn: sqlite3.Connection, now: Optional[float] = None) -> int:
         # rather than accumulating deltas).
         try:
             from .telemetry import cwola_bucket_counter, cwola_f_gap_gauge
-            # Re-read the just-assigned rows to label them correctly.
-            rows = conn.execute(
-                "SELECT bucket, COUNT(*) FROM cwola_log "
-                "WHERE bucket_assigned_at >= ? GROUP BY bucket",
-                (now - 1.0,),
-            ).fetchall()
-            for bucket, n in rows:
-                cwola_bucket_counter().add(int(n), {"bucket": bucket or "unassigned"})
+            # Re-read the just-assigned rows by retrieval_id rather than a
+            # time-window query — a 1s window races with commit latency,
+            # skipping rows that committed slightly later than `now-1.0`.
+            # Chunk the IN-list to stay under SQLite's 999-parameter cap.
+            SQLITE_PARAM_CAP = 900
+            bucket_counts: Dict[str, int] = {}
+            for i in range(0, len(updated_rids), SQLITE_PARAM_CAP):
+                chunk = updated_rids[i:i + SQLITE_PARAM_CAP]
+                placeholders = ",".join("?" * len(chunk))
+                chunk_rows = conn.execute(
+                    f"SELECT bucket, COUNT(*) FROM cwola_log "
+                    f"WHERE retrieval_id IN ({placeholders}) GROUP BY bucket",
+                    tuple(chunk),
+                ).fetchall()
+                for bucket, n in chunk_rows:
+                    key = bucket or "unassigned"
+                    bucket_counts[key] = bucket_counts.get(key, 0) + int(n)
+            for bucket, n in bucket_counts.items():
+                cwola_bucket_counter().add(int(n), {"bucket": bucket})
             s = stats(conn)
             if s.get("f_gap_sq") is not None:
                 cwola_f_gap_gauge().set(float(s["f_gap_sq"]))

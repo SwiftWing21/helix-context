@@ -448,7 +448,14 @@ class TestContextEndpoint:
         assert resp.status_code == 400
 
 
-class TestContextPacketEndpoint:
+class TestContextPacketEndpointFreshness:
+    """Freshness-label assertions for /context/packet.
+
+    Narrower than TestContextPacketEndpoint below — specifically verifies
+    that items inside the `verified` list carry a ``status == "verified"``
+    field, which the broader shape tests don't check.
+    """
+
     def test_packet_returns_freshness_labeled_groups(self, client):
         client.post("/ingest", json={
             "content": "Authentication config controls JWT session settings.",
@@ -997,3 +1004,89 @@ class TestDebugIntrospectionEndpoints:
         data = resp.json()
         assert data["returned"] == 0
         assert "All 2 evaluated candidates fell below" in data["response_hint"]
+
+
+class TestContextPacketEndpoint:
+    """POST /context/packet — agent-safe context bundle with freshness labels.
+
+    Shape contract: the response must always carry verified /
+    stale_risk / refresh_targets keys (plus task_type + query). Empty
+    query returns 400. Oversize queries must not crash the server.
+    """
+
+    def _seed_one_gene(self, client):
+        """Ingest a single gene so the packet has something to classify."""
+        resp = client.post("/ingest", json={
+            "content": (
+                "Helix Context exposes /context/packet for agent-safe "
+                "actions. The packet carries verified, stale_risk, and "
+                "refresh_targets lists so the caller can decide which "
+                "sources to reread before edits."
+            ),
+            "content_type": "text",
+            "metadata": {"path": "docs/packet.md"},
+        })
+        assert resp.status_code == 200
+
+    def test_packet_returns_required_shape(self, client):
+        self._seed_one_gene(client)
+        resp = client.post("/context/packet", json={
+            "query": "how does /context/packet label freshness?",
+            "task_type": "explain",
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+
+        # Core shape — these keys must always be present, even when
+        # empty, so callers can unconditionally iterate them.
+        assert "verified" in data
+        assert "stale_risk" in data
+        assert "refresh_targets" in data
+        assert isinstance(data["verified"], list)
+        assert isinstance(data["stale_risk"], list)
+        assert isinstance(data["refresh_targets"], list)
+
+        # Echo fields from the request.
+        assert data.get("task_type") == "explain"
+        assert data.get("query") == "how does /context/packet label freshness?"
+        assert data.get("response_mode") == "packet"
+
+    def test_packet_empty_query_returns_400(self, client):
+        resp = client.post("/context/packet", json={"query": ""})
+        assert resp.status_code == 400
+        data = resp.json()
+        assert "error" in data
+
+    def test_packet_whitespace_only_query_returns_400(self, client):
+        resp = client.post("/context/packet", json={"query": "   \n\t  "})
+        assert resp.status_code == 400
+
+    def test_packet_large_query_does_not_crash(self, client):
+        self._seed_one_gene(client)
+        # 50KB query — unusual but must not raise.
+        big = "how does helix compress context? " * 1500
+        resp = client.post("/context/packet", json={
+            "query": big,
+            "task_type": "explain",
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "verified" in data
+        assert "stale_risk" in data
+        assert "refresh_targets" in data
+
+    def test_packet_max_genes_is_clamped(self, client):
+        """Out-of-range max_genes must be clamped, not rejected."""
+        self._seed_one_gene(client)
+        # max_genes=999 should clamp to 32 silently.
+        resp = client.post("/context/packet", json={
+            "query": "packet freshness",
+            "max_genes": 999,
+        })
+        assert resp.status_code == 200
+        # Non-int max_genes should fall back to the default (no 500).
+        resp2 = client.post("/context/packet", json={
+            "query": "packet freshness",
+            "max_genes": "not-an-int",
+        })
+        assert resp2.status_code == 200

@@ -9,9 +9,9 @@ from __future__ import annotations
 
 import logging
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 log = logging.getLogger(__name__)
 
@@ -269,6 +269,21 @@ class HelixConfig:
     synonym_map: Dict[str, List[str]] = field(default_factory=dict)
 
 
+def _warn_unknown(section: str, raw_section: Dict[str, Any], dataclass_type: type) -> None:
+    """Log a warning when a TOML section contains keys not in the dataclass.
+
+    Lightweight — does not fail, just surfaces typos / stale config early.
+    """
+    try:
+        known = {f.name for f in fields(dataclass_type)}
+        extras = set(raw_section.keys()) - known
+        if extras:
+            log.warning("Unknown keys in [%s]: %s", section, sorted(extras))
+    except Exception:
+        # Defensive: never let config validation break startup.
+        log.warning("Unknown-key check failed for [%s]", section, exc_info=True)
+
+
 def load_config(path: Optional[str] = None) -> HelixConfig:
     """
     Load helix.toml from the given path, or auto-discover from cwd / env.
@@ -283,13 +298,18 @@ def load_config(path: Optional[str] = None) -> HelixConfig:
         return HelixConfig()
 
     with open(config_path, "rb") as f:
-        raw = tomllib.load(f)
+        try:
+            raw = tomllib.load(f)
+        except tomllib.TOMLDecodeError as exc:
+            log.error("helix.toml is malformed (%s) — using defaults", exc)
+            return HelixConfig()
 
     cfg = HelixConfig()
 
     # Ribosome
     if "ribosome" in raw:
         r = raw["ribosome"]
+        _warn_unknown("ribosome", r, RibosomeConfig)
         cfg.ribosome = RibosomeConfig(
             enabled=bool(r.get("enabled", cfg.ribosome.enabled)),
             model=r.get("model", cfg.ribosome.model),
@@ -314,6 +334,7 @@ def load_config(path: Optional[str] = None) -> HelixConfig:
     # Budget
     if "budget" in raw:
         b = raw["budget"]
+        _warn_unknown("budget", b, BudgetConfig)
         cfg.budget = BudgetConfig(
             ribosome_tokens=b.get("ribosome_tokens", cfg.budget.ribosome_tokens),
             expression_tokens=b.get("expression_tokens", cfg.budget.expression_tokens),
@@ -328,6 +349,7 @@ def load_config(path: Optional[str] = None) -> HelixConfig:
     # Genome
     if "genome" in raw:
         g = raw["genome"]
+        _warn_unknown("genome", g, GenomeConfig)
         cfg.genome = GenomeConfig(
             path=g.get("path", cfg.genome.path),
             compact_interval=float(g.get("compact_interval", cfg.genome.compact_interval)),
@@ -339,6 +361,7 @@ def load_config(path: Optional[str] = None) -> HelixConfig:
     # Server
     if "server" in raw:
         s = raw["server"]
+        _warn_unknown("server", s, ServerConfig)
         cfg.server = ServerConfig(
             host=s.get("host", cfg.server.host),
             port=int(s.get("port", cfg.server.port)),
@@ -346,9 +369,23 @@ def load_config(path: Optional[str] = None) -> HelixConfig:
             upstream_timeout=float(s.get("upstream_timeout", cfg.server.upstream_timeout)),
         )
 
+    # Server env overrides — lets launchers/profiles redirect Helix to a
+    # different chat upstream without rewriting helix.toml on disk.
+    if os.environ.get("HELIX_SERVER_UPSTREAM"):
+        cfg.server.upstream = os.environ["HELIX_SERVER_UPSTREAM"]
+    if os.environ.get("HELIX_SERVER_UPSTREAM_TIMEOUT"):
+        try:
+            cfg.server.upstream_timeout = float(os.environ["HELIX_SERVER_UPSTREAM_TIMEOUT"])
+        except ValueError:
+            log.warning(
+                "HELIX_SERVER_UPSTREAM_TIMEOUT=%r is not a float — ignoring override",
+                os.environ["HELIX_SERVER_UPSTREAM_TIMEOUT"],
+            )
+
     # Ingestion
     if "ingestion" in raw:
         i = raw["ingestion"]
+        _warn_unknown("ingestion", i, IngestionConfig)
         cfg.ingestion = IngestionConfig(
             backend=i.get("backend", cfg.ingestion.backend),
             splade_enabled=i.get("splade_enabled", cfg.ingestion.splade_enabled),
@@ -361,6 +398,7 @@ def load_config(path: Optional[str] = None) -> HelixConfig:
     # Context (cold-tier retrieval knobs — C.2 of B->C, 2026-04-10)
     if "context" in raw:
         c = raw["context"]
+        _warn_unknown("context", c, ContextConfig)
         cfg.context = ContextConfig(
             cold_tier_enabled=bool(c.get("cold_tier_enabled", cfg.context.cold_tier_enabled)),
             cold_tier_min_hot_genes=int(c.get("cold_tier_min_hot_genes", cfg.context.cold_tier_min_hot_genes)),
@@ -372,6 +410,7 @@ def load_config(path: Optional[str] = None) -> HelixConfig:
     # Cymatics
     if "cymatics" in raw:
         cy = raw["cymatics"]
+        _warn_unknown("cymatics", cy, CymaticsConfig)
         cfg.cymatics = CymaticsConfig(
             enabled=cy.get("enabled", cfg.cymatics.enabled),
             n_bins=int(cy.get("n_bins", cfg.cymatics.n_bins)),
@@ -385,6 +424,7 @@ def load_config(path: Optional[str] = None) -> HelixConfig:
     # Retrieval (Sprint 2 — SR Tier 5.5 + theta alternation)
     if "retrieval" in raw:
         r = raw["retrieval"]
+        _warn_unknown("retrieval", r, RetrievalConfig)
         cfg.retrieval = RetrievalConfig(
             sr_enabled=bool(r.get("sr_enabled", cfg.retrieval.sr_enabled)),
             sr_gamma=float(r.get("sr_gamma", cfg.retrieval.sr_gamma)),
@@ -402,6 +442,7 @@ def load_config(path: Optional[str] = None) -> HelixConfig:
     # Session (CWoLa session/party fallback — 2026-04-13 fix for always-A bucket bug)
     if "session" in raw:
         s = raw["session"]
+        _warn_unknown("session", s, SessionConfig)
         cfg.session = SessionConfig(
             default_party_id=str(s.get("default_party_id", cfg.session.default_party_id)),
             synthetic_session_window_s=int(s.get("synthetic_session_window_s", cfg.session.synthetic_session_window_s)),
@@ -411,6 +452,7 @@ def load_config(path: Optional[str] = None) -> HelixConfig:
     # Headroom — optional proxy lifecycle controls
     if "headroom" in raw:
         h = raw["headroom"]
+        _warn_unknown("headroom", h, HeadroomConfig)
         cfg.headroom = HeadroomConfig(
             enabled=bool(h.get("enabled", cfg.headroom.enabled)),
             autostart=bool(h.get("autostart", cfg.headroom.autostart)),

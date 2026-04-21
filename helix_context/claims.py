@@ -55,7 +55,7 @@ def extract_entity_keys(claim_text: str) -> list[str]:
     for m in _FILE_PATH_RE.finditer(claim_text):
         _add(m.group("path"))
     for m in _URL_RE.finditer(claim_text):
-        _add(f"http://{m.group('url')}")
+        _add(m.group(0))
     for m in _PORT_RE.finditer(claim_text):
         _add(f"port:{m.group('port')}")
     for m in _SYMBOL_RE.finditer(claim_text):

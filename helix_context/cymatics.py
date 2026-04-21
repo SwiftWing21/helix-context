@@ -391,7 +391,11 @@ def flux_score_w1(
         acc += d
         cdf.append(acc)
     cdf_sorted = sorted(cdf)
-    median = cdf_sorted[len(cdf_sorted) // 2]
+    n = len(cdf_sorted)
+    if n % 2 == 0:
+        median = (cdf_sorted[n // 2 - 1] + cdf_sorted[n // 2]) / 2.0
+    else:
+        median = cdf_sorted[n // 2]
     w1 = sum(abs(c - median) for c in cdf)
     return 1.0 / (1.0 + w1)
 

@@ -31,8 +31,10 @@ Known gaps (tracked as follow-up work, not blockers):
   `helix_context/mcp_server.py` now calls
   `AgentBridge.register_participant(..., start_auto_heartbeat=True)` on
   startup. Handle reads from `HELIX_MCP_HANDLE` (default `mcp-<pid>`),
-  party from `HELIX_PARTY_ID` (default `swift_wing21`), host-tag from
-  `HELIX_MCP_HOST` (e.g. `claude-code`, `antigravity`, `cursor`).
+  party_id derived from (in order): `HELIX_PARTY_ID` env var →
+  `HELIX_DEVICE` env var → `HELIX_PARTY` env var → `socket.gethostname()`
+  → `"unknown-host"` fallback. Host-tag from `HELIX_MCP_HOST` (e.g.
+  `claude-code`, `antigravity`, `cursor`).
   Registration failure is non-fatal — tool calls still proxy. Each
   MCP-host spawn gets its own `participant_id`; stale participants
   TTL out naturally.

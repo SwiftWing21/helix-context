@@ -133,11 +133,11 @@ class HeadroomSupervisor:
     # ── command + dashboard URL ────────────────────────────────────
 
     def _command(self) -> List[str]:
-        """`python -m headroom proxy --host ... --port ... --mode ...`."""
+        """`python -m headroom.cli proxy --host ... --port ... --mode ...`."""
         return [
             self.python_executable,
             "-m",
-            "headroom",
+            "headroom.cli",
             "proxy",
             "--host",
             self.host,
@@ -385,8 +385,9 @@ class HeadroomSupervisor:
             getattr(subprocess, "CREATE_NO_WINDOW", 0) if _is_windows() else 0
         )
         preexec_fn = os.setsid if not _is_windows() else None
-        log_file = open(self.log_path, "ab")
-        try:
+        # Popen dups the fd internally on both POSIX and Windows, so the
+        # parent can close its handle immediately after Popen returns.
+        with open(self.log_path, "ab") as log_file:
             proc = subprocess.Popen(
                 cmd,
                 stdout=log_file,
@@ -395,9 +396,6 @@ class HeadroomSupervisor:
                 preexec_fn=preexec_fn,
                 close_fds=True,
             )
-        except Exception:
-            log_file.close()
-            raise
 
         self.store.set_headroom(
             pid=proc.pid,

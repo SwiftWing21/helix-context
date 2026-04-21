@@ -32,7 +32,7 @@ from .accel import json_loads
 
 import httpx
 import uvicorn
-from fastapi import BackgroundTasks, FastAPI, Request
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from .config import HelixConfig, load_config
@@ -506,6 +506,35 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
         # by passing "authored_tz" in the body (e.g., a remote ingest
         # client may know its own tz better than the server does).
         authored_tz = data.get("authored_tz") or _local_timezone()
+
+        # Validate content BEFORE federation writes. Previously the
+        # federation block ran first, which left orphan org/party rows
+        # in the registry for every empty-content request that hit the
+        # endpoint. Validating here short-circuits the whole path.
+        if not content or not content.strip():
+            return JSONResponse(
+                {"error": "No content provided"},
+                status_code=400,
+            )
+
+        # Reject binary content declared as text. SQLite's TEXT column
+        # silently truncates at the first NULL byte, so a caller that
+        # utf-8-decodes raw bytes with errors="replace" and POSTs the
+        # result produces ghost genes with zero or near-zero stored
+        # content. Force callers to base64-encode binary payloads (no
+        # NULLs) or use a content-type that maps to BLOB storage later.
+        # See tests/diagnostics/test_file_type_ingest.py.
+        if "\x00" in content:
+            return JSONResponse(
+                {
+                    "error": (
+                        "content contains NULL bytes (binary payload declared as "
+                        "text). Base64-encode binary content before POSTing."
+                    ),
+                },
+                status_code=400,
+            )
+
         if local_federation and not participant_id:
             user_handle, default_device, default_org, agent_handle = (
                 _local_attribution_defaults()
@@ -545,30 +574,6 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
                     effective_user, effective_party, effective_org, effective_agent,
                     exc_info=True,
                 )
-
-        if not content or not content.strip():
-            return JSONResponse(
-                {"error": "No content provided"},
-                status_code=400,
-            )
-
-        # Reject binary content declared as text. SQLite's TEXT column
-        # silently truncates at the first NULL byte, so a caller that
-        # utf-8-decodes raw bytes with errors="replace" and POSTs the
-        # result produces ghost genes with zero or near-zero stored
-        # content. Force callers to base64-encode binary payloads (no
-        # NULLs) or use a content-type that maps to BLOB storage later.
-        # See tests/diagnostics/test_file_type_ingest.py.
-        if "\x00" in content:
-            return JSONResponse(
-                {
-                    "error": (
-                        "content contains NULL bytes (binary payload declared as "
-                        "text). Base64-encode binary content before POSTing."
-                    ),
-                },
-                status_code=400,
-            )
 
         try:
             gene_ids = await helix.ingest_async(content, content_type, metadata)
@@ -610,6 +615,16 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
         return response
 
     # -- Context endpoint (Continue HTTP context provider format) -------
+
+    def _request_read_only(data: dict) -> bool:
+        explicit = data.get("read_only")
+        if explicit is not None:
+            return bool(explicit)
+        # Synthetic benches already use clean=true to mean "isolate this
+        # query from prior benchmark state". Treating that as read-only by
+        # default also prevents query-time graph writeback from polluting
+        # later rows in the same run.
+        return bool(data.get("clean", False))
 
     @app.post("/context")
     async def context_endpoint(request: Request):
@@ -681,6 +696,7 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
                 helix.reset_session_state()
             except Exception:
                 log.debug("reset_session_state failed", exc_info=True)
+        read_only = _request_read_only(data)
 
         if not query:
             return JSONResponse({"error": "No query provided"}, status_code=400)
@@ -707,13 +723,14 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             payload["response_mode"] = "packet"
             return payload
 
-        # Per-request decoder mode override
-        if decoder_override and decoder_override in ("full", "condensed", "minimal", "none"):
-            from .context_manager import DECODER_MODES
-            original_mode = helix._decoder_mode
-            original_prompt = helix._decoder_prompt
-            helix._decoder_mode = decoder_override
-            helix._decoder_prompt = DECODER_MODES[decoder_override]
+        # Per-request decoder mode override — plumbed as a parameter to
+        # avoid mutating shared singleton state and racing across
+        # concurrent /context calls.
+        _decoder_override = (
+            decoder_override
+            if decoder_override in ("full", "condensed", "minimal", "none")
+            else None
+        )
 
         # Budget-zone signal: the /context endpoint has no messages[] so
         # callers must supply prompt_tokens explicitly if they want the
@@ -738,12 +755,9 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             prompt_tokens_hint=_prompt_tokens_hint,
             session_id=cwola_session_id,
             ignore_delivered=_ignore_delivered,
+            read_only=read_only,
+            decoder_override=_decoder_override,
         )
-
-        # Restore original mode after request
-        if decoder_override and decoder_override in ("full", "condensed", "minimal", "none"):
-            helix._decoder_mode = original_mode
-            helix._decoder_prompt = original_prompt
 
         health = window.context_health
         latency_ms = round((_time.time() - t0) * 1000, 1)
@@ -955,6 +969,12 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
         query = data.get("query", "")
         task_type = data.get("task_type", "explain")
         max_genes = data.get("max_genes", 8)
+        if data.get("clean", False):
+            try:
+                helix.reset_session_state()
+            except Exception:
+                log.debug("reset_session_state failed", exc_info=True)
+        read_only = _request_read_only(data)
 
         if not query or not str(query).strip():
             return JSONResponse({"error": "No query provided"}, status_code=400)
@@ -971,6 +991,7 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             genome=helix.genome,
             max_genes=max_genes,
             now_ts=t0,
+            read_only=read_only,
         )
         payload = packet.model_dump()
         payload["response_mode"] = "packet"
@@ -994,6 +1015,12 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
         query = data.get("query", "")
         task_type = data.get("task_type", "edit")
         max_genes = data.get("max_genes", 8)
+        if data.get("clean", False):
+            try:
+                helix.reset_session_state()
+            except Exception:
+                log.debug("reset_session_state failed", exc_info=True)
+        read_only = _request_read_only(data)
 
         if not query or not str(query).strip():
             return JSONResponse({"error": "No query provided"}, status_code=400)
@@ -1010,6 +1037,7 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             genome=helix.genome,
             max_genes=max_genes,
             now_ts=t0,
+            read_only=read_only,
         )
         return {
             "query": str(query),
@@ -1272,7 +1300,6 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
     @app.get("/debug/resonance")
     async def resonance_endpoint(query: str, k: int = 10, downsample: int = 64):
         import json as _json
-        import traceback as _tb
 
         try:
             genome = helix.genome
@@ -1364,19 +1391,14 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
                 "k": k,
                 "sema_available": codec is not None,
             }
-        except Exception as exc:
-            # Surface the traceback through the response instead of
-            # letting FastAPI emit a bare 500. This endpoint is a debug
-            # introspection surface; loud failure is the right default.
-            log.warning("/debug/resonance failed for query=%r", query, exc_info=True)
-            return JSONResponse(
-                {
-                    "error": type(exc).__name__,
-                    "detail": str(exc),
-                    "traceback": _tb.format_exc().splitlines()[-10:],
-                },
-                status_code=500,
+        except Exception:
+            # Log the full traceback server-side only; never include
+            # exception text in the response body (leaks internal paths
+            # and sqlite/httpx internals to callers).
+            log.error(
+                "/debug/resonance failed for query=%r", query, exc_info=True
             )
+            raise HTTPException(status_code=500, detail="Internal error")
 
     # -- Debug: single-gene fetch ---------------------------------------
 
@@ -1472,12 +1494,11 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
                 "neighbors": neighbors,
                 "count": len(neighbors),
             }
-        except Exception as exc:
-            log.warning("/debug/neighbors failed: %s", exc, exc_info=True)
-            return JSONResponse(
-                {"error": type(exc).__name__, "detail": str(exc)},
-                status_code=500,
-            )
+        except Exception:
+            # Full traceback goes to the log only; never into the HTTP
+            # response body (no str(exc), no type name leak).
+            log.error("/debug/neighbors failed", exc_info=True)
+            raise HTTPException(status_code=500, detail="Internal error")
 
     # -- Debug: context-pipeline dry run (no splice) --------------------
 
@@ -1556,12 +1577,11 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
                 use_tcm=use_tcm,
                 allow_rerank=(profile == "quality"),
             )
-        except Exception as exc:
-            log.warning("/debug/preview failed: %s", exc, exc_info=True)
-            return JSONResponse(
-                {"error": type(exc).__name__, "detail": str(exc)},
-                status_code=500,
-            )
+        except Exception:
+            # Full traceback goes to the log only; never into the HTTP
+            # response body (no str(exc), no type name leak).
+            log.error("/debug/preview failed", exc_info=True)
+            raise HTTPException(status_code=500, detail="Internal error")
 
         scores = dict(helix.genome.last_query_scores or {})
         merged_tiers = _merge_tier_contributions(
@@ -1684,11 +1704,43 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
 
         party_id = data.get("party_id")
         handle = data.get("handle")
-        if not party_id or not handle:
-            return JSONResponse(
-                {"error": "party_id and handle are required"},
+        # Validate identity tokens before touching the registry. Mirrors
+        # the /ingest NULL-byte guard (see ~line 527) and adds shape
+        # checks so we don't materialize ghost participant rows for
+        # whitespace-only or near-empty handles.
+        if party_id is None or handle is None:
+            raise HTTPException(
                 status_code=400,
+                detail="party_id and handle are required",
             )
+        if not isinstance(party_id, str) or not isinstance(handle, str):
+            raise HTTPException(
+                status_code=400,
+                detail="party_id and handle must be strings",
+            )
+        if "\x00" in party_id or "\x00" in handle:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "party_id/handle contain NULL bytes (binary payload "
+                    "declared as text). Base64-encode binary content "
+                    "before POSTing."
+                ),
+            )
+        party_id_stripped = party_id.strip()
+        handle_stripped = handle.strip()
+        if not party_id_stripped or not handle_stripped:
+            raise HTTPException(
+                status_code=400,
+                detail="party_id and handle must be non-empty",
+            )
+        if len(party_id_stripped) < 3 or len(handle_stripped) < 3:
+            raise HTTPException(
+                status_code=400,
+                detail="party_id and handle must be at least 3 characters",
+            )
+        party_id = party_id_stripped
+        handle = handle_stripped
 
         try:
             participant = registry.register_participant(
@@ -2054,45 +2106,47 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             ribosome_model = f"deberta+{helix.ribosome.ollama_ribosome.backend.model}"
 
         genome_ready = True
-        genome_error = None
         total_genes = 0
         try:
             total_genes = helix.genome.stats()["total_genes"]
-        except Exception as exc:
+        except Exception:
             genome_ready = False
-            genome_error = str(exc)
+            # Keep the detail in server-side logs only; do not leak to callers.
+            log.warning("/health genome stats failed", exc_info=True)
 
-        upstream_probe = _probe_upstream(config.server.upstream)
-        upstream_ready = bool(upstream_probe.get("reachable"))
-        status = "ok" if genome_ready and upstream_ready else "degraded"
+        # Offload the sync httpx probe off the event loop so the /health
+        # handler (an async def) doesn't block on network I/O.
+        upstream_probe = await asyncio.to_thread(
+            _probe_upstream, config.server.upstream
+        )
+        upstream_reachable = bool(upstream_probe.get("reachable"))
+        status = "ok" if genome_ready and upstream_reachable else "degraded"
 
         if status == "ok":
             message = "Helix and its upstream model server answered readiness checks."
-        elif not genome_ready and not upstream_ready:
+        elif not genome_ready and not upstream_reachable:
             message = "Genome stats failed and the upstream model server is unreachable."
         elif not genome_ready:
             message = "Genome stats failed; inspect the local knowledge store."
         else:
             message = "Upstream model server is unreachable; final chat proxy calls will fail."
 
+        # Intentionally minimized response — documented contract in
+        # CLAUDE.md is "ribosome model, gene count, upstream URL". We keep
+        # those and omit raw error strings, cost class, and the full
+        # probe dict to avoid leaking internal paths/configuration.
         return {
             "status": status,
             "message": message,
             "ribosome": ribosome_model,
-            # W2-B: cost classification surfaces local vs paid-API backends
-            # without operators having to read helix.toml. Pair with the
-            # startup WARNING (above in create_app) for visibility.
             "ribosome_backend": config.ribosome.effective_backend,
-            "ribosome_configured_backend": config.ribosome.backend,
-            "ribosome_cost_class": config.ribosome.cost_class,
             "genes": total_genes,
             "upstream": config.server.upstream,
+            "upstream_reachable": upstream_reachable,
             "checks": {
                 "genome_ready": genome_ready,
-                "upstream_ready": upstream_ready,
+                "upstream_ready": upstream_reachable,
             },
-            "upstream_probe": upstream_probe,
-            "genome_error": genome_error,
         }
 
     @app.get("/replicas")
@@ -2560,22 +2614,30 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
 
     @app.get("/bridge/status")
     async def bridge_status():
-        signals = bridge.list_signals()
-        inbox_count = len(list(bridge.inbox.iterdir())) if bridge.inbox.exists() else 0
-        return {
-            "shared_dir": str(bridge.shared_dir),
-            "inbox_pending": inbox_count,
-            "signals": signals,
-        }
+        # Sync I/O (iterdir, file reads) — offload to avoid blocking
+        # the event loop when the shared dir lives on a slow disk.
+        def _collect_status() -> Dict[str, object]:
+            signals = bridge.list_signals()
+            inbox_count = (
+                len(list(bridge.inbox.iterdir())) if bridge.inbox.exists() else 0
+            )
+            return {
+                "shared_dir": str(bridge.shared_dir),
+                "inbox_pending": inbox_count,
+                "signals": signals,
+            }
+
+        return await asyncio.to_thread(_collect_status)
 
     @app.post("/bridge/collect")
     async def bridge_collect():
         """Collect inbox files and ingest into genome."""
-        items = bridge.collect_inbox()
-        gene_ids = []
+        # collect_inbox() is sync file I/O — offload it.
+        items = await asyncio.to_thread(bridge.collect_inbox)
+        gene_ids: list = []
         for item in items:
             try:
-                ids = helix.ingest(
+                ids = await helix.ingest_async(
                     item["content"],
                     content_type="text",
                     metadata={"path": f"__bridge_{item['source']}__"},
@@ -2584,8 +2646,12 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             except Exception:
                 log.warning("Bridge ingest failed for %s", item["path"], exc_info=True)
 
-        # Update shared context
-        bridge.update_shared_context(helix.stats())
+        # Update shared context — sync I/O, offload.
+        try:
+            stats_snapshot = helix.stats()
+            await asyncio.to_thread(bridge.update_shared_context, stats_snapshot)
+        except Exception:
+            log.warning("Bridge shared-context update failed", exc_info=True)
         return {"collected": len(items), "genes_created": len(gene_ids)}
 
     @app.post("/bridge/signal")
@@ -2668,6 +2734,11 @@ async def _stream_and_tee(
     """
     Stream chunks from upstream to client while accumulating the
     full response for background replication.
+
+    Inspects the upstream HTTP status before the first yield; non-2xx
+    responses raise HTTPException so FastAPI propagates the real status
+    code + body instead of forwarding an error payload to the client
+    as if it were a successful stream.
     """
     accumulated: list[str] = []
     captured_usage: Optional[dict] = None
@@ -2678,6 +2749,22 @@ async def _stream_and_tee(
             f"{config.server.upstream}/v1/chat/completions",
             json=body,
         ) as resp:
+            if resp.status_code >= 400:
+                # Drain the body so we can forward a readable error
+                # detail upstream. aread() materializes the stream.
+                try:
+                    err_bytes = await resp.aread()
+                    err_detail = err_bytes.decode("utf-8", errors="replace")[:2000]
+                except Exception:
+                    log.warning(
+                        "Upstream stream error body read failed",
+                        exc_info=True,
+                    )
+                    err_detail = f"Upstream returned HTTP {resp.status_code}"
+                raise HTTPException(
+                    status_code=resp.status_code,
+                    detail=err_detail,
+                )
             async for line in resp.aiter_lines():
                 if not line:
                     yield "\n"
@@ -2741,6 +2828,21 @@ async def _forward_and_replicate(
             f"{config.server.upstream}/v1/chat/completions",
             json=body,
         )
+        if resp.status_code >= 400:
+            # Propagate upstream status + body instead of forwarding
+            # the error payload as HTTP 200 to the caller.
+            try:
+                err_detail = resp.text[:2000]
+            except Exception:
+                log.warning(
+                    "Upstream error body decode failed",
+                    exc_info=True,
+                )
+                err_detail = f"Upstream returned HTTP {resp.status_code}"
+            raise HTTPException(
+                status_code=resp.status_code,
+                detail=err_detail,
+            )
         data = resp.json()
 
     choices = data.get("choices", [])
@@ -2774,6 +2876,27 @@ async def _forward_raw(body: dict, config: HelixConfig, helix: Optional[HelixCon
             f"{config.server.upstream}/v1/chat/completions",
             json=body,
         )
+        if resp.status_code >= 400:
+            # Mirror the guard in _forward_and_replicate: surface upstream
+            # error status/body instead of forwarding an error JSON as HTTP
+            # 200, and avoid raising on .json() when the body is non-JSON.
+            try:
+                err_detail = resp.text[:2000]
+            except Exception:
+                log.warning(
+                    "Upstream error body decode failed (raw)",
+                    exc_info=True,
+                )
+                err_detail = f"Upstream returned HTTP {resp.status_code}"
+            log.warning(
+                "Upstream /v1/chat/completions returned %d: %s",
+                resp.status_code,
+                err_detail,
+            )
+            raise HTTPException(
+                status_code=resp.status_code,
+                detail=err_detail,
+            )
         data = resp.json()
 
     # Token accounting if helix is wired in.

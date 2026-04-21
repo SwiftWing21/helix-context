@@ -52,8 +52,8 @@ A transparent OpenAI-compatible proxy that intercepts LLM requests and injects c
 All config lives in `helix.toml`. Key sections:
 
 - `[ribosome]` — model, base_url, timeout, keep_alive, warmup
-- `[budget]` — ribosome_tokens (3k), expression_tokens (6k), max_genes_per_turn, splice_aggressiveness
-- `[genome]` — path, compact_interval, stale_threshold, decay_rate, cold_start_threshold
+- `[budget]` — ribosome_tokens (3k), expression_tokens (6k default in config.py; helix.toml ships 12k override), max_genes_per_turn, splice_aggressiveness
+- `[genome]` — path, compact_interval, cold_start_threshold, replicas, replica_sync_interval
 - `[server]` — host, port, upstream, upstream_timeout
 - `[synonyms]` — lightweight query expansion (e.g., "cache" -> ["redis", "ttl", "invalidation"])
 
@@ -63,6 +63,13 @@ All config lives in `helix.toml`. Key sections:
 POST /v1/chat/completions  — OpenAI-compatible proxy (primary integration)
 POST /ingest               — { content, content_type, metadata? } → gene_ids
 POST /context              — { query } → Continue HTTP context provider format
+POST /context/packet       — agent-safe bundle: verified / stale_risk / refresh_targets
+POST /context/refresh-plan — refresh_targets only (reread plan, no evidence items)
+POST /fingerprint          — navigation-first payload with tier scores, not content
+POST /consolidate          — rewrite stale gene bodies from their source fingerprints
+POST /sessions/register    — register an agent participant (taude/laude/...) for attribution
+POST /admin/refresh        — force a retrieval-layer refresh (admin only)
+POST /admin/vacuum         — reclaim SQLite pages after compaction (admin only)
 GET  /stats                — genome metrics + compression ratio
 GET  /health               — ribosome model, gene count, upstream URL
 ```

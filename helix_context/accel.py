@@ -151,7 +151,9 @@ def extract_query_signals(query: str) -> Tuple[List[str], List[str]]:
         if stripped and len(stripped) > 2 and stripped not in STOP_WORDS:
             keywords.append(stripped)
 
-    entities = [w for w in keywords if len(w) > 4 or (w and w[0].isupper())]
+    # isupper() branch was dead — `words` was already lowercased above,
+    # so w[0].isupper() can never be true. Length-only filter preserved.
+    entities = [w for w in keywords if len(w) > 4]
     domains = keywords[:5]
     return domains, entities
 

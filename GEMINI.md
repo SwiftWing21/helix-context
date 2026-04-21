@@ -44,7 +44,7 @@ The genome contains compressed knowledge from:
 ## Key Architecture
 
 - **Genes:** Content units with promoter tags (domains/entities), ΣĒMA vectors (20D semantic), and key-value facts
-- **Retrieval:** 4-tier (exact tag → prefix tag → FTS5 content → ΣĒMA semantic)
+- **Retrieval:** LLM-free, 12 signals + 1 octave gate — path_key_index • promoter tags • FTS5 • SPLADE • SEMA cold • harmonic_links • cymatics resonance+flux • TCM drift, all scoped by a party_id octave gate (multi-tenant)
 - **Compression:** ~7x ratio, raw content preserved for factual extraction
 - **CpuTagger:** spaCy + regex ingestion (no LLM needed for pack)
 - **Replication:** Delta-sync to read-only clones on C:, D:, E: drives

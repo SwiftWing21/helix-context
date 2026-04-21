@@ -8,12 +8,28 @@ lifecycle, and the soft-fail-on-network-error contract.
 
 from __future__ import annotations
 
+import threading
 import time
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from helix_context.bridge import AgentBridge
+
+
+def _wait_until(predicate, timeout: float = 2.0, interval: float = 0.02) -> bool:
+    """Poll ``predicate`` every ``interval`` seconds until it returns truthy
+    or ``timeout`` elapses. Returns the final truthiness.
+
+    Replaces ``time.sleep(N); assert cond`` patterns where the assertion
+    races a daemon thread's progress.
+    """
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if predicate():
+            return True
+        time.sleep(interval)
+    return bool(predicate())
 
 
 @pytest.fixture
@@ -198,18 +214,23 @@ class TestAutoHeartbeat:
         bridge._participant_id = "abc123"
         bridge._heartbeat_interval_s = 0.05  # 50ms — fast for tests
 
+        call_event = threading.Event()
         call_count = {"n": 0}
 
         def fake_heartbeat():
             call_count["n"] += 1
+            call_event.set()
             return True
 
         bridge.heartbeat = fake_heartbeat  # type: ignore[method-assign]
 
         bridge.start_auto_heartbeat()
-        time.sleep(0.2)  # ~3 cycles (sleep first, then call)
+        # Deterministic wait: poll the Event with a 2s ceiling rather than
+        # sleeping a fixed duration and hoping the daemon scheduled.
+        fired = call_event.wait(timeout=2.0)
         bridge.stop_auto_heartbeat()
 
+        assert fired, "auto-heartbeat thread never called heartbeat() within 2s"
         assert call_count["n"] >= 1
 
     def test_start_is_idempotent(self, bridge):
@@ -233,21 +254,26 @@ class TestAutoHeartbeat:
         bridge._participant_id = "abc123"
         bridge._heartbeat_interval_s = 0.05
 
+        fired = threading.Event()
+
         # First heartbeat call clears the id (simulates server 404)
         def angry_heartbeat():
             bridge._participant_id = None
+            fired.set()
             return False
 
         bridge.heartbeat = angry_heartbeat  # type: ignore[method-assign]
 
         bridge.start_auto_heartbeat()
-        time.sleep(0.15)
+        # Wait for the thread to actually fire once (and clear the id).
+        assert fired.wait(timeout=2.0), "heartbeat never fired"
 
-        # Thread should have noticed and exited on its own
-        assert bridge._heartbeat_thread is not None
-        # Give it a moment to wind down
-        time.sleep(0.1)
-        assert not bridge._heartbeat_thread.is_alive()
+        # Thread should notice the cleared id and exit on its own. Use
+        # join() with a deadline — no sleep-and-pray.
+        thread = bridge._heartbeat_thread
+        assert thread is not None
+        thread.join(timeout=2.0)
+        assert not thread.is_alive()
 
 
 class TestHttpHelpers:

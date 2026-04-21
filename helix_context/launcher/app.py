@@ -16,6 +16,7 @@ import webbrowser
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
+from urllib.parse import urlparse
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -265,6 +266,66 @@ def _env_truthy(name: str) -> Optional[bool]:
     return v.strip().lower() in ("1", "true", "yes", "on")
 
 
+def _is_loopback_host(host: Optional[str]) -> bool:
+    return (host or "").strip().lower() in {"127.0.0.1", "localhost", "::1"}
+
+
+def _should_route_helix_upstream_via_headroom(cfg, auto_override: Optional[bool] = None) -> bool:
+    """Auto-route only remote/OpenAI-compatible upstreams through Headroom.
+
+    Local model servers stay direct by default — especially Ollama on
+    localhost:11434 — because the extra proxy hop doesn't buy much there.
+    Remote upstreams can benefit from Headroom's compression/cache layer.
+    """
+    auto_route = True if auto_override is None else auto_override
+    if not auto_route:
+        return False
+
+    upstream = str(cfg.server.upstream or "").strip()
+    if not upstream:
+        return False
+
+    parsed = urlparse(upstream)
+    if not parsed.scheme or not parsed.hostname:
+        return False
+
+    if _is_loopback_host(parsed.hostname):
+        return False
+
+    headroom_host = getattr(cfg.headroom, "host", "127.0.0.1")
+    headroom_port = int(getattr(cfg.headroom, "port", 8787))
+    if parsed.hostname == headroom_host and parsed.port == headroom_port:
+        return False
+
+    return True
+
+
+def _configure_helix_upstream_routing(cfg, auto_override: Optional[bool] = None) -> bool:
+    """Set env overrides so Helix optionally routes chat upstream via Headroom.
+
+    Returns True when Helix should point at the local Headroom proxy.
+    """
+    route_via_headroom = _should_route_helix_upstream_via_headroom(
+        cfg, auto_override=auto_override,
+    )
+    if route_via_headroom:
+        headroom_base = f"http://{cfg.headroom.host}:{cfg.headroom.port}"
+        os.environ["OPENAI_TARGET_API_URL"] = str(cfg.server.upstream).rstrip("/")
+        os.environ["HELIX_SERVER_UPSTREAM"] = headroom_base
+        log.info(
+            "Helix upstream auto-route ON: %s -> %s",
+            cfg.server.upstream,
+            headroom_base,
+        )
+        return True
+
+    # Clear launcher-managed routing so local upstreams stay direct.
+    os.environ.pop("HELIX_SERVER_UPSTREAM", None)
+    os.environ.pop("OPENAI_TARGET_API_URL", None)
+    log.info("Helix upstream auto-route OFF: using direct upstream %s", cfg.server.upstream)
+    return False
+
+
 def _maybe_build_headroom(
     store,
     autostart_override: Optional[bool] = None,
@@ -404,6 +465,13 @@ def main(argv: Optional[list] = None) -> int:
     store = StateStore()
     store.set_launcher(pid=_current_pid())
 
+    from helix_context.config import load_config
+    runtime_cfg = load_config()
+    route_helix_via_headroom = _configure_helix_upstream_routing(
+        runtime_cfg,
+        auto_override=_env_truthy("HELIX_HEADROOM_ROUTE_UPSTREAM_AUTO"),
+    )
+
     supervisor = HelixSupervisor(
         store=store,
         helix_host=args.helix_host,
@@ -415,17 +483,6 @@ def main(argv: Optional[list] = None) -> int:
         ollama_base_url=args.ollama_base_url,
     )
 
-    # Adopt or start helix before the UI comes up.
-    if not supervisor.adopt() and not args.no_autostart:
-        try:
-            log.info("Starting helix on %s:%d", args.helix_host, args.helix_port)
-            supervisor.start()
-        except AlreadyRunning:
-            pass
-        except Exception as exc:
-            log.error("Failed to start helix: %s", exc)
-            log.info("Launcher will continue; use the Start button once the issue is fixed")
-
     # Optional Headroom proxy — if a proxy is already running on the
     # configured port, adopt it and surface it in the tray even when
     # [headroom] enabled=false. The enabled flag still controls whether
@@ -435,6 +492,25 @@ def main(argv: Optional[list] = None) -> int:
         autostart_override=_env_truthy("HELIX_HEADROOM_AUTOSTART"),
         enabled_override=_env_truthy("HELIX_HEADROOM_ENABLED"),
     )
+
+    # Adopt or start helix before the UI comes up.
+    if not supervisor.adopt() and not args.no_autostart:
+        try:
+            if route_helix_via_headroom:
+                log.info(
+                    "Starting helix on %s:%d via Headroom upstream %s",
+                    args.helix_host,
+                    args.helix_port,
+                    os.environ.get("HELIX_SERVER_UPSTREAM"),
+                )
+            else:
+                log.info("Starting helix on %s:%d", args.helix_host, args.helix_port)
+            supervisor.start()
+        except AlreadyRunning:
+            pass
+        except Exception as exc:
+            log.error("Failed to start helix: %s", exc)
+            log.info("Launcher will continue; use the Start button once the issue is fixed")
 
     app = create_app(store=store, supervisor=supervisor, collector=collector)
 
@@ -462,7 +538,7 @@ def main(argv: Optional[list] = None) -> int:
             name="launcher-uvicorn",
         )
         server_thread.start()
-        time.sleep(0.4)  # let uvicorn bind
+        _wait_for_port_bound(args.host, args.port)  # replaces 0.4s race
 
         tray_icon = HelixTrayIcon(
             supervisor=supervisor,
@@ -486,8 +562,8 @@ def main(argv: Optional[list] = None) -> int:
             name="launcher-uvicorn",
         )
         server_thread.start()
-        # Tiny delay to let uvicorn bind.
-        time.sleep(0.4)
+        # Poll until uvicorn binds (replaces 0.4s race).
+        _wait_for_port_bound(args.host, args.port)
         _open_ui(url, native=True)
     else:
         if not args.no_browser:
@@ -726,6 +802,28 @@ def _schedule_open(url: str) -> None:
         _open_ui(url, native=False)
     t = threading.Thread(target=_worker, daemon=True, name="launcher-browser-open")
     t.start()
+
+
+def _wait_for_port_bound(host: str, port: int, timeout: float = 3.0) -> bool:
+    """Poll until the uvicorn server binds the port, or timeout.
+
+    Replaces `time.sleep(0.4)` (a race — the server may not yet have
+    bound when the UI tries to connect). Returns True if the port is
+    reachable, False on timeout. Keeps polling cheap (50ms gap).
+    """
+    import socket as _socket
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            with _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM) as s:
+                s.settimeout(0.1)
+                s.connect((host, port))
+            return True
+        except (ConnectionRefusedError, OSError):
+            time.sleep(0.05)
+    log.warning("Port %s:%d did not bind within %.1fs — continuing anyway",
+                host, port, timeout)
+    return False
 
 
 def _run_uvicorn(app: FastAPI, host: str, port: int) -> None:

@@ -251,8 +251,8 @@ def resolve(
             c["contradicts_ids"] = sorted(
                 _neighbors(conn, cid, ("contradicts",))
             )
-            c["superseded_by"] = latest_in_chain(conn, cid) \
-                if latest_in_chain(conn, cid) != cid else None
+            head = latest_in_chain(conn, cid)
+            c["superseded_by"] = head if head != cid else None
             accepted.append(c)
         return {
             "accepted": accepted,

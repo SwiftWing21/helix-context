@@ -79,7 +79,11 @@ def encode(text: str, top_k: int = 128, model_name: str = "naver/splade-coconden
     pooled = activated.max(dim=1).values.squeeze(0)  # (vocab_size,)
 
     # Extract top-k non-zero entries
-    nonzero_count = (pooled > 0).sum().item()
+    nonzero_count = int((pooled > 0).sum().item())
+    if nonzero_count == 0:
+        # torch.Tensor.topk(0) raises on some backends; also there's nothing
+        # to return if the pooled activation is entirely zero.
+        return {}
     top_values, top_indices = pooled.topk(min(top_k, nonzero_count))
 
     sparse: Dict[str, float] = {}
@@ -128,7 +132,10 @@ def encode_batch(
 
         for j in range(pooled.size(0)):
             vec = pooled[j]
-            nonzero_count = (vec > 0).sum().item()
+            nonzero_count = int((vec > 0).sum().item())
+            if nonzero_count == 0:
+                results.append({})
+                continue
             top_values, top_indices = vec.topk(min(top_k, nonzero_count))
 
             sparse: Dict[str, float] = {}
@@ -193,7 +200,9 @@ def query_splade(
     terms = list(query_sparse.keys())
     placeholders = ",".join("?" * len(terms))
 
-    rows = conn.execute(
+    # Candidate gene ids (pre-filtered by raw-weight sum so we don't pull the
+    # full inverted list for rare terms).
+    candidate_rows = conn.execute(
         f"SELECT gene_id, SUM(weight) as raw_score "
         f"FROM splade_terms "
         f"WHERE term IN ({placeholders}) "
@@ -204,18 +213,32 @@ def query_splade(
         terms + [min_score, limit],
     ).fetchall()
 
-    # Weight by query vector (proper dot product)
-    scored: List[Tuple[str, float]] = []
-    for gene_id, raw_score in rows:
-        # Get the actual per-term weights for this gene
-        gene_terms = conn.execute(
-            f"SELECT term, weight FROM splade_terms "
-            f"WHERE gene_id = ? AND term IN ({placeholders})",
-            [gene_id] + terms,
-        ).fetchall()
+    if not candidate_rows:
+        return []
 
-        dot = sum(query_sparse.get(t, 0) * w for t, w in gene_terms)
-        scored.append((gene_id, dot))
+    candidate_ids = [gid for gid, _ in candidate_rows]
 
+    # Single SQL to pull (gene_id, term, weight) for every (candidate, query-term)
+    # pair — replaces the per-gene N+1 SELECT. Ordering by gene_id lets us
+    # aggregate rows into the query-weighted dot product without needing a
+    # GROUP BY that recomputes Python-side anyway.
+    gene_placeholders = ",".join("?" * len(candidate_ids))
+    pair_rows = conn.execute(
+        f"SELECT gene_id, term, weight FROM splade_terms "
+        f"WHERE gene_id IN ({gene_placeholders}) "
+        f"AND term IN ({placeholders})",
+        list(candidate_ids) + terms,
+    ).fetchall()
+
+    # Query-weighted dot product per gene.
+    dot_by_gene: Dict[str, float] = {gid: 0.0 for gid in candidate_ids}
+    for gene_id, term, weight in pair_rows:
+        dot_by_gene[gene_id] = dot_by_gene.get(gene_id, 0.0) + (
+            query_sparse.get(term, 0) * weight
+        )
+
+    scored: List[Tuple[str, float]] = [
+        (gid, dot_by_gene[gid]) for gid in candidate_ids
+    ]
     scored.sort(key=lambda x: x[1], reverse=True)
     return scored[:limit]

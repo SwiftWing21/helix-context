@@ -50,18 +50,46 @@ class MalformedBackend:
         return "Sure! Here's your answer: not json at all {{{"
 
 
+# Ollama availability is resolved lazily. Previously this probe fired at
+# module import time, which blocked pytest collection for ~3s on every
+# run (even when excluding -m live) and caused hangs if the Ollama host
+# was slow to reject the TCP connect. The cached sentinel below is
+# evaluated on first access — typically when a live test is being
+# collected — so the "not live" fast path never touches the network.
+_OLLAMA_AVAILABLE: bool | None = None
+
+
 def _ollama_available() -> bool:
-    try:
-        resp = httpx.get("http://localhost:11434/api/tags", timeout=3)
-        return resp.status_code == 200 and len(resp.json().get("models", [])) > 0
-    except Exception:
-        return False
+    global _OLLAMA_AVAILABLE
+    if _OLLAMA_AVAILABLE is None:
+        try:
+            resp = httpx.get("http://localhost:11434/api/tags", timeout=3)
+            _OLLAMA_AVAILABLE = (
+                resp.status_code == 200
+                and len(resp.json().get("models", [])) > 0
+            )
+        except Exception:
+            _OLLAMA_AVAILABLE = False
+    return _OLLAMA_AVAILABLE
 
 
-_skip = not _ollama_available()
-live = pytest.mark.skipif(_skip, reason="Ollama not running")
-# Stack both: skipif (so it skips when Ollama is down) + live marker (for `-m live` selection)
-live = lambda cls_or_fn: pytest.mark.live(pytest.mark.skipif(_skip, reason="Ollama not running")(cls_or_fn))
+def _live_reason() -> str:
+    return "" if _ollama_available() else "Ollama not running"
+
+
+def live(cls_or_fn):
+    """Mark a test as requiring a live Ollama instance.
+
+    Stacks ``pytest.mark.live`` (for ``-m live`` selection) with a lazy
+    ``skipif`` that only calls :func:`_ollama_available` when pytest is
+    actually evaluating the skip — i.e. during collection of the
+    decorated test, not at module import time.
+    """
+    return pytest.mark.live(
+        pytest.mark.skipif(
+            not _ollama_available(), reason="Ollama not running"
+        )(cls_or_fn)
+    )
 
 
 # ── JSON Parser ─────────────────────────────────────────────────────

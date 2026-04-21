@@ -14,10 +14,10 @@ REM ─────────────────────────�
 cd /d "%~dp0"
 
 REM ── OpenTelemetry (optional — remove if you don't want metrics) ──
-set HELIX_OTEL_ENABLED=1
-set HELIX_OTEL_ENDPOINT=localhost:4317
-set HELIX_OTEL_INSECURE=1
-set HELIX_OTEL_SAMPLER_RATIO=1.0
+set "HELIX_OTEL_ENABLED=1"
+set "HELIX_OTEL_ENDPOINT=localhost:4317"
+set "HELIX_OTEL_INSECURE=1"
+set "HELIX_OTEL_SAMPLER_RATIO=1.0"
 
 REM ── Budget-zone gene-cap spike (2026-04-14) ─────────────────────
 REM When set, the expression pipeline clamps max_genes based on the
@@ -25,14 +25,14 @@ REM caller's incoming prompt token count so big prompts don't get the
 REM full BROAD tier when the caller is already near their window.
 REM Zones (at 128k window): <25% none, 25-40% cap 12, 40-60% cap 6,
 REM 60-80% cap 3, 80%+ cap 1. Harmless when unset. See budget_zone.py.
-set HELIX_BUDGET_ZONE=1
+set "HELIX_BUDGET_ZONE=1"
 
 REM ── 4-layer federation attribution (edit to your handle) ────────
 REM HELIX_AGENT is the persona writing genes. If unset, ingests tag
 REM as "manual / no AI persona involved." Set per shell/shortcut for
 REM per-persona tagging (Laude/Taude/Raude each pin their own .bat).
-if "%HELIX_USER%"=="" set HELIX_USER=max
-REM set HELIX_AGENT=raude   REM uncomment + edit if you want persona tagging
+if "%HELIX_USER%"=="" set "HELIX_USER=max"
+REM set "HELIX_AGENT=raude"   REM uncomment + edit if you want persona tagging
 
 REM ── Headroom proxy (OPTIONAL — requires helix-context[codec]) ───
 REM When enabled, the launcher adopts or spawns a headroom proxy and
@@ -48,8 +48,13 @@ REM Autostart (spawn if nothing is already running):
 REM   set HELIX_HEADROOM_AUTOSTART=1
 REM
 REM See helix.toml [headroom] for host/port/mode configuration.
-REM set HELIX_HEADROOM_ENABLED=1
-REM set HELIX_HEADROOM_AUTOSTART=1
+set "HELIX_HEADROOM_ENABLED=1"
+set "HELIX_HEADROOM_AUTOSTART=1"
+
+REM Auto-route Helix's OpenAI-compatible chat upstream through Headroom
+REM only when the configured upstream is non-local. Local Ollama stays
+REM direct; remote providers can benefit from Headroom's proxy layer.
+set "HELIX_HEADROOM_ROUTE_UPSTREAM_AUTO=1"
 
 REM ── Launch the tray ─────────────────────────────────────────────
 start "helix-launcher" /B python -m helix_context.launcher.app ^

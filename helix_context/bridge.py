@@ -218,7 +218,10 @@ class AgentBridge:
                 try:
                     result[f.stem] = json.loads(f.read_text(encoding="utf-8"))
                 except Exception:
-                    pass
+                    log.warning(
+                        "Failed to parse bridge signal %s", f, exc_info=True
+                    )
+                    continue
         return result
 
     # ── Server restart protocol ───────────────────────────────────

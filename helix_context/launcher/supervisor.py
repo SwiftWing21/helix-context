@@ -92,6 +92,9 @@ class HelixSupervisor:
         self._last_error_at: Optional[float] = None
         self._last_error_operation: Optional[str] = None
         self._owns_helix_process = False
+        # Tracked Popen handle — used for POSIX zombie reap via poll().
+        # Windows reaps through taskkill; POSIX needs a wait() sibling call.
+        self._proc: Optional[subprocess.Popen] = None
 
     def _get_psutil(self):
         if self._psutil is None:
@@ -122,6 +125,13 @@ class HelixSupervisor:
 
     def is_running(self) -> bool:
         """Return True if a tracked helix process is alive and responsive."""
+        # POSIX zombie reap: non-blocking poll() retires a dead child so it
+        # doesn't accumulate as <defunct> in ps. No-op on a live process.
+        if self._proc is not None:
+            try:
+                self._proc.poll()
+            except Exception:
+                log.warning("Popen.poll() failed", exc_info=True)
         pid = self.store.state.helix_pid
         if pid is None:
             self._owns_helix_process = False
@@ -318,8 +328,9 @@ class HelixSupervisor:
         # the whole tree via killpg.
         preexec_fn = os.setsid if not _is_windows() else None
 
-        log_file = open(self.helix_log_path, "ab")
-        try:
+        # Popen dups the fd internally on both POSIX and Windows, so the
+        # parent can close its handle immediately after Popen returns.
+        with open(self.helix_log_path, "ab") as log_file:
             proc = subprocess.Popen(
                 cmd,
                 cwd=self._cwd(),
@@ -329,10 +340,8 @@ class HelixSupervisor:
                 preexec_fn=preexec_fn,
                 close_fds=True,
             )
-        except Exception:
-            log_file.close()
-            raise
 
+        self._proc = proc
         self.store.set_helix(pid=proc.pid, command=cmd, port=self.helix_port)
         self._owns_helix_process = True
 

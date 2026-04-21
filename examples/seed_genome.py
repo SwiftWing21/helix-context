@@ -28,8 +28,12 @@ def seed(target: str, content_type: str, helix_url: str) -> None:
         health = client.get("/health").json()
         print(f"Helix server: {health['status']}, ribosome: {health['ribosome']}, "
               f"genes: {health['genes']}")
-    except Exception:
-        print(f"Cannot reach Helix at {helix_url}. Start the server first:")
+    except Exception as exc:
+        # Surface the underlying reason (connection refused, timeout,
+        # DNS failure, bad JSON, ...) so users don't have to guess why
+        # the probe failed.
+        print(f"Cannot reach Helix at {helix_url}: {exc}")
+        print(f"  Start the server first:")
         print(f"  python -m uvicorn helix_context.server:app --host 127.0.0.1 --port 11437")
         sys.exit(1)
 

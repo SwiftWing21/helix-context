@@ -13,11 +13,35 @@ at F:\\Projects\\helix-context\\genome.db. Safe to run while the real server
 is live.
 """
 
+import asyncio
 import json
 import time
 
 import pytest
 from fastapi.testclient import TestClient
+
+
+async def await_until(condition, timeout: float = 2.0, interval: float = 0.02) -> bool:
+    """Await ``condition()`` returning truthy, polling every ``interval``
+    seconds until ``timeout`` elapses. ``condition`` may be a plain
+    callable or an async callable.
+
+    Replaces ``await asyncio.sleep(N); assert count >= K`` patterns that
+    race background tasks on slow CI runners.
+    """
+    loop = asyncio.get_event_loop()
+    deadline = loop.time() + timeout
+    while loop.time() < deadline:
+        result = condition()
+        if asyncio.iscoroutine(result):
+            result = await result
+        if result:
+            return True
+        await asyncio.sleep(interval)
+    result = condition()
+    if asyncio.iscoroutine(result):
+        result = await result
+    return bool(result)
 
 from helix_context.config import (
     BudgetConfig,
@@ -492,13 +516,17 @@ class TestBackgroundSweepTask:
 
         task = asyncio.create_task(server_mod._background_registry_sweep(registry))
         try:
-            await asyncio.sleep(0.2)  # ~4 sweep cycles
+            # Poll the call counter with a 2s ceiling instead of sleeping a
+            # fixed duration — the sweep task is cooperative and may not
+            # schedule in 0.2s on a loaded runner.
+            fired = await await_until(lambda: call_count["n"] >= 1, timeout=2.0)
         finally:
             task.cancel()
             try:
                 await task
             except asyncio.CancelledError:
                 pass
+        assert fired, "background sweep never ran within 2s"
         assert call_count["n"] >= 1
 
     @pytest.mark.asyncio
@@ -518,7 +546,9 @@ class TestBackgroundSweepTask:
 
         task = asyncio.create_task(server_mod._background_registry_sweep(registry))
         try:
-            await asyncio.sleep(0.2)
+            # Wait for at least two ticks to prove the loop survives an
+            # exception on each pass. 2s ceiling keeps CI honest.
+            fired = await await_until(lambda: call_count["n"] >= 2, timeout=2.0)
         finally:
             task.cancel()
             try:
@@ -526,6 +556,7 @@ class TestBackgroundSweepTask:
             except asyncio.CancelledError:
                 pass
         # Loop should have called sweep multiple times despite each raising
+        assert fired, f"sweep only called {call_count['n']} times in 2s"
         assert call_count["n"] >= 2
 
 
@@ -847,17 +878,26 @@ class TestHITLEvents:
         assert stats["by_pause_type"]["rollback_confirm"] == 1
         assert stats["resolved_without_operator"] == 1
 
-    def test_hitl_stats_mean_gap(self, registry):
+    def test_hitl_stats_mean_gap(self, registry, monkeypatch):
         p = registry.register_participant(party_id="max@local", handle="raude")
+
+        # Deterministic timestamps — no wall-clock sleeps. Monkeypatch the
+        # registry module's ``time.time`` with an incrementing stub so the
+        # three events land at distinct, known timestamps. Previous version
+        # used ``time.sleep(0.02)`` which is flaky on slow CI runners and
+        # slows the suite for no reason.
+        from helix_context import registry as registry_mod
+        ticks = iter([100.0, 100.05, 100.10])
+        monkeypatch.setattr(registry_mod.time, "time", lambda: next(ticks))
+
         registry.emit_hitl_event(participant_id=p.participant_id, pause_type="other")
-        time.sleep(0.02)
         registry.emit_hitl_event(participant_id=p.participant_id, pause_type="other")
-        time.sleep(0.02)
         registry.emit_hitl_event(participant_id=p.participant_id, pause_type="other")
 
         stats = registry.hitl_stats(party_id="max@local")
-        # Mean gap between 3 events should be ~0.02 seconds
+        # Gaps are 0.05s and 0.05s → mean 0.05s.
         assert stats["mean_gap_s"] is not None
+        assert stats["mean_gap_s"] == pytest.approx(0.05, abs=1e-6)
         assert stats["mean_gap_s"] > 0
 
     def test_hitl_stats_fewer_than_two_events_has_none_mean_gap(self, registry):

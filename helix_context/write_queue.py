@@ -106,7 +106,9 @@ class GenomeWriter:
         try:
             self.flush()
         except Exception:
-            pass
+            log.warning(
+                "write_queue flush during close failed", exc_info=True,
+            )
         self._thread.join(timeout=10)
         log.info("GenomeWriter stopped: %s", self._stats)
 

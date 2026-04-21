@@ -26,6 +26,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
+import socket
 from typing import Any, Optional
 
 log = logging.getLogger("helix.telemetry")
@@ -76,6 +77,24 @@ def _redact_query(q: str) -> str:
     ) != "0" else q
 
 
+def _instrument_fastapi(app: Any) -> None:
+    """Run FastAPIInstrumentor on a single app, logging on failure.
+
+    Kept outside the global-init guard so every app passed to
+    setup_telemetry() gets instrumented, not just the first one.
+    """
+    if app is None:
+        return
+    try:
+        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+        FastAPIInstrumentor().instrument_app(app)
+    except ImportError:
+        log.warning("opentelemetry-instrumentation-fastapi missing — "
+                    "FastAPI routes will not be auto-traced")
+    except Exception:
+        log.warning("FastAPI auto-instrumentation failed", exc_info=True)
+
+
 def setup_telemetry(
     app: Any = None,
     service_name: str = "helix-context",
@@ -85,10 +104,14 @@ def setup_telemetry(
 
     Returns True if telemetry was turned on, False if it was skipped (not
     enabled, or the opentelemetry packages are missing). Safe to call
-    multiple times — idempotent.
+    multiple times — the global SDK init runs only once, but FastAPI
+    auto-instrumentation is applied to every app passed in.
     """
     global tracer, meter, _initialised
     if _initialised:
+        # SDK already set up — but each new app still needs instrumentation,
+        # otherwise routes added after the first call are never auto-traced.
+        _instrument_fastapi(app)
         return True
     if os.environ.get("HELIX_OTEL_ENABLED", "0") != "1":
         log.info("OTel disabled (set HELIX_OTEL_ENABLED=1 to turn on)")
@@ -132,7 +155,9 @@ def setup_telemetry(
     resource = Resource.create({
         SERVICE_NAME: service_name,
         SERVICE_VERSION: service_version,
-        "deployment.host": os.environ.get("COMPUTERNAME", "unknown"),
+        # COMPUTERNAME is Windows-only; fall back to socket.gethostname()
+        # so POSIX deployments don't tag every span as "unknown".
+        "deployment.host": os.environ.get("COMPUTERNAME") or socket.gethostname(),
     })
 
     sampler = ParentBased(ALWAYS_ON if ratio >= 1.0 else TraceIdRatioBased(ratio))
@@ -177,17 +202,10 @@ def setup_telemetry(
     metrics.set_meter_provider(meter_provider)
     meter = metrics.get_meter(service_name, service_version)
 
+    _initialised = True
     # Auto-instrument FastAPI if an app was provided. Wraps every route
     # in a span; free latency + status metric per endpoint.
-    if app is not None:
-        try:
-            from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-            FastAPIInstrumentor().instrument_app(app)
-        except ImportError:
-            log.warning("opentelemetry-instrumentation-fastapi missing — "
-                        "FastAPI routes will not be auto-traced")
-
-    _initialised = True
+    _instrument_fastapi(app)
     # Promoted to WARNING so the confirmation is visible even when the root
     # logger is at the default WARNING level (uvicorn's --log-level only
     # affects uvicorn's own loggers; helix.* loggers are not auto-promoted).

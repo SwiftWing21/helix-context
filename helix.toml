@@ -63,7 +63,9 @@ session_delivery_enabled = true
 # party_id — which caused sweep_buckets to treat every row as Bucket A
 # (no re-query detectable without a session), making CWoLa training
 # impossible. See cwola.py + STATISTICAL_FUSION.md §C2.
-default_party_id = "swift_wing21"       # Attribution fallback when the request omits party_id
+# Default party_id for CWoLa / session attribution when no env var or header is set.
+# Operators: set HELIX_PARTY_ID in your environment (preferred) or change this value.
+default_party_id = "default"            # Attribution fallback when the request omits party_id
 synthetic_session_window_s = 300        # 5 min — same-IP requests within this window group into one session
 synthetic_session_enabled = true        # Flip to false to restore prior NULL-session behavior (not recommended)
 
@@ -73,7 +75,7 @@ synthetic_session_enabled = true        # Flip to false to restore prior NULL-se
 #   C:/helix-cache/genome.db                     — old replica (had backfill)
 # New genomes/ folder is the phase-2 sharding root. main/ is v1's only
 # shard; future shards land as genomes/reference/, genomes/agent/, etc.
-path = "F:/Projects/helix-context/genomes/main/genome.db"
+path = "genomes/main/genome.db"
 compact_interval = 3600                 # seconds between source-change checks (hourly)
 cold_start_threshold = 10              # genes needed before history stripping kicks in (Fix 3)
 # Replicas disabled during phase-1 cutover. Will re-enable alongside
@@ -109,7 +111,7 @@ upstream = "http://localhost:11434"     # Ollama
 # Requires: pip install "helix-context[codec]"  (pulls headroom-ai[proxy])
 # ──────────────────────────────────────────────────────────────────────
 [headroom]
-enabled = false                         # Master switch; flip to true to turn on the integration
+enabled = true                          # Master switch; true = tray wires Headroom and adopts/spawns it on launch
 autostart = true                        # When enabled: adopt if running, spawn if not. Set false for menu-only mode.
 host = "127.0.0.1"
 port = 8787                             # Default headroom proxy port

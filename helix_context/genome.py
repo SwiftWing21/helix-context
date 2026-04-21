@@ -302,6 +302,11 @@ _DENSITY_ACCESS_OVERRIDE = 5         # access_count >= this keeps gene OPEN rega
 _DENSITY_RATE_WINDOW = 3600.0   # 1-hour window
 _DENSITY_RATE_MIN_HITS = 3      # ≥3 accesses in the window → override
 
+# TTL for the memoized corpus-size count used by the IDF-weighted lexical
+# anchor tier. Re-queried at most once per window to avoid a COUNT(*) on
+# every retrieval call.
+_CORPUS_SIZE_TTL = 60.0
+
 
 class Genome:
     """SQLite-backed gene storage with promoter-tag retrieval."""
@@ -348,13 +353,16 @@ class Genome:
         self._shard_name = shard_name
 
         # Checkpoint WAL BEFORE opening our long-lived connection
-        # so we see the latest state from any external writers
+        # so we see the latest state from any external writers.
+        # Speculative pre-open optimisation — the subsequent connect() will
+        # still succeed if this fails, so we log at debug level but keep the
+        # exc_info so diagnostic scrapes can see why it failed.
         try:
             _tmp = sqlite3.connect(self.path)
             _tmp.execute("PRAGMA wal_checkpoint(TRUNCATE)")
             _tmp.close()
         except Exception:
-            pass
+            log.debug("WAL pre-open checkpoint failed", exc_info=True)
 
         self.conn = sqlite3.connect(self.path, check_same_thread=False, timeout=30)
         self.conn.row_factory = sqlite3.Row
@@ -370,6 +378,11 @@ class Genome:
         self.last_tier_contributions: Dict[str, Dict[str, float]] = {}
         self._sema_cache: Optional[Dict] = None  # Pre-materialized ΣĒMA vectors (hot tier)
         self._cold_sema_cache: Optional[Dict] = None  # Pre-materialized ΣĒMA vectors (cold tier, C.2)
+        # Memoized corpus size for IDF weighting (refreshed every
+        # _CORPUS_SIZE_TTL seconds). Prevents the IDF denominator from
+        # collapsing to the scored-candidate count on every query.
+        self._corpus_size: int = 0
+        self._corpus_size_ts: float = 0.0
         self._init_db()
 
         # Dedicated read-only connection — WAL allows concurrent readers
@@ -541,7 +554,12 @@ class Genome:
             from . import filename_anchor as _fa
             _fa.ensure_schema(cur.connection)
         except Exception:
-            log.debug("filename_index schema init skipped", exc_info=True)
+            # Silent failure here would disable the filename-anchor
+            # retrieval tier without warning; escalate to warning.
+            log.warning(
+                "filename_index schema init failed — filename-anchor tier disabled",
+                exc_info=True,
+            )
 
         cur.execute(
             "CREATE INDEX IF NOT EXISTS idx_promoter_value "
@@ -624,7 +642,10 @@ class Genome:
                 self.conn.commit()
                 log.info("FTS5 cleanup: removed %d orphan entries", -delta)
         except Exception:
-            log.warning("FTS5 not available — content search disabled")
+            log.warning(
+                "FTS5 not available — content search disabled",
+                exc_info=True,
+            )
             self._fts_available = False
 
         # ── Session registry tables (see docs/SESSION_REGISTRY.md) ──
@@ -1256,6 +1277,32 @@ class Genome:
         """Attach a ReplicationManager for distributed genome clones."""
         self._replication_mgr = mgr
 
+    def corpus_size(self) -> int:
+        """Return the memoized total gene count for IDF weighting.
+
+        Refreshed from ``SELECT COUNT(*) FROM genes`` at most once per
+        ``_CORPUS_SIZE_TTL`` seconds. Used by the IDF-weighted lexical
+        anchor tier so rare-term boosts reflect the *genome* size, not
+        the size of the scored-candidate pool.
+        """
+        now = time.time()
+        # Check the timestamp, not the value: a legitimately empty genome
+        # (count = 0) would otherwise never get cached and every call
+        # would re-hit SQLite. _corpus_size_ts is initialized to 0.0 in
+        # __init__, so a stale/never-refreshed cache still falls through.
+        if self._corpus_size_ts > 0 and (now - self._corpus_size_ts) < _CORPUS_SIZE_TTL:
+            return self._corpus_size
+        try:
+            total = self.read_conn.execute(
+                "SELECT COUNT(*) FROM genes"
+            ).fetchone()[0]
+            self._corpus_size = int(total) if total else 0
+            self._corpus_size_ts = now
+        except Exception:
+            log.warning("corpus_size refresh failed", exc_info=True)
+            # Fall back to whatever we have (may be 0 on first failure).
+        return self._corpus_size
+
     @property
     def read_conn(self) -> sqlite3.Connection:
         """
@@ -1408,7 +1455,11 @@ class Genome:
                     (gene_id, fts_content, gene.complement or ""),
                 )
             except Exception:
-                pass  # FTS sync failure is non-fatal
+                # FTS sync failure is non-fatal for the ingest, but silently
+                # swallowing it means a gene is unindexed for full-text search.
+                log.warning(
+                    "FTS5 sync failed for gene %s", gene_id, exc_info=True,
+                )
 
         # Entity graph — index entities for graph-based co-activation
         if self._entity_graph_enabled and gene.promoter.entities:
@@ -1603,6 +1654,7 @@ class Genome:
         party_id: Optional[str] = None,
         use_harmonic: bool = True,
         use_sr: Optional[bool] = None,
+        read_only: bool = False,
     ) -> List[Gene]:
         """
         Find genes matching the given promoter signals.
@@ -1977,7 +2029,10 @@ class Genome:
         # Weight query terms by inverse document frequency — rare terms
         # are stronger discriminators. A gene matching "conductor" (3 genes)
         # is much more likely the answer than one matching "biged" (200+ genes).
-        total_genes_est = max(len(gene_scores), 100)
+        # Use the real (memoized) genome size, NOT len(gene_scores) — the
+        # latter is the scored-candidate pool and collapses IDF to ~0 on
+        # large genomes, nullifying the boost.
+        total_genes_est = max(self.corpus_size(), len(gene_scores), 100)
         import math as _math
         for term in query_terms:
             term_freq = cur.execute(
@@ -2173,7 +2228,7 @@ class Genome:
         # gate: genes outside gene_scores are ignored (topical-orthogonal
         # queries should not punish the edge). Soft-fails — logger
         # hiccups never perturb the retrieval result.
-        if self._seeded_edges_enabled and ranked_ids:
+        if self._seeded_edges_enabled and ranked_ids and not read_only:
             try:
                 from .seeded_edges import update_edge_evidence
                 update_edge_evidence(

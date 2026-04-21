@@ -67,6 +67,9 @@ class ReplicationManager:
         self._lock = threading.Lock()
         self._last_sync = 0.0
         self._sync_in_progress = False
+        # Cached read-only connections per replica path (see get_reader/close).
+        self._reader_cache: dict = {}
+        self._reader_lock = threading.Lock()
 
         # Ensure replica directories exist
         for replica in self.replicas:
@@ -140,7 +143,12 @@ class ReplicationManager:
             log.warning("Replication sync failed", exc_info=True)
             return 0
         finally:
-            self._sync_in_progress = False
+            # Always clear the in-progress flag under the same lock used to
+            # set it in notify_write() — otherwise a concurrent notify_write
+            # could observe a stale value and skip a needed sync (or start a
+            # duplicate thread).
+            with self._lock:
+                self._sync_in_progress = False
 
     def _backup_to(self, src: sqlite3.Connection, replica: str) -> None:
         """Delta-copy using SQLite backup API (only changed pages)."""
@@ -151,33 +159,64 @@ class ReplicationManager:
         elapsed_ms = (time.time() - t0) * 1000
         log.debug("Replica sync to %s in %.0fms", replica, elapsed_ms)
 
+    def _get_cached_reader(self, path: str) -> sqlite3.Connection:
+        """Return a process-wide cached read-only connection for ``path``.
+
+        Connections are opened with ``check_same_thread=False`` so the same
+        cached handle is safe to share across reader threads (SQLite will
+        serialize reads internally). Cached connections are closed via
+        ``close()``.
+        """
+        with self._reader_lock:
+            conn = self._reader_cache.get(path)
+            if conn is not None:
+                return conn
+            conn = sqlite3.connect(
+                f"file:{path}?mode=ro",
+                uri=True,
+                check_same_thread=False,
+            )
+            conn.row_factory = sqlite3.Row
+            self._reader_cache[path] = conn
+            return conn
+
     def get_reader(self) -> sqlite3.Connection:
         """
         Get a read-only connection to the best available replica.
         Falls back to master if no replicas exist.
+
+        Connections are cached per path inside the ReplicationManager —
+        callers MUST NOT close the returned connection. Use ``close()``
+        on the manager to release all cached handles on shutdown.
         """
         # Prefer replicas (they don't contend with writes)
         for replica in self.replicas:
             if os.path.exists(replica):
                 try:
-                    conn = sqlite3.connect(
-                        f"file:{replica}?mode=ro",
-                        uri=True,
-                        check_same_thread=False,
-                    )
-                    conn.row_factory = sqlite3.Row
-                    return conn
+                    return self._get_cached_reader(replica)
                 except Exception:
+                    log.warning(
+                        "Failed to open replica reader: %s", replica, exc_info=True,
+                    )
                     continue
 
         # Fall back to master (read-only mode)
-        conn = sqlite3.connect(
-            f"file:{self.master}?mode=ro",
-            uri=True,
-            check_same_thread=False,
-        )
-        conn.row_factory = sqlite3.Row
-        return conn
+        return self._get_cached_reader(self.master)
+
+    def close(self) -> None:
+        """Close all cached read-only connections."""
+        with self._reader_lock:
+            paths = list(self._reader_cache.keys())
+            for path in paths:
+                conn = self._reader_cache.pop(path, None)
+                if conn is None:
+                    continue
+                try:
+                    conn.close()
+                except Exception:
+                    log.warning(
+                        "Failed to close cached reader: %s", path, exc_info=True,
+                    )
 
     def status(self) -> dict:
         """Return replication status."""

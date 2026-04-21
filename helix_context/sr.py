@@ -116,7 +116,7 @@ def sr_boost(
                 if b in link_lookup:
                     link_lookup[b].append(a)
         except Exception:
-            log.debug("harmonic_links bulk read failed", exc_info=True)
+            log.warning("harmonic_links bulk read failed", exc_info=True)
         # Union + dedupe per gene, store in cache.
         for g in missing:
             seen = set()

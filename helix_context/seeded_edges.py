@@ -65,6 +65,9 @@ SOURCE_WEIGHT_MULTIPLIER = {
 CO_PROMOTE_MIN_COUNT = 3      # co_count floor for seeded -> co_retrieved
 CO_PROMOTE_MIN_RATIO = 0.4    # Laplace ratio floor for seeded -> co_retrieved
 PRUNE_FLOOR = 0.05            # effective-weight floor below which edge is deleted
+SEEDING_CAP = 200             # max genes per seed_edges call — O(n²) pair loop
+                              # blows up beyond this; matches FRONTIER_CAP pattern
+                              # in sr.py. Caller gets a warning + truncation.
 
 
 def _laplace_ratio(co: int, miss: float) -> float:
@@ -100,8 +103,14 @@ def dense_rank(sorted_scores: List[float]) -> Dict[int, int]:
 
 def miss_weight(rank: int, max_genes: int) -> float:
     """Dense-rank miss weight. Y ranked just below the cut -> near 1.0;
-    Y ranked deep in the candidate pool -> near 0.0."""
-    if rank <= max_genes or rank <= 0:
+    Y ranked deep in the candidate pool -> near 0.0.
+
+    Dense ranks start at 1, so rank <= 0 indicates a caller bug — raise
+    rather than silently returning 0.0 (which would hide a programming
+    error under the guise of "no miss penalty")."""
+    if rank <= 0:
+        raise ValueError(f"rank must be >= 1 (dense_rank 1-based); got {rank}")
+    if rank <= max_genes:
         return 0.0
     return min(1.0, max_genes / rank)
 
@@ -127,6 +136,12 @@ def seed_edges(
     gene_ids = list(gene_ids)
     if len(gene_ids) < 2:
         return 0
+    if len(gene_ids) > SEEDING_CAP:
+        log.warning(
+            "seed_edges called with %d genes; capping to %d",
+            len(gene_ids), SEEDING_CAP,
+        )
+        gene_ids = gene_ids[:SEEDING_CAP]
     import time as _time
 
     cur = genome.conn.cursor()
@@ -149,7 +164,7 @@ def seed_edges(
                 if cur.rowcount:
                     written += 1
             except Exception:
-                log.debug("seed_edges insert failed for (%s,%s)", a, b, exc_info=True)
+                log.warning("seed_edges insert failed for (%s,%s)", a, b, exc_info=True)
     if written:
         genome.conn.commit()
     return written

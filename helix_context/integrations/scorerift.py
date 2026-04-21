@@ -195,11 +195,13 @@ class GenomeHealthProbe:
                 return (0.0, {"error": f"HTTP {resp.status_code}"})
 
             data = resp.json()
-            if not data or not isinstance(data, list):
+            # /context returns a dict (Continue HTTP context provider format),
+            # not a list. Legacy code treated it as a list and silently failed
+            # when the first entry was missing.
+            if not data or not isinstance(data, dict):
                 return (0.0, {"reason": "empty response"})
 
-            entry = data[0]
-            content = entry.get("content", "")
+            content = data.get("content", "")
 
             if "no relevant context" in content.lower():
                 return (0.2, {"reason": "no matching genes", "query": test_query})
@@ -216,10 +218,11 @@ class GenomeHealthProbe:
             return (score, {
                 "query": test_query,
                 "response_length": content_len,
-                "genes_expressed": entry.get("description", ""),
+                "genes_expressed": data.get("description", "") or data.get("name", ""),
             })
 
         except Exception as exc:
+            log.warning("check_relevance failed for %s", test_query, exc_info=True)
             return (0.0, {"error": str(exc)})
 
     # -- Full scan ----------------------------------------------------

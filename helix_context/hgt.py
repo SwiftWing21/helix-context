@@ -137,8 +137,22 @@ def import_genome(
     skipped = 0
     overwritten = 0
 
+    tampered = 0
     for gene_dict in genes_data:
         gene = Gene.model_validate(gene_dict)
+
+        # Content-address verification: .helix files may have been
+        # edited in transit. Recompute the expected gene_id from
+        # content and skip the row if it doesn't match.
+        expected_id = Genome.make_gene_id(gene.content)
+        if expected_id != gene.gene_id:
+            log.warning(
+                "Skipping tampered gene: id=%s expected=%s",
+                gene.gene_id, expected_id,
+            )
+            tampered += 1
+            continue
+
         existing = genome.get_gene(gene.gene_id)
 
         if existing is not None:
@@ -158,14 +172,15 @@ def import_genome(
         imported += 1
 
     log.info(
-        "Imported %d genes from %s (skipped=%d, overwritten=%d)",
-        imported, input_path, skipped, overwritten,
+        "Imported %d genes from %s (skipped=%d, overwritten=%d, tampered=%d)",
+        imported, input_path, skipped, overwritten, tampered,
     )
 
     return {
         "imported": imported,
         "skipped": skipped,
         "overwritten": overwritten,
+        "tampered": tampered,
         "total_in_file": len(genes_data),
         "source": header.get("description", ""),
         "source_exported_at": header.get("exported_at", ""),

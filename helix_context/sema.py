@@ -87,7 +87,7 @@ PRIMES: List[SemaPrime] = [
               "Connections — links between entities, references, associations"),
     SemaPrime(12, "boundary",     "Bd", "The system enforces limits on memory usage, request rate, and file size",
               "Scope — constraints, limits, permissions, access control"),
-    SemaPrime(13, "state",        "St", "The server is currently running in production mode with debug disabled",
+    SemaPrime(13, "state",        "Sn", "The server is currently running in production mode with debug disabled",
               "Condition — current status, configuration, mode, flags"),
     SemaPrime(14, "identity",     "Id", "The class is named HelixContextManager and is defined in context_manager.py",
               "Naming — definitions, references, identifiers, types"),

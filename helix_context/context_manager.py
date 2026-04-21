@@ -36,7 +36,7 @@ from .headroom_bridge import compress_text
 from . import legibility
 from . import session_delivery as _session_delivery
 from .ribosome import DisabledBackend, LiteLLMBackend, Ribosome, OllamaBackend
-from .provenance import apply_provenance
+from .provenance import apply_metadata_hints, apply_provenance
 from .schemas import (
     ChromatinState,
     ContextHealth,
@@ -385,6 +385,7 @@ class HelixContextManager:
         """
         strands = self.chunker.chunk(content, content_type=content_type, metadata=metadata)
         gene_ids = []
+        total_strands = len(strands)
 
         # Accept either metadata["path"] or metadata["source_id"] — the HTTP
         # /ingest contract historically documented both, but only "path" was
@@ -423,6 +424,12 @@ class HelixContextManager:
             if metadata:
                 gene.promoter.metadata.update(dict(metadata))
             gene.is_fragment = strand.is_fragment
+            apply_metadata_hints(
+                gene,
+                metadata,
+                content_type=content_type,
+                total_strands=total_strands,
+            )
             # Store source file path for change-based decay
             if source_path:
                 gene.source_id = source_path
@@ -430,7 +437,18 @@ class HelixContextManager:
                 # (source_kind, volatility_class, observed_at,
                 # last_verified_at) at ingest so the packet builder has
                 # real freshness data without needing a backfill sweep.
-                apply_provenance(gene, source_path)
+                apply_provenance(
+                    gene,
+                    source_path,
+                    observed_at=gene.observed_at,
+                    content_type=content_type,
+                )
+            else:
+                apply_provenance(
+                    gene,
+                    observed_at=gene.observed_at,
+                    content_type=content_type,
+                )
             # Attach ΣĒMA vector
             if sema_vectors is not None and i < len(sema_vectors):
                 gene.embedding = sema_vectors[i]
@@ -524,7 +542,7 @@ class HelixContextManager:
             is_fragment=False,
             source_id=source_path,
         )
-        apply_provenance(parent, source_path)
+        apply_provenance(parent, source_path, content_type="text")
         # apply_gate=False: parents are metadata aggregators, not content —
         # they should not be density-gated into heterochromatin.
         self.genome.upsert_gene(parent, apply_gate=False)
@@ -570,6 +588,8 @@ class HelixContextManager:
         prompt_tokens_hint: Optional[int] = None,
         session_id: Optional[str] = None,
         ignore_delivered: bool = False,
+        read_only: bool = False,
+        decoder_override: Optional[str] = None,
     ) -> ContextWindow:
         """
         Build the active context window for a query.
@@ -595,6 +615,14 @@ class HelixContextManager:
                 preserves the previous behaviour exactly.
         """
         self._maybe_compact()
+
+        # Resolve per-request decoder override without mutating shared
+        # instance state (prevents races on the singleton manager under
+        # concurrent /context calls). None falls back to self._decoder_prompt.
+        if decoder_override and decoder_override in DECODER_MODES:
+            effective_decoder_prompt = DECODER_MODES[decoder_override]
+        else:
+            effective_decoder_prompt = self._decoder_prompt
 
         # Reset per-call cold-tier markers (set by _express when cold fires)
         self._last_cold_tier_used = False
@@ -628,6 +656,7 @@ class HelixContextManager:
         candidates = self._express(
             domains, entities, max_genes,
             query_text=query, include_cold=include_cold, party_id=party_id,
+            read_only=read_only,
         )
 
         if not candidates:
@@ -641,9 +670,9 @@ class HelixContextManager:
                 status="denatured" if self.genome.stats().get("total_genes", 0) > 0 else "sparse",
             )
             return ContextWindow(
-                ribosome_prompt=self._decoder_prompt,
+                ribosome_prompt=effective_decoder_prompt,
                 expressed_context="(no relevant context found in genome)",
-                total_estimated_tokens=estimate_tokens(self._decoder_prompt),
+                total_estimated_tokens=estimate_tokens(effective_decoder_prompt),
                 compression_ratio=1.0,
                 context_health=empty_health,
                 metadata={"query": query, "genes_expressed": 0},
@@ -784,7 +813,9 @@ class HelixContextManager:
                                 candidates[-1] = g
                                 break
                     except Exception:
-                        pass  # Lagrange check is a bonus, never blocks
+                        # Lagrange check is a bonus, never blocks — but log
+                        # so failures don't silently disable the tier.
+                        log.warning("Lagrange pull-back failed", exc_info=True)
 
         # Step 3.5: NLI classification (optional, DeBERTa backend only)
         relation_graph = {}
@@ -839,6 +870,7 @@ class HelixContextManager:
             answer_slate=answer_slate_lines if use_slate else None,
             session_id=session_id,
             ignore_delivered=ignore_delivered,
+            decoder_prompt_override=effective_decoder_prompt,
         )
 
         # Annotate window with dynamic budget tier (for telemetry/benchmarks)
@@ -861,7 +893,9 @@ class HelixContextManager:
                 if weights:
                     self.genome.store_harmonic_weights(weights)
             except Exception:
-                pass  # Harmonic links are diagnostic, not critical
+                # Harmonic links are diagnostic, not critical — non-blocking,
+                # but log so failures don't disappear silently.
+                log.warning("Harmonic link persistence failed", exc_info=True)
 
         # Update TCM session context with expressed genes
         if self._tcm_session is not None:
@@ -905,6 +939,8 @@ class HelixContextManager:
         prompt_tokens_hint: Optional[int] = None,
         session_id: Optional[str] = None,
         ignore_delivered: bool = False,
+        read_only: bool = False,
+        decoder_override: Optional[str] = None,
     ) -> ContextWindow:
         """Async wrapper -- runs the sync pipeline in thread pool."""
         loop = asyncio.get_event_loop()
@@ -919,6 +955,8 @@ class HelixContextManager:
             prompt_tokens_hint,
             session_id,
             ignore_delivered,
+            read_only,
+            decoder_override,
         )
 
     def reset_session_state(self) -> None:
@@ -1292,6 +1330,7 @@ class HelixContextManager:
         party_id: Optional[str] = None,
         use_harmonic: bool = True,
         use_sr: Optional[bool] = None,
+        read_only: bool = False,
     ) -> List[Gene]:
         """Query genome + pending buffer for matching genes.
 
@@ -1330,6 +1369,7 @@ class HelixContextManager:
                 party_id=party_id,
                 use_harmonic=use_harmonic,
                 use_sr=use_sr,
+                read_only=read_only,
             )
         except PromoterMismatch:
             pass
@@ -1517,6 +1557,7 @@ class HelixContextManager:
         answer_slate: Optional[List[str]] = None,
         session_id: Optional[str] = None,
         ignore_delivered: bool = False,
+        decoder_prompt_override: Optional[str] = None,
     ) -> ContextWindow:
         """
         Sort spliced parts, join with dividers, wrap in expressed_context tags.
@@ -1668,7 +1709,9 @@ class HelixContextManager:
             slate_text = "\n".join(unique_slate[:20])
             decoder_prompt = DECODER_MOE.replace("{answer_slate}", slate_text)
         else:
-            decoder_prompt = self._decoder_prompt
+            # Honor per-request override (threaded from build_context) to
+            # avoid racing on self._decoder_prompt across concurrent calls.
+            decoder_prompt = decoder_prompt_override or self._decoder_prompt
 
         # Budget enforcement: if over token budget, drop lowest-scored genes
         est_tokens = estimate_tokens(decoder_prompt) + estimate_tokens(expressed_wrapped)

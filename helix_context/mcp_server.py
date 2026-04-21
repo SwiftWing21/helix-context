@@ -96,6 +96,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import socket
 import urllib.error
 import urllib.request
 from typing import Any, Dict, List, Optional
@@ -116,6 +117,27 @@ TIMEOUT_S = float(os.environ.get("HELIX_MCP_TIMEOUT", "30"))
 # subprocess lifetime. Matches the _register_with_registry() handle
 # scheme, so the session_id here aligns with the registry participant.
 MCP_SESSION_ID = os.environ.get("HELIX_MCP_HANDLE", f"mcp-{os.getpid()}")
+
+
+def _default_party_id() -> str:
+    """Resolve a party_id without hardcoded project defaults.
+
+    Mirrors the device-resolution pattern in
+    ``server.py:_local_attribution_defaults``:
+    HELIX_PARTY_ID > HELIX_DEVICE > HELIX_PARTY > socket.gethostname().
+    Falls back to ``"unknown-host"`` only if the hostname lookup itself
+    fails, so the caller always gets a usable string.
+    """
+    for key in ("HELIX_PARTY_ID", "HELIX_DEVICE", "HELIX_PARTY"):
+        val = os.environ.get(key)
+        if val:
+            return val
+    try:
+        return socket.gethostname() or "unknown-host"
+    except Exception:
+        log.warning("socket.gethostname() failed for party_id", exc_info=True)
+        return "unknown-host"
+
 
 mcp = FastMCP("helix")
 
@@ -141,11 +163,15 @@ def _http(method: str, path: str, body: Optional[Dict] = None) -> Dict[str, Any]
             except json.JSONDecodeError:
                 return {"_raw": raw}
     except urllib.error.HTTPError as exc:
+        # Preserved: _normalize_health_payload consumes this structured
+        # shape to render a readable status card for the MCP host.
         return {
             "_error": f"HTTP {exc.code}",
             "_detail": exc.read().decode("utf-8", errors="replace")[:500],
         }
     except urllib.error.URLError as exc:
+        # Preserved: _normalize_health_payload branches on the literal
+        # "helix unreachable" marker to surface a restart hint.
         return {
             "_error": "helix unreachable",
             "_detail": f"{exc.reason} at {url}",
@@ -155,7 +181,13 @@ def _http(method: str, path: str, body: Optional[Dict] = None) -> Dict[str, Any]
             ),
         }
     except Exception as exc:
-        return {"_error": str(exc)}
+        # Unexpected errors surface as real MCP errors (isError=true)
+        # so hosts can distinguish them from structured transport
+        # failures above. FastMCP wraps raised exceptions for us.
+        log.warning(
+            "helix-mcp _http(%s %s) unexpected failure", method, path, exc_info=True
+        )
+        raise
 
 
 def _normalize_health_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -459,9 +491,10 @@ def helix_hitl_emit(
     Participant resolution (pick the most specific you have):
         participant_id: explicit participant UUID (from /sessions/register)
         party_id: explicit party (if no participant)
-        If neither is given, HELIX_PARTY_ID env var is used, or the
-        default "swift_wing21" — this ensures events always land
-        somewhere rather than dropping silently.
+        If neither is given, the party_id is derived from HELIX_PARTY_ID
+        (or HELIX_DEVICE / HELIX_PARTY), falling back to
+        socket.gethostname(). This ensures events always land somewhere
+        rather than dropping silently.
 
     Returns {event_id, ok: true} on success, {error: str} on failure.
     Does not mutate genome state; only writes to hitl_events.
@@ -486,11 +519,11 @@ def helix_hitl_emit(
     if participant_id:
         body["participant_id"] = participant_id
 
-    # Default party from env so events don't drop when no participant
-    # registration happened (e.g., MCP host didn't run _register_with_registry
-    # or the registration failed silently).
+    # Default party from env (or hostname) so events don't drop when no
+    # participant registration happened (e.g., MCP host didn't run
+    # _register_with_registry or the registration failed silently).
     if not participant_id and not party_id:
-        party_id = os.environ.get("HELIX_PARTY_ID", "swift_wing21")
+        party_id = _default_party_id()
     if party_id:
         body["party_id"] = party_id
 
@@ -511,9 +544,9 @@ def helix_hitl_recent(
 ) -> Dict[str, Any]:
     """List recent HITL pause events, newest first.
 
-    party_id: defaults to the HELIX_PARTY_ID env var (typically
-        "swift_wing21") so calls without args scope to this session's
-        party. Pass an explicit party_id to override.
+    party_id: defaults to HELIX_PARTY_ID (or HELIX_DEVICE / HELIX_PARTY),
+        then socket.gethostname(), so calls without args scope to this
+        session's party. Pass an explicit party_id to override.
     pause_type: filter to one of "permission_request", "uncertainty_check",
         "rollback_confirm", "other".
     since_ts: Unix timestamp lower-bound filter.
@@ -522,7 +555,7 @@ def helix_hitl_recent(
     Returns {events: [...], count: int}.
     """
     if party_id is None:
-        party_id = os.environ.get("HELIX_PARTY_ID", "swift_wing21")
+        party_id = _default_party_id()
 
     qs_parts = [f"party_id={urllib.request.quote(party_id)}"]
     if pause_type:
@@ -860,8 +893,9 @@ def _register_with_registry() -> None:
     Env vars (all optional — sensible defaults):
         HELIX_MCP_HANDLE   Handle for this session (default: mcp-<pid>).
                            Hosts SHOULD set this: "laude", "gemini", etc.
-        HELIX_PARTY_ID     Party this participant belongs to
-                           (default: "swift_wing21").
+        HELIX_PARTY_ID     Party this participant belongs to. Falls
+                           back to HELIX_DEVICE, HELIX_PARTY, then
+                           socket.gethostname() — no hardcoded default.
         HELIX_MCP_HOST     MCP host name — used as a capability tag so
                            ``GET /sessions`` can tell which IDE spawned
                            this process. E.g. "claude-code",
@@ -877,7 +911,7 @@ def _register_with_registry() -> None:
         return
 
     handle = os.environ.get("HELIX_MCP_HANDLE", f"mcp-{os.getpid()}")
-    party_id = os.environ.get("HELIX_PARTY_ID", "swift_wing21")
+    party_id = _default_party_id()
     mcp_host = os.environ.get("HELIX_MCP_HOST", "unknown")
     workspace: Optional[str]
     try:
