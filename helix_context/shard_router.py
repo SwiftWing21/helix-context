@@ -133,11 +133,14 @@ class ShardRouter:
         max_genes: int = 8,
         party_id: Optional[str] = None,
         read_only: bool = False,
+        **kwargs,
     ) -> List[Gene]:
         """Fan query across routed shards, merge by score, top-K.
 
         Mirrors Genome.query_genes signature so callers can swap
-        without branching.
+        without branching. Extra kwargs (``use_harmonic``, ``cwola_weight``,
+        etc.) forward verbatim to each shard's ``Genome.query_genes``; any
+        kwarg a given shard rejects is silently dropped for that shard.
         """
         shard_names = self.route(domains, entities)
         if not shard_names:
@@ -163,7 +166,26 @@ class ShardRouter:
                     max_genes=max_genes,
                     party_id=party_id,
                     read_only=read_only,
+                    **kwargs,
                 )
+            except TypeError:
+                # Kwarg mismatch with an older Genome schema — fall back to
+                # the minimal signature so a stale shard still contributes.
+                log.warning(
+                    "shard %s rejected kwargs %s; falling back to base signature",
+                    shard_name, list(kwargs.keys()),
+                )
+                try:
+                    genes = shard.query_genes(
+                        domains=domains,
+                        entities=entities,
+                        max_genes=max_genes,
+                        party_id=party_id,
+                        read_only=read_only,
+                    )
+                except Exception:
+                    log.warning("shard %s query failed; skipping", shard_name, exc_info=True)
+                    continue
             except Exception:
                 log.warning("shard %s query failed; skipping", shard_name, exc_info=True)
                 continue

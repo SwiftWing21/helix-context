@@ -208,7 +208,9 @@ class ShardedGenomeAdapter:
                  "genes": r["gene_count"], "bytes": r["byte_size"]}
                 for r in rows
             ],
-            "compression_ratio": None,
+            # Per-shard compression ratios aren't replicated to main.db in V1;
+            # return 0.0 as a sentinel so numeric consumers don't crash.
+            "compression_ratio": 0.0,
         }
 
     def health_summary(self) -> dict:
@@ -227,6 +229,38 @@ class ShardedGenomeAdapter:
         """
         return self._router.main_conn
 
+    @property
+    def read_conn(self):
+        """Read-only SQL callers share the main routing DB connection.
+
+        Same caveat as ``conn``: per-shard tables aren't reachable.
+        """
+        return self._router.main_conn
+
+    def get_gene(self, gene_id: str):
+        """Fetch a gene by id across shards.
+
+        Uses ``fingerprint_index`` to locate the owning shard, then opens
+        that shard and delegates. Returns ``None`` if the gene_id is not
+        in any registered shard.
+        """
+        row = self._router.main_conn.execute(
+            "SELECT shard_name FROM fingerprint_index WHERE gene_id = ? LIMIT 1",
+            (gene_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        try:
+            shard = self._router._open_shard(row["shard_name"])
+        except Exception:
+            log.warning("get_gene: shard %s unavailable", row["shard_name"], exc_info=True)
+            return None
+        return shard.get_gene(gene_id)
+
+    def health_history(self, limit: int = 10) -> list:
+        """No cross-shard health log in V1 — return empty."""
+        return []
+
     # ── Write surface (no-ops in V1) ──────────────────────────────────
 
     def upsert_gene(self, gene, **_kw) -> str:
@@ -243,6 +277,15 @@ class ShardedGenomeAdapter:
     def compact(self, *_a, **_kw) -> None: pass
     def refresh(self) -> None: pass
     def set_replication_manager(self, *_a, **_kw) -> None: pass
+    def checkpoint(self, *_a, **_kw) -> None: pass
+    def token_counter_flush(self, *_a, **_kw) -> None: pass
+    def vacuum(self, *_a, **_kw) -> dict: return {"vacuumed": 0, "sharded": True}
+    def compact_genome(self, *_a, **_kw) -> dict: return {"compacted": 0, "sharded": True}
+    def invalidate_sema_cache(self, *_a, **_kw) -> None: pass
+    def _build_sema_cache(self, *_a, **_kw) -> None: pass
+
+    # SEMA cache is main-only (not per-shard in V1); expose an empty one.
+    _sema_cache: dict = {}
 
     # ── Lifecycle ─────────────────────────────────────────────────────
 

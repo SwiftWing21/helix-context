@@ -1,0 +1,92 @@
+{
+  "genome_size": 0,
+  "needles": [
+    {
+      "name": "helix_and_headroom_ports",
+      "raw_candidates": 0,
+      "raw_latency_s": 8.066,
+      "raw_content_recall": 0.0,
+      "narrowed_candidates": 8,
+      "narrowed_latency_s": 2.188,
+      "narrowed_content_recall": 0.0,
+      "narrowing_ratio": 0.0
+    },
+    {
+      "name": "python_version_and_codec_extra",
+      "raw_candidates": 0,
+      "raw_latency_s": 0.007,
+      "raw_content_recall": 0.0,
+      "narrowed_candidates": 8,
+      "narrowed_latency_s": 1.532,
+      "narrowed_content_recall": 0.0,
+      "narrowing_ratio": 0.0
+    },
+    {
+      "name": "pipeline_steps_and_compression_target",
+      "raw_candidates": 0,
+      "raw_latency_s": 0.007,
+      "raw_content_recall": 0.0,
+      "narrowed_candidates": 7,
+      "narrowed_latency_s": 1.942,
+      "narrowed_content_recall": 0.0,
+      "narrowing_ratio": 0.0
+    },
+    {
+      "name": "claim_types_and_spec_source",
+      "raw_candidates": 0,
+      "raw_latency_s": 0.008,
+      "raw_content_recall": 0.0,
+      "narrowed_candidates": 8,
+      "narrowed_latency_s": 1.122,
+      "narrowed_content_recall": 0.0,
+      "narrowing_ratio": 0.0
+    },
+    {
+      "name": "headroom_port_and_mode_default",
+      "raw_candidates": 0,
+      "raw_latency_s": 0.008,
+      "raw_content_recall": 0.0,
+      "narrowed_candidates": 7,
+      "narrowed_latency_s": 1.889,
+      "narrowed_content_recall": 0.0,
+      "narrowing_ratio": 0.0
+    },
+    {
+      "name": "freshness_half_lives_stable_and_hot",
+      "raw_candidates": 0,
+      "raw_latency_s": 0.01,
+      "raw_content_recall": 0.0,
+      "narrowed_candidates": 8,
+      "narrowed_latency_s": 0.694,
+      "narrowed_content_recall": 0.0,
+      "narrowing_ratio": 0.0
+    },
+    {
+      "name": "coord_floor_and_file_grain_floor",
+      "raw_candidates": 0,
+      "raw_latency_s": 0.007,
+      "raw_content_recall": 0.0,
+      "narrowed_candidates": 8,
+      "narrowed_latency_s": 0.718,
+      "narrowed_content_recall": 0.0,
+      "narrowing_ratio": 0.0
+    },
+    {
+      "name": "helix_port_and_fleet_port",
+      "raw_candidates": 0,
+      "raw_latency_s": 0.008,
+      "raw_content_recall": 0.0,
+      "narrowed_candidates": 8,
+      "narrowed_latency_s": 2.273,
+      "narrowed_content_recall": 0.0,
+      "narrowing_ratio": 0.0
+    }
+  ],
+  "summary": {
+    "mean_raw_recall": 0.0,
+    "mean_narrowed_recall": 0.0,
+    "mean_raw_latency_s": 1.015125,
+    "mean_narrowed_latency_s": 1.54475,
+    "mean_narrowing_ratio": 0.0
+  }
+}

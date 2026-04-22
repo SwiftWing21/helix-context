@@ -1,0 +1,161 @@
+{
+  "genome": {
+    "total_genes": 17037,
+    "compression_ratio": 0.0
+  },
+  "needles": [
+    {
+      "name": "helix_and_headroom_ports",
+      "query": "what ports do helix and headroom listen on",
+      "n_delivered": 12,
+      "context_latency_s": 7.38,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 0,
+      "all_delivered": false,
+      "any_delivered": false,
+      "partial_recall": 0.0,
+      "group_hit_counts": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "python_version_and_codec_extra",
+      "query": "what python version does helix require and which extra enables headroom integration",
+      "n_delivered": 13,
+      "context_latency_s": 7.289,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 0,
+      "all_delivered": false,
+      "any_delivered": false,
+      "partial_recall": 0.0,
+      "group_hit_counts": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "pipeline_steps_and_compression_target",
+      "query": "how many steps are in the helix pipeline and what is the target compression ratio",
+      "n_delivered": 12,
+      "context_latency_s": 5.137,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 0,
+      "all_delivered": false,
+      "any_delivered": false,
+      "partial_recall": 0.0,
+      "group_hit_counts": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "claim_types_and_spec_source",
+      "query": "what are the allowed claim_type values and where is the claims layer specified",
+      "n_delivered": 12,
+      "context_latency_s": 6.144,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 1,
+      "all_delivered": false,
+      "any_delivered": true,
+      "partial_recall": 0.5,
+      "group_hit_counts": [
+        2,
+        0
+      ]
+    },
+    {
+      "name": "helix_port_and_fleet_port",
+      "query": "what port does helix listen on and what port does the bigEd fleet dashboard use",
+      "n_delivered": 12,
+      "context_latency_s": 8.565,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 0,
+      "all_delivered": false,
+      "any_delivered": false,
+      "partial_recall": 0.0,
+      "group_hit_counts": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "headroom_dashboard_port_and_mode_default",
+      "query": "what port does the headroom dashboard serve on and what is the default compression mode",
+      "n_delivered": 12,
+      "context_latency_s": 9.814,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 0,
+      "all_delivered": false,
+      "any_delivered": false,
+      "partial_recall": 0.0,
+      "group_hit_counts": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "freshness_half_lives_stable_and_hot",
+      "query": "what are the half-lives for stable and hot volatility classes",
+      "n_delivered": 12,
+      "context_latency_s": 6.216,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 2,
+      "all_delivered": true,
+      "any_delivered": true,
+      "partial_recall": 1.0,
+      "group_hit_counts": [
+        1,
+        1
+      ]
+    },
+    {
+      "name": "coord_confidence_floor_and_file_grain_floor",
+      "query": "what is the coordinate confidence floor and the file-grain coverage floor",
+      "n_delivered": 12,
+      "context_latency_s": 4.4,
+      "resolution_confidence": 0,
+      "path_token_coverage": 0,
+      "file_token_coverage": 0,
+      "n_groups": 2,
+      "n_hit_groups": 2,
+      "all_delivered": true,
+      "any_delivered": true,
+      "partial_recall": 1.0,
+      "group_hit_counts": [
+        1,
+        1
+      ]
+    }
+  ],
+  "summary": {
+    "n": 8,
+    "full_recall": 2,
+    "any_hit": 3,
+    "zero_hit": 5,
+    "avg_partial_recall": 0.3125,
+    "avg_resolution_confidence": 0.0,
+    "avg_context_latency_s": 6.868125
+  }
+}
