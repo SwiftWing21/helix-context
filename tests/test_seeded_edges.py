@@ -82,8 +82,12 @@ class TestMissWeight:
         # Not physically reachable (rank <= max_genes is in_cut), but
         # defensive behaviour when callers hand in weird input.
         assert miss_weight(4, 8) == 0.0  # in cut
-        # Guard against negative rank if somehow passed
-        assert miss_weight(-1, 8) == 0.0
+        # Invalid rank (dense_rank is 1-indexed) is a caller bug: raise loudly
+        # rather than silently returning 0.0 (per the no-silent-failures rule).
+        with pytest.raises(ValueError):
+            miss_weight(-1, 8)
+        with pytest.raises(ValueError):
+            miss_weight(0, 8)
 
 
 class TestMultiSignalOverlap:

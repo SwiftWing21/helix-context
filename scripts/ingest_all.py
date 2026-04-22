@@ -1,14 +1,15 @@
-"""
-Ingest all sources into the genome in one pass.
+r"""
+Ingest sources into the genome in one pass.
 
-Sources:
+Default sources (override with --sources):
   - F:\Projects (code, docs, configs)
   - F:\SteamLibrary (game Lua/JSON/configs + manifests)
   - F:\OpenModels (GGUF model headers)
-  - E:\ (games, programs)
+  - E:\SteamLibrary, E:\Program Files, E:\NetMose
 
 Skips binaries, limits file size to 200KB to avoid stalls on
-massive JSON/XML blobs. Commits every 100 genes.
+massive JSON/XML blobs. Commits every 100 genes. Each gene receives
+forward-only provenance via apply_metadata_hints + apply_provenance.
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from helix_context.tagger import CpuTagger
 from helix_context.genome import Genome
 from helix_context.codons import CodonChunker
+from helix_context.provenance import apply_metadata_hints, apply_provenance
 
 logging.basicConfig(
     level=logging.INFO,
@@ -48,6 +50,10 @@ SKIP_DIRS = {
     # Keep benchmark prompts, docs, and result artifacts out of the
     # live working genome so they cannot be retrieved as evidence.
     "benchmarks",
+    # Archived genome backups — never re-ingest a previous genome.
+    "Helix-backup blobs",
+    # Unity / game engine runtime directories with no ingestable text.
+    "D3D12",
 }
 
 MAX_FILE_SIZE = 200_000   # 200KB — avoids stalls on giant JSON/XML
@@ -84,6 +90,12 @@ def ingest_tree(root, genome, tagger, chunker, stats):
 
             ct = "code" if ext in CODE_EXTS else "text"
             strands = chunker.chunk(content, content_type=ct)
+            total_strands = len(strands)
+            try:
+                file_mtime = os.path.getmtime(fpath)
+            except OSError:
+                file_mtime = None
+            metadata = {"mtime": file_mtime, "repo_root": root}
             for i, strand in enumerate(strands):
                 gene = tagger.pack(
                     strand.content,
@@ -92,6 +104,18 @@ def ingest_tree(root, genome, tagger, chunker, stats):
                     sequence_index=i,
                 )
                 gene.is_fragment = strand.is_fragment
+                apply_metadata_hints(
+                    gene,
+                    metadata,
+                    content_type=ct,
+                    total_strands=total_strands,
+                )
+                apply_provenance(
+                    gene,
+                    source_path=fpath,
+                    observed_at=gene.observed_at,
+                    content_type=ct,
+                )
                 genome.upsert_gene(gene)
                 stats["genes"] += 1
 
@@ -120,7 +144,24 @@ def ingest_models(root, genome, tagger, stats):
     models = read_ollama_manifests(root)
     for model in models:
         content = model_to_gene_content(model)
-        gene = tagger.pack(content, content_type="text", source_id=model["manifest_path"])
+        manifest_path = model["manifest_path"]
+        try:
+            manifest_mtime = os.path.getmtime(manifest_path)
+        except OSError:
+            manifest_mtime = None
+        gene = tagger.pack(content, content_type="text", source_id=manifest_path)
+        metadata = {
+            "mtime": manifest_mtime,
+            "repo_root": root,
+            "source_kind": "config",  # GGUF manifests are metadata, not code
+        }
+        apply_metadata_hints(gene, metadata, content_type="text", total_strands=1)
+        apply_provenance(
+            gene,
+            source_path=manifest_path,
+            observed_at=gene.observed_at,
+            content_type="text",
+        )
         genome.upsert_gene(gene)
         stats["genes"] += 1
         stats["files"] += 1
@@ -129,11 +170,29 @@ def ingest_models(root, genome, tagger, stats):
                  model["gguf"]["tensor_count"] if model.get("gguf") else 0)
 
 
+def _parse_source_arg(spec: str) -> tuple[str, str]:
+    """Parse a `path=label` source spec. Label defaults to the basename."""
+    if "=" in spec:
+        path, label = spec.split("=", 1)
+    else:
+        path, label = spec, os.path.basename(spec.rstrip("/\\")) or spec
+    return path, label
+
+
 def main():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--db", default="genome.db")
     parser.add_argument("--skip-models", action="store_true")
+    parser.add_argument(
+        "--sources",
+        nargs="+",
+        metavar="PATH=LABEL",
+        help=(
+            "Override default sources. Each arg is a `path=label` pair; label "
+            "'models' triggers the GGUF-manifest reader instead of a file walk."
+        ),
+    )
     args = parser.parse_args()
 
     genome = Genome(path=args.db, synonym_map={}, splade_enabled=True, entity_graph=True)
@@ -142,14 +201,17 @@ def main():
 
     stats = {"files": 0, "genes": 0, "skipped": 0, "errors": 0, "t0": time.perf_counter()}
 
-    sources = [
-        ("F:/Projects", "projects"),
-        ("F:/SteamLibrary", "steam-f"),
-        ("F:/OpenModels", "models"),
-        ("E:/SteamLibrary", "steam-e"),
-        ("E:/Program Files", "programs-e"),
-        ("E:/NetMose", "netmose"),
-    ]
+    if args.sources:
+        sources = [_parse_source_arg(s) for s in args.sources]
+    else:
+        sources = [
+            ("F:/Projects", "projects"),
+            ("F:/SteamLibrary", "steam-f"),
+            ("F:/OpenModels", "models"),
+            ("E:/SteamLibrary", "steam-e"),
+            ("E:/Program Files", "programs-e"),
+            ("E:/NetMose", "netmose"),
+        ]
 
     for root, label in sources:
         if not os.path.isdir(root):

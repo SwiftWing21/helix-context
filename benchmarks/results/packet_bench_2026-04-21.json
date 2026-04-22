@@ -1,0 +1,235 @@
+{
+  "scenarios": [
+    {
+      "family": "stale_by_age",
+      "name": "stable_doc_30_days_old",
+      "query": "helix design",
+      "task_type": "edit",
+      "expected_status": "needs_refresh",
+      "actual_status": "needs_refresh",
+      "status_ok": true,
+      "note_ok": true,
+      "matched_note": null,
+      "passed": true,
+      "time_ms": 2.19,
+      "verified_count": 0,
+      "stale_risk_count": 1,
+      "refresh_target_count": 1,
+      "notes": [
+        "source_index unavailable; using gene-local metadata only"
+      ]
+    },
+    {
+      "family": "stale_by_age",
+      "name": "hot_config_1_hour_old",
+      "query": "helix auth config",
+      "task_type": "ops",
+      "expected_status": "needs_refresh",
+      "actual_status": "needs_refresh",
+      "status_ok": true,
+      "note_ok": true,
+      "matched_note": null,
+      "passed": true,
+      "time_ms": 0.84,
+      "verified_count": 0,
+      "stale_risk_count": 1,
+      "refresh_target_count": 1,
+      "notes": [
+        "source_index unavailable; using gene-local metadata only"
+      ]
+    },
+    {
+      "family": "stale_by_age",
+      "name": "medium_db_2_days_old",
+      "query": "helix benchmark result",
+      "task_type": "review",
+      "expected_status": "needs_refresh",
+      "actual_status": "needs_refresh",
+      "status_ok": true,
+      "note_ok": true,
+      "matched_note": null,
+      "passed": true,
+      "time_ms": 0.6,
+      "verified_count": 0,
+      "stale_risk_count": 1,
+      "refresh_target_count": 1,
+      "notes": [
+        "source_index unavailable; using gene-local metadata only",
+        "file_coverage=0.00 below 0.15 floor (folder=1.00) \u2014 delivered set is in the right folder but no filenames match the queried concept"
+      ]
+    },
+    {
+      "family": "coordinate_mismatch",
+      "name": "product_name_wrong_repo_edit",
+      "query": "scorerift preset dimensions",
+      "task_type": "edit",
+      "expected_status": "needs_refresh",
+      "actual_status": "needs_refresh",
+      "status_ok": true,
+      "note_ok": true,
+      "matched_note": "coordinate_confidence=0.00 below 0.30 floor (folder=0.00, file=0.00) \u2014 retrieval may not have located the right coordinate region",
+      "passed": true,
+      "time_ms": 0.62,
+      "verified_count": 0,
+      "stale_risk_count": 1,
+      "refresh_target_count": 1,
+      "notes": [
+        "source_index unavailable; using gene-local metadata only",
+        "coordinate_confidence=0.00 below 0.30 floor (folder=0.00, file=0.00) \u2014 retrieval may not have located the right coordinate region"
+      ]
+    },
+    {
+      "family": "coordinate_mismatch",
+      "name": "product_name_wrong_repo_explain",
+      "query": "scorerift preset dimensions",
+      "task_type": "explain",
+      "expected_status": "stale_risk",
+      "actual_status": "stale_risk",
+      "status_ok": true,
+      "note_ok": true,
+      "matched_note": "coordinate_confidence=0.00 below 0.30 floor (folder=0.00, file=0.00) \u2014 retrieval may not have located the right coordinate region",
+      "passed": true,
+      "time_ms": 0.67,
+      "verified_count": 0,
+      "stale_risk_count": 1,
+      "refresh_target_count": 1,
+      "notes": [
+        "source_index unavailable; using gene-local metadata only",
+        "coordinate_confidence=0.00 below 0.30 floor (folder=0.00, file=0.00) \u2014 retrieval may not have located the right coordinate region"
+      ]
+    },
+    {
+      "family": "task_sensitivity",
+      "name": "medium_6h_as_explain",
+      "query": "helix config overview",
+      "task_type": "explain",
+      "expected_status": "verified",
+      "actual_status": "verified",
+      "status_ok": true,
+      "note_ok": true,
+      "matched_note": null,
+      "passed": true,
+      "time_ms": 0.59,
+      "verified_count": 1,
+      "stale_risk_count": 0,
+      "refresh_target_count": 0,
+      "notes": [
+        "source_index unavailable; using gene-local metadata only"
+      ]
+    },
+    {
+      "family": "task_sensitivity",
+      "name": "medium_6h_as_edit",
+      "query": "helix config overview",
+      "task_type": "edit",
+      "expected_status": "stale_risk",
+      "actual_status": "stale_risk",
+      "status_ok": true,
+      "note_ok": true,
+      "matched_note": null,
+      "passed": true,
+      "time_ms": 0.58,
+      "verified_count": 0,
+      "stale_risk_count": 1,
+      "refresh_target_count": 1,
+      "notes": [
+        "source_index unavailable; using gene-local metadata only"
+      ]
+    },
+    {
+      "family": "authority_downgrade",
+      "name": "inferred_authority_on_ops",
+      "query": "helix port",
+      "task_type": "ops",
+      "expected_status": "needs_refresh",
+      "actual_status": "needs_refresh",
+      "status_ok": true,
+      "note_ok": true,
+      "matched_note": null,
+      "passed": true,
+      "time_ms": 0.53,
+      "verified_count": 0,
+      "stale_risk_count": 1,
+      "refresh_target_count": 1,
+      "notes": [
+        "source_index unavailable; using gene-local metadata only",
+        "file_coverage=0.00 below 0.15 floor (folder=1.00) \u2014 delivered set is in the right folder but no filenames match the queried concept"
+      ]
+    },
+    {
+      "family": "clean_verified",
+      "name": "fresh_aligned_stable_explain",
+      "query": "helix sharding",
+      "task_type": "explain",
+      "expected_status": "verified",
+      "actual_status": "verified",
+      "status_ok": true,
+      "note_ok": true,
+      "matched_note": null,
+      "passed": true,
+      "time_ms": 0.61,
+      "verified_count": 1,
+      "stale_risk_count": 0,
+      "refresh_target_count": 0,
+      "notes": [
+        "source_index unavailable; using gene-local metadata only"
+      ]
+    },
+    {
+      "family": "clean_verified",
+      "name": "fresh_aligned_code_edit",
+      "query": "helix genome",
+      "task_type": "edit",
+      "expected_status": "verified",
+      "actual_status": "verified",
+      "status_ok": true,
+      "note_ok": true,
+      "matched_note": null,
+      "passed": true,
+      "time_ms": 0.62,
+      "verified_count": 1,
+      "stale_risk_count": 0,
+      "refresh_target_count": 0,
+      "notes": [
+        "source_index unavailable; using gene-local metadata only"
+      ]
+    }
+  ],
+  "summary": {
+    "total_scenarios": 10,
+    "total_passed": 10,
+    "overall_pass_rate": 1.0,
+    "by_family": {
+      "stale_by_age": {
+        "total": 3,
+        "passed": 3,
+        "pass_rate": 1.0,
+        "avg_time_ms": 1.21
+      },
+      "coordinate_mismatch": {
+        "total": 2,
+        "passed": 2,
+        "pass_rate": 1.0,
+        "avg_time_ms": 0.65
+      },
+      "task_sensitivity": {
+        "total": 2,
+        "passed": 2,
+        "pass_rate": 1.0,
+        "avg_time_ms": 0.58
+      },
+      "authority_downgrade": {
+        "total": 1,
+        "passed": 1,
+        "pass_rate": 1.0,
+        "avg_time_ms": 0.53
+      },
+      "clean_verified": {
+        "total": 2,
+        "passed": 2,
+        "pass_rate": 1.0,
+        "avg_time_ms": 0.61
+      }
+    }
+  }
+}
