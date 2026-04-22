@@ -194,9 +194,13 @@ class HelixContextManager:
         except Exception:
             log.warning("ΣĒMA codec failed to load", exc_info=True)
 
-        # Genome (SQLite storage)
-        self.genome = Genome(
-            path=config.genome.path,
+        # Genome (SQLite storage) — swapped for a ShardedGenomeAdapter when
+        # HELIX_USE_SHARDS=1 and the configured path is a routing DB. Writes
+        # become no-ops in that mode; suitable for read-heavy serving and
+        # benchmarks until ingest-time sharding (spec Task 6) lands.
+        from .sharding import open_read_source
+        self.genome = open_read_source(
+            genome_path=config.genome.path,
             synonym_map=config.synonym_map,
             sema_codec=self._sema_codec,
             splade_enabled=config.ingestion.splade_enabled,

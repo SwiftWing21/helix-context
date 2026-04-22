@@ -369,6 +369,13 @@ def load_config(path: Optional[str] = None) -> HelixConfig:
             upstream_timeout=float(s.get("upstream_timeout", cfg.server.upstream_timeout)),
         )
 
+    # Genome path override — lets sharded vs monolithic servers coexist
+    # on different ports without duplicating helix.toml. Typical use:
+    # ``HELIX_GENOME_PATH=genomes/main.genome.db HELIX_USE_SHARDS=1`` for a
+    # sharded bench server on a side port; defaults still serve monolithic.
+    if os.environ.get("HELIX_GENOME_PATH"):
+        cfg.genome.path = os.environ["HELIX_GENOME_PATH"]
+
     # Server env overrides — lets launchers/profiles redirect Helix to a
     # different chat upstream without rewriting helix.toml on disk.
     if os.environ.get("HELIX_SERVER_UPSTREAM"):
