@@ -195,11 +195,40 @@ def _item_title(gene: Gene, meta: dict) -> str:
     return gene.gene_id
 
 
-def _item_content(gene: Gene) -> str:
-    text = (gene.complement or gene.content or "").strip()
-    if len(text) <= 280:
+_DEFAULT_MAX_ITEM_CHARS = 280
+# Opt-in raw cap: when callers pass include_raw=True they're signalling
+# they want the full gene.content (not the ribosome-compressed summary)
+# for direct consumption as LLM context. 48k chars ~ 12k tokens per item
+# — a single item can't exceed a typical context window by itself, but a
+# packet of 8 max_genes × 48k would be 384k chars. Callers that need a
+# smaller per-item cap override via `max_item_chars`.
+_RAW_MAX_ITEM_CHARS = 48000
+
+
+def _item_content(
+    gene: Gene,
+    *,
+    max_chars: int = _DEFAULT_MAX_ITEM_CHARS,
+    prefer_raw: bool = False,
+) -> str:
+    """Per-item content string for the packet.
+
+    The default 280-char cap uses ``gene.complement`` (the ribosome
+    compressed summary) and truncates aggressively — appropriate when the
+    packet is itself routing metadata and the LLM will re-fetch on demand.
+
+    When ``prefer_raw=True`` the full ``gene.content`` is returned instead,
+    bounded by ``max_chars``. This is the "helix_only gives me the real
+    content, not a thumbnail" path — opt-in via the ``include_raw`` flag
+    on ``/context/packet`` (research-review Proposal 3, 2026-04-22).
+    """
+    if prefer_raw:
+        text = (gene.content or gene.complement or "").strip()
+    else:
+        text = (gene.complement or gene.content or "").strip()
+    if len(text) <= max_chars:
         return text
-    return text[:277] + "..."
+    return text[: max(1, max_chars - 3)] + "..."
 
 
 def _item_citations(gene: Gene, meta: dict) -> list[str]:
@@ -299,6 +328,8 @@ def _build_item(
     now_ts: float,
     coordinate_confidence: float = 1.0,
     file_coverage: float = 1.0,
+    max_item_chars: int = _DEFAULT_MAX_ITEM_CHARS,
+    prefer_raw: bool = False,
 ) -> tuple[ContextItem, str]:
     freshness_known = meta.get("last_verified_at") is not None
     freshness_score = _freshness_score(
@@ -328,7 +359,9 @@ def _build_item(
         kind="gene",
         gene_id=gene.gene_id,
         title=_item_title(gene, meta),
-        content=_item_content(gene),
+        content=_item_content(
+            gene, max_chars=max_item_chars, prefer_raw=prefer_raw,
+        ),
         relevance_score=float(relevance_score),
         live_truth_score=float(live_truth_score),
         source_id=meta.get("source_id"),
@@ -408,8 +441,24 @@ def build_context_packet(
     max_genes: int = 8,
     now_ts: float | None = None,
     read_only: bool = False,
+    include_raw: bool = False,
+    max_item_chars: int | None = None,
 ) -> ContextPacket:
-    """Return a freshness-labeled packet for the given query."""
+    """Return a freshness-labeled packet for the given query.
+
+    ``include_raw=True`` switches each item's content from the ribosome-
+    compressed summary to the full ``gene.content``, and bumps the per-item
+    cap to ``_RAW_MAX_ITEM_CHARS`` (48k) unless ``max_item_chars`` overrides.
+    This is the "helix_only ships the real content" path from the
+    2026-04-22 research review (Proposal 3) — use when the packet is the
+    only context source and the downstream LLM needs real bytes, not
+    thumbnails.
+    """
+    effective_max_chars = (
+        max_item_chars
+        if max_item_chars is not None
+        else (_RAW_MAX_ITEM_CHARS if include_raw else _DEFAULT_MAX_ITEM_CHARS)
+    )
     if not query or not query.strip():
         raise ValueError("query must be non-empty")
 
@@ -467,6 +516,8 @@ def build_context_packet(
             now_ts=now_ts,
             coordinate_confidence=coordinate_confidence,
             file_coverage=file_cov,
+            max_item_chars=effective_max_chars,
+            prefer_raw=include_raw,
         )
         if status == "verified":
             packet.verified.append(item)

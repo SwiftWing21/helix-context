@@ -1,4 +1,6 @@
 > **Status (2026-04-13):** §C1 (W1 cymatics) and §C2 logger half shipped in `f4dcdcc` behind `cymatics.distance_metric`. §C2 trainer + §C3 PLR fusion remain blocked on label accumulation (~3 weeks from 2026-04-13).
+>
+> **Update (2026-04-21):** §C2 trainer shipped (`scripts/pwpc/sprint3.py`, GradientBoostingClassifier, best CV AUC = 0.631 on the t07-tightened label set — clears the 0.55 gate). §C3 **shipped as a query-quality head, not a per-(q,g) ranker** — see the addendum at the bottom of this document for the scope trade-off. Write-path in `helix_context/cwola.py::sweep_buckets` now applies the cosine intent-delta filter described in §C2.
 
 # Statistical Fusion — From Hand-Tuned Caps to Calibrated Likelihood Ratios
 
@@ -257,6 +259,67 @@ Per change:
 - Singh, S. et al. (2020). Context Mover's Distance. arXiv:1808.09663
 - Werman, M., Peleg, S., & Rosenfeld, A. (1986). A distance metric
   for multidimensional histograms. *CGIP* 32(3), 328-336.
+
+## Addendum 2026-04-21 — §C3 ships as a query-quality head, not a per-(q,g) fuser
+
+When §C3 was drafted the intent was a per-(query, gene) stacked fuser that
+replaces the additive gene ranker. During implementation the Sprint 1 CWoLa
+logger (`server.py::log_query` call site ~line 900) landed storing
+`tier_features` as the **sum of tier contributions across all genes in the
+retrieval** — one row per query, not one row per (q, g) pair. All labels
+accumulated between 2026-04-13 and 2026-04-15 (2209 rows) reflect that shape.
+
+The Sprint 3 trainer (`scripts/pwpc/sprint3.py`) therefore learns a
+**query-quality classifier** — predicted P(user re-queries within 60s | the
+aggregate tier pattern that this retrieval produced). Every candidate gene in
+a given retrieval shares the same feature vector, so the classifier cannot
+order them; its output is a single per-query confidence score.
+
+### What shipped (Option A)
+
+- **`helix_context/fusion_plr.py::StackedPLRFuser.query_confidence()`** returns
+  `{prob_B, logit, score_A}` for one query. `logit` is the scale-free
+  log-odds statistic from §C3's original derivation; `score_A = 1 - prob_B`
+  is the packet-friendly confidence.
+- **`/context/packet`** attaches a `plr_confidence` block when
+  `[plr] enabled = true` in `helix.toml`. Gene ranking is untouched — the
+  additive fuser still ranks candidates.
+- **Model artifact** at `training/models/stacked_plr.joblib` (sha256 sidecar
+  written by the trainer; load refuses on mismatch).
+- **Best CV AUC: 0.631** on the t07 label set (B ∩ cos(q_t, q_{t+1}) > 0.7);
+  all four label sets (loose / t04 / t05 / t07) cleared the 0.55 gate.
+  Details in `docs/collab/comms/SPRINT3_TRAINER_2026-04-21.md`.
+- **Write-path fix:** `sweep_buckets()` now applies the §C2 cos-filter at
+  bucket-assignment time (default 0.4, configurable). Previously it skipped
+  the filter entirely — see the note in `project_cwola_bucket_accumulation`.
+
+### What Option A does NOT solve
+
+- The "lex_anchor uncapped reaches +291" failure from the original motivation
+  is a gene-scoring problem. A query-quality head doesn't touch it. Separate
+  fixes are available (rank-based per-tier normalisation, or a capped-sum
+  prior over lex_anchor) that don't need CWoLa labels at all.
+- Per-gene ranking quality is unchanged by this work.
+
+### Option B — considered, not rejected
+
+If the per-gene ranker remains the goal (e.g., additive-fusion pathology
+doesn't respond to rank-normalisation, or downstream benchmarks need a
+calibrated per-candidate score), Option B is the refactor path:
+
+1. Change `cwola.log_query()` to emit one row per top-K candidate, each with
+   the per-gene tier-score vector at retrieval time (rather than the
+   aggregate).
+2. Reset the ~2.2K-row label corpus; start accumulating under the new schema.
+3. Retrain with `sprint3.py --per-gene` (would need a new flag + feature
+   builder).
+4. At that point the ranker becomes `score_gene = logit(s(tier_g | q))` and
+   the additive fuser retires.
+
+Cost estimate: schema + logger changes ~200 LOC; trainer feature-builder
+refactor ~100 LOC; ≥3 weeks of re-accumulated labels at current volume.
+Not cheap, but tractable if needed. Raise it when there's a downstream
+benchmark signal that Option A's query-level head is insufficient.
 
 ## Companion docs
 

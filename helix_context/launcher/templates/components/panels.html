@@ -5,17 +5,22 @@
     <p>Helix is stopped. Click <strong>Start</strong> to launch the server.</p>
   </div>
 {% elif state.helix.availability == "degraded" %}
-  <div class="panel panel--empty">
-    <p>Helix is running but not answering health checks cleanly. Try <strong>Restart</strong> and check Diagnostics.</p>
+  <div class="panel panel--health-warning">
+    <p>{{ state.helix.health_message or state.helix.next_action or "Helix is running with degraded health." }}</p>
   </div>
-{% else %}
+{% endif %}
 
+{% if state.helix.running %}
   {% if state.parties %}
     {% include "components/parties_panel.html" %}
   {% endif %}
 
   {% if state.participants %}
     {% include "components/participants_panel.html" %}
+  {% endif %}
+
+  {% if state.disconnected_agents %}
+    {% include "components/disconnected_agents_panel.html" %}
   {% endif %}
 
   {% if state.all_agents %}

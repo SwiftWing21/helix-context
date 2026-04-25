@@ -1,0 +1,21 @@
+<section class="panel panel--disconnected-agents">
+  <h2 class="panel-title">
+    Disconnected Agents <span class="panel-count">{{ state.disconnected_agents.count }}</span>
+  </h2>
+  <ul class="panel-list">
+    {% for agent in state.disconnected_agents.entries %}
+      <li class="panel-list__item panel-list__item--stacked">
+        <div class="panel-list__row">
+          <span class="chip chip--participant">{{ agent.handle }}</span>
+          <span class="chip chip--agent-id">{{ agent.participant_id_short }}</span>
+          <span class="chip chip--agent-status chip--agent-status-{{ agent.status }}">{{ agent.status }}</span>
+          <span class="muted">{{ agent.last_seen_s_ago }}s ago</span>
+        </div>
+        <div class="panel-list__row">
+          <span class="muted">identity: {{ agent.identifier }}</span>
+          <span class="muted">full id {{ agent.participant_id }}</span>
+        </div>
+      </li>
+    {% endfor %}
+  </ul>
+</section>

@@ -175,6 +175,9 @@ class TestPartiesAndParticipants:
         assert state["participants"]["total_count"] == 3
         handles = [p["handle"] for p in state["participants"]["entries"]]
         assert handles == ["taude", "laude"]  # ordered by last_seen_s_ago
+        assert state["disconnected_agents"]["count"] == 1
+        assert state["disconnected_agents"]["entries"][0]["handle"] == "guest"
+        assert state["disconnected_agents"]["entries"][0]["status"] == "stale"
         assert state["all_agents"]["count"] == 3
 
     def test_duplicate_sessions_collapse_into_one_identity(self, collector):
@@ -210,6 +213,7 @@ class TestPartiesAndParticipants:
         assert state["participants"]["identity_total_count"] == 1
         assert state["participants"]["total_count"] == 2
         assert state["participants"]["entries"][0]["session_count"] == 2
+        assert "disconnected_agents" not in state
         assert state["all_agents"]["count"] == 2
         assert state["all_agents"]["entries"][0]["participant_id_short"] == "aaaaaaaa"
 
@@ -223,6 +227,7 @@ class TestPartiesAndParticipants:
                 state = collector.collect()
         assert "parties" not in state
         assert "participants" not in state
+        assert "disconnected_agents" not in state
 
 
 class TestToolsPanel:

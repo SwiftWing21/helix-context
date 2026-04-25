@@ -179,6 +179,113 @@ def test_log_query_sema_vectors_optional(conn):
     assert row[1] is None
 
 
+def test_sweep_filters_B_when_next_query_is_unrelated(conn):
+    """STATISTICAL_FUSION.md §C2 intent-delta filter — re-query within 60s
+    with cos(query_sema, next.query_sema) <= threshold is treated as A
+    (user moved on to a different topic, not dissatisfaction)."""
+    t = 1000.0
+    q_sema = [1.0, 0.0] + [0.0] * 18
+    unrelated = [0.0, 1.0] + [0.0] * 18  # orthogonal → cos = 0
+    rid1 = cwola.log_query(
+        conn, session_id="s1", party_id="alice", query="how do I invert a matrix",
+        tier_totals={}, top_gene_id=None, ts=t, query_sema=q_sema,
+    )
+    cwola.log_query(
+        conn, session_id="s1", party_id="alice", query="what time is lunch",
+        tier_totals={}, top_gene_id=None, ts=t + 30, query_sema=unrelated,
+    )
+    cwola.sweep_buckets(conn, now=t + 600)
+    bucket, delta = conn.execute(
+        "SELECT bucket, requery_delta_s FROM cwola_log WHERE retrieval_id=?",
+        (rid1,),
+    ).fetchone()
+    assert bucket == "A"
+    assert delta is None
+
+
+def test_sweep_keeps_B_when_next_query_is_related(conn):
+    """Same topic re-query clears the cos filter and stays labelled B."""
+    t = 1000.0
+    q_sema = [1.0, 0.0] + [0.0] * 18
+    related = [0.9, 0.1] + [0.0] * 18  # cos ≈ 0.994 > 0.4
+    rid1 = cwola.log_query(
+        conn, session_id="s1", party_id="alice", query="how do I invert a matrix",
+        tier_totals={}, top_gene_id=None, ts=t, query_sema=q_sema,
+    )
+    cwola.log_query(
+        conn, session_id="s1", party_id="alice", query="show me matrix inversion",
+        tier_totals={}, top_gene_id=None, ts=t + 30, query_sema=related,
+    )
+    cwola.sweep_buckets(conn, now=t + 600)
+    bucket, delta = conn.execute(
+        "SELECT bucket, requery_delta_s FROM cwola_log WHERE retrieval_id=?",
+        (rid1,),
+    ).fetchone()
+    assert bucket == "B"
+    assert delta == pytest.approx(30.0)
+
+
+def test_sweep_falls_back_to_time_rule_when_sema_missing(conn):
+    """Legacy rows without query_sema preserve pre-PWPC-Phase-1 behavior:
+    any same-session re-query within 60s is B (time-only rule)."""
+    t = 1000.0
+    rid1 = cwola.log_query(
+        conn, session_id="s1", party_id="alice", query="q1",
+        tier_totals={}, top_gene_id=None, ts=t,  # no query_sema
+    )
+    cwola.log_query(
+        conn, session_id="s1", party_id="alice", query="q2",
+        tier_totals={}, top_gene_id=None, ts=t + 30,  # no query_sema
+    )
+    cwola.sweep_buckets(conn, now=t + 600)
+    bucket = conn.execute(
+        "SELECT bucket FROM cwola_log WHERE retrieval_id=?", (rid1,),
+    ).fetchone()[0]
+    assert bucket == "B"
+
+
+def test_sweep_falls_back_when_only_next_sema_missing(conn):
+    """Asymmetric case: current row has sema, next row doesn't → legacy
+    fallback preserves B assignment rather than discarding the signal."""
+    t = 1000.0
+    q_sema = [1.0, 0.0] + [0.0] * 18
+    rid1 = cwola.log_query(
+        conn, session_id="s1", party_id="alice", query="q1",
+        tier_totals={}, top_gene_id=None, ts=t, query_sema=q_sema,
+    )
+    cwola.log_query(
+        conn, session_id="s1", party_id="alice", query="q2",
+        tier_totals={}, top_gene_id=None, ts=t + 30,  # no query_sema
+    )
+    cwola.sweep_buckets(conn, now=t + 600)
+    bucket = conn.execute(
+        "SELECT bucket FROM cwola_log WHERE retrieval_id=?", (rid1,),
+    ).fetchone()[0]
+    assert bucket == "B"
+
+
+def test_sweep_honors_custom_cos_threshold(conn):
+    """Tighter threshold (t07 from SPRINT3_TRAINER): the same related-but-not-
+    identical re-query that passes at 0.4 should fail at 0.7."""
+    t = 1000.0
+    q_sema = [1.0, 0.0] + [0.0] * 18
+    # Angle ~60°: cos ≈ 0.5, passes 0.4 but fails 0.7
+    moderate = [0.5, 0.866] + [0.0] * 18
+    rid1 = cwola.log_query(
+        conn, session_id="s1", party_id="alice", query="q1",
+        tier_totals={}, top_gene_id=None, ts=t, query_sema=q_sema,
+    )
+    cwola.log_query(
+        conn, session_id="s1", party_id="alice", query="q2",
+        tier_totals={}, top_gene_id=None, ts=t + 30, query_sema=moderate,
+    )
+    cwola.sweep_buckets(conn, now=t + 600, cos_threshold=0.7)
+    bucket = conn.execute(
+        "SELECT bucket FROM cwola_log WHERE retrieval_id=?", (rid1,),
+    ).fetchone()[0]
+    assert bucket == "A"  # cos 0.5 <= 0.7 → filtered
+
+
 def test_stats_reports_f_gap(conn):
     t = 1000.0
     cwola.log_query(conn, session_id="s1", party_id="a", query="q",

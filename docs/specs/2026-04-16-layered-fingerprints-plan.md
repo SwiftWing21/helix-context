@@ -1,5 +1,18 @@
 # Layered Fingerprints — Implementation Plan
 
+> **Status against git history (checked on 2026-04-24, HEAD `4190aab`):**
+> Core layered-fingerprint work shipped in commit `fccf098` (`feat(retrieval): layered fingerprints - parent genes + CHUNK_OF edges + co-activation aggregation + reassembly`).
+>
+> Verified today:
+> - Focused test suite passes: `python -m pytest tests/test_layered_fingerprints.py -q` -> `17 passed`
+> - Feature flag is default-off (`HELIX_LAYERED_FINGERPRINTS` gates on `"0"` unless explicitly set to `"1"`)
+> - `StructuralRelation.CHUNK_OF` is documented in `helix_context/schemas.py`
+> - `docs/FUTURE/LAYERED_FINGERPRINTS.md` links back to this implementation plan
+>
+> Not re-verified today:
+> - full-repo green test run
+> - real-genome spot check
+> - an example snippet in the `reassemble()` docstring
 **Design doc:** [../FUTURE/LAYERED_FINGERPRINTS.md](../FUTURE/LAYERED_FINGERPRINTS.md)
 **Author:** Laude, 2026-04-16
 **Target:** file-level parent genes that aggregate chunk fingerprints
@@ -253,9 +266,9 @@ Likely 1-2 sessions depending on context.
 ## Review checklist (before commit)
 
 - [ ] All tests green
-- [ ] Feature flag defaults to off
-- [ ] `CHUNK_OF` relation code documented in the constants block
+- [x] Feature flag defaults to off
+- [x] `CHUNK_OF` relation code documented in the constants block
 - [ ] `reassemble()` method documented with example
 - [ ] No regressions in existing 158+ tests
 - [ ] Spot-check on real genome confirms parent surfaces for multi-chunk hits
-- [ ] FUTURE doc references this plan under "Open questions" if anything changed during implementation
+- [x] FUTURE doc references this plan under "Open questions" if anything changed during implementation

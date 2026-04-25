@@ -326,6 +326,8 @@ class Genome:
         seeded_edges_enabled: bool = False,
         filename_anchor_enabled: bool = False,
         filename_anchor_weight: float = 4.0,
+        bm25_shortlist_enabled: bool = False,
+        bm25_shortlist_size: int = 50,
         main_conn: Optional[sqlite3.Connection] = None,
         shard_name: str = "main",
     ):
@@ -346,6 +348,8 @@ class Genome:
         # Tier 0.5 filename-anchor (2026-04-15 Dewey-pivot spike).
         self._filename_anchor_enabled = filename_anchor_enabled
         self._filename_anchor_weight = filename_anchor_weight
+        self._bm25_shortlist_enabled = bool(bm25_shortlist_enabled)
+        self._bm25_shortlist_size = int(bm25_shortlist_size) if bm25_shortlist_size else 50
         # Phase 2 claims layer (2026-04-19). Optional hook — when a main.db
         # connection is supplied, upsert_gene emits literal claims into it
         # after each ingest. None = no auto-hook, preserving legacy behavior.
@@ -2199,6 +2203,49 @@ class Genome:
             # The tier-activation + per-tier-contribution panels go dark
             # when this swallows; matching the cwola/latency/gauges pattern.
             log.warning("tier telemetry emit failed", exc_info=True)
+
+        # ── BM25 shortlist post-filter (research review 2026-04-22) ──
+        # When enabled, restrict the final ranking to genes that cleared a
+        # BM25 top-N pass. All tiers still accumulated scores above; this
+        # drops candidates BM25 would never surface before the sort. Tests
+        # the hypothesis that tier-based scoring on BM25-invisible genes
+        # is pulling wrong answers into the top-k. Post-filter by design —
+        # isolates the ranking-set question from candidate-generation
+        # latency work. Soft-fails to the unfiltered ranking on any error.
+        if (
+            getattr(self, "_bm25_shortlist_enabled", False)
+            and self._fts_available
+            and gene_scores
+        ):
+            try:
+                bm25_terms = [t for t in query_terms if len(t) > 2]
+                if bm25_terms:
+                    bm25_match = " OR ".join(f'"{t}"' for t in bm25_terms)
+                    shortlist_rows = cur.execute(
+                        "SELECT gene_id FROM genes_fts "
+                        "WHERE genes_fts MATCH ? ORDER BY rank LIMIT ?",
+                        (bm25_match, self._bm25_shortlist_size),
+                    ).fetchall()
+                    shortlist = {r["gene_id"] for r in shortlist_rows}
+                    # Empty shortlist (BM25 found nothing) → don't filter;
+                    # the tier-only ranking is better than nothing.
+                    if shortlist:
+                        before = len(gene_scores)
+                        gene_scores = {
+                            g: s for g, s in gene_scores.items() if g in shortlist
+                        }
+                        tier_contrib = {
+                            g: c for g, c in tier_contrib.items() if g in shortlist
+                        }
+                        log.debug(
+                            "bm25 shortlist: scored=%d shortlist=%d kept=%d",
+                            before, len(shortlist), len(gene_scores),
+                        )
+            except Exception:
+                log.warning(
+                    "bm25 shortlist filter failed — falling back to unfiltered ranking",
+                    exc_info=True,
+                )
 
         # Sort by combined score, fetch top genes
         ranked_ids = sorted(gene_scores, key=gene_scores.get, reverse=True)[:limit]

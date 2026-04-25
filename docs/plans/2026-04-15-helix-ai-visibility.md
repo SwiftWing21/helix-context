@@ -1,5 +1,21 @@
 # Helix AI-Visibility Implementation Plan
 
+> **Status against git history (checked on 2026-04-24, HEAD `4190aab`):**
+> This plan is only partially reflected on `master`. The session-registry base and adjacent AI-consumer work shipped in earlier commits (`8f24913`, `62280c6`, `a175ae7`, `26c5f55`), but the exact surfaces proposed here did not all land under these names.
+>
+> Shipped equivalents:
+> - `GET /sessions` exists as the participant-list surface.
+> - `GET /sessions/{handle}/recent` exists as the recent-authored surface.
+> - Citation enrichment for `authored_by_party` / `authored_by_handle` exists in `/context` metadata.
+>
+> Still absent at HEAD:
+> - inline `authored_by=...` in expressed gene headers
+> - `GET /activity`
+> - `GET /agents` alias
+> - soft file claims endpoints / DAL
+> - directed memo-gene support (`for_handle`, `acked_at`, preferred expression)
+>
+> Treat the checklist below as a historical implementation plan, not a record of what fully shipped.
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Let AI agents on Helix "see" each other's work — including between their own prompts — by exposing the shipped session-registry as an AI-first surface and filling the four real gaps (inline gene attribution, unified activity feed, soft file claims, directed memo-genes).

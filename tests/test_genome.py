@@ -146,6 +146,78 @@ class TestPromoterRetrieval:
         assert results[0].content == "active gene"
 
 
+# ── BM25 shortlist post-filter (research review 2026-04-22) ───────
+
+
+def _mk_shortlist_genome(enabled: bool, size: int = 50) -> Genome:
+    """Build an in-memory genome with the shortlist flag explicitly set."""
+    g = Genome(
+        path=":memory:",
+        bm25_shortlist_enabled=enabled,
+        bm25_shortlist_size=size,
+    )
+    # Ungate inserts like the regular fixture does.
+    _orig = g.upsert_gene
+    g.upsert_gene = lambda gene, apply_gate=False: _orig(gene, apply_gate=apply_gate)
+    return g
+
+
+class TestBm25Shortlist:
+    """The shortlist drops scored candidates BM25 wouldn't surface."""
+
+    def test_disabled_is_identity(self):
+        """With the flag off, every tier-scored gene is rankable — matches
+        pre-research-review behavior. Regression guard."""
+        g = _mk_shortlist_genome(enabled=False)
+        try:
+            g.upsert_gene(make_gene("auth flow with jwt tokens", domains=["auth"]))
+            g.upsert_gene(make_gene("session management logic", domains=["auth"]))
+            g.upsert_gene(make_gene("login page react", domains=["auth"]))
+            results = g.query_genes(domains=["auth"], entities=[])
+            # All three genes match the domain tag and remain rankable.
+            assert len(results) == 3
+        finally:
+            g.close()
+
+    def test_enabled_bounds_result_count_by_size(self):
+        """With the flag on and size=2, the final result set is capped by
+        the BM25 top-N even when the tier accumulation would otherwise rank
+        more genes. (Helix's FTS content bakes in tag text — `source_id +
+        tag_text + content` — so the honest observable is the size bound
+        rather than tag-vs-content discrimination.)"""
+        g = _mk_shortlist_genome(enabled=True, size=2)
+        try:
+            for i in range(5):
+                g.upsert_gene(
+                    make_gene(f"auth code sample {i}", domains=["auth"])
+                )
+            # Without shortlist: all 5 would be rankable (up to limit=12).
+            # With shortlist=2: BM25 top-2 survives the post-filter, so
+            # the ranking set collapses to 2.
+            results = g.query_genes(domains=["auth"], entities=[])
+            assert 0 < len(results) <= 2, (
+                f"expected <=2 results under shortlist cap, got {len(results)}"
+            )
+        finally:
+            g.close()
+
+    def test_enabled_with_empty_shortlist_falls_back(self):
+        """BM25 returning zero matches must NOT wipe the ranking —
+        the shortlist filter soft-fails to the unfiltered tier ranking."""
+        g = _mk_shortlist_genome(enabled=True, size=50)
+        try:
+            # Domain promoter tags but no content match for the query term.
+            g.upsert_gene(make_gene("abc xyz", domains=["quantum"]))
+            g.upsert_gene(make_gene("pqr stu", domains=["quantum"]))
+            # Query term "quantum" matches the tag tier but not the
+            # content FTS5 index for either gene.
+            results = g.query_genes(domains=["quantum"], entities=[])
+            # Both remain — filter saw empty shortlist, kept everything.
+            assert len(results) == 2
+        finally:
+            g.close()
+
+
 # ── Phase 2a: party_id filter semantics ────────────────────────────
 
 

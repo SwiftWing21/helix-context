@@ -170,6 +170,88 @@ def _normalize_identity_token(value: Optional[str]) -> Optional[str]:
     return normalized or None
 
 
+def _compute_plr_confidence(
+    helix: "HelixContextManager",
+    config: HelixConfig,
+    query: str,
+    *,
+    now_ts: Optional[float] = None,
+) -> Optional[dict]:
+    """Score the just-completed retrieval with the PLR query-quality head.
+
+    Called after ``build_context_packet`` so ``helix.genome.last_tier_contributions``
+    reflects the current query. Returns a dict suitable for JSON serialization
+    (prob_B, logit, score_A, high_risk, artifact_label_set) or None when the
+    fuser can't be loaded / scored.
+
+    This is a **query-level** head. Every candidate in a given retrieval has
+    the same feature vector, so callers should treat ``plr_confidence`` as a
+    query-quality signal, not a per-gene ranking input. See
+    ``helix_context/fusion_plr.py`` docstring for the trade-off.
+    """
+    try:
+        from . import fusion_plr
+    except ImportError:
+        return None
+    fuser = fusion_plr.get_fuser(config.plr.model_path)
+    if fuser is None:
+        return None
+
+    # 1. Aggregate tier_totals across all genes in the current retrieval.
+    #    Mirrors the CWoLa-logger aggregation at server.py ~line 898.
+    tier_contrib_all = getattr(helix.genome, "last_tier_contributions", {}) or {}
+    tier_totals: dict[str, float] = {}
+    for contribs in tier_contrib_all.values():
+        for tier, score in contribs.items():
+            tier_totals[tier] = tier_totals.get(tier, 0.0) + score
+
+    # 2. Window features — skip when no session context is available; the
+    #    fuser treats missing window entries as zero, same as training.
+    window_features: Optional[dict] = None
+    try:
+        from . import cwola
+        # /context/packet doesn't currently thread a session_id through the
+        # call, so we can't ask for sliding-window correlations. Leaving
+        # window_features empty is the honest move; the classifier trains
+        # on rows where the window extractor also degrades gracefully.
+        _ = cwola  # keep the import available for future session threading
+    except ImportError:
+        pass
+
+    # 3. cos(query_sema, top_candidate_sema) — same computation as the CWoLa
+    #    Phase 1 logger enrichment in server.py ~line 910.
+    cos_qc: Optional[float] = None
+    try:
+        codec = getattr(helix, "_sema_codec", None)
+        if codec is None:
+            raise RuntimeError("sema codec unavailable")
+        q_sema = codec.encode(query)
+
+        top_gene_id = None
+        last_scores = getattr(helix.genome, "last_query_scores", {}) or {}
+        if last_scores:
+            top_gene_id = max(last_scores, key=last_scores.get)
+        if top_gene_id:
+            gene = helix.genome.get_gene(top_gene_id)
+            if gene is not None and gene.embedding and q_sema is not None:
+                # inline cosine to avoid extra imports
+                a, b = q_sema, gene.embedding
+                if len(a) == len(b) and a:
+                    import math as _math
+                    dot = sum(float(x) * float(y) for x, y in zip(a, b))
+                    na = _math.sqrt(sum(float(x) * float(x) for x in a))
+                    nb = _math.sqrt(sum(float(y) * float(y) for y in b))
+                    if na > 0 and nb > 0:
+                        cos_qc = dot / (na * nb)
+    except Exception:
+        cos_qc = None
+
+    out = fuser.query_confidence(tier_totals, window_features, cos_qc)
+    out["high_risk"] = out["prob_B"] > config.plr.high_risk_threshold
+    out["artifact_label_set"] = fuser.meta.get("label_set")
+    return out
+
+
 def _merge_tier_contributions(base: dict, extra: dict) -> dict:
     """Merge per-gene tier contributions without mutating inputs."""
     merged = {gid: dict(contribs) for gid, contribs in (base or {}).items()}
@@ -969,6 +1051,16 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
         query = data.get("query", "")
         task_type = data.get("task_type", "explain")
         max_genes = data.get("max_genes", 8)
+        # research-review Proposal 3 (2026-04-22): opt-in mode that puts
+        # the full gene.content on each item instead of the ribosome-
+        # compressed 280-char thumbnail. Default off — existing callers
+        # that expect the thumbnail contract keep getting it.
+        include_raw = bool(data.get("include_raw", False))
+        raw_max = data.get("max_item_chars")
+        try:
+            max_item_chars = int(raw_max) if raw_max is not None else None
+        except (TypeError, ValueError):
+            max_item_chars = None
         if data.get("clean", False):
             try:
                 helix.reset_session_state()
@@ -992,9 +1084,30 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             max_genes=max_genes,
             now_ts=t0,
             read_only=read_only,
+            include_raw=include_raw,
+            max_item_chars=max_item_chars,
         )
         payload = packet.model_dump()
         payload["response_mode"] = "packet"
+
+        # PLR query-confidence head (STATISTICAL_FUSION.md §C3, Option A —
+        # query-level head, not per-(q, g) ranker). Soft-fail: any issue
+        # leaves `plr_confidence` off the payload so the packet contract
+        # stays stable for clients that don't know about it.
+        # Read the live config from helix.config so /admin/reload flips the
+        # flag without a process restart (the closure-captured `config`
+        # above is frozen at create_app time).
+        live_cfg = getattr(helix, "config", config)
+        if live_cfg.plr.enabled:
+            try:
+                plr_block = _compute_plr_confidence(
+                    helix, live_cfg, str(query), now_ts=t0,
+                )
+                if plr_block is not None:
+                    payload["plr_confidence"] = plr_block
+            except Exception:
+                log.warning("plr_confidence compute failed", exc_info=True)
+
         return payload
 
     @app.post("/context/refresh-plan")
@@ -2140,6 +2253,8 @@ def create_app(config: Optional[HelixConfig] = None) -> FastAPI:
             "message": message,
             "ribosome": ribosome_model,
             "ribosome_backend": config.ribosome.effective_backend,
+            "ribosome_configured_backend": config.ribosome.normalized_backend,
+            "ribosome_cost_class": config.ribosome.cost_class,
             "genes": total_genes,
             "upstream": config.server.upstream,
             "upstream_reachable": upstream_reachable,
@@ -2871,11 +2986,20 @@ async def _forward_and_replicate(
 
 async def _forward_raw(body: dict, config: HelixConfig, helix: Optional[HelixContextManager] = None):
     """Pass request through to upstream without context injection."""
-    async with httpx.AsyncClient(timeout=config.server.upstream_timeout) as client:
-        resp = await client.post(
-            f"{config.server.upstream}/v1/chat/completions",
-            json=body,
-        )
+    try:
+        async with httpx.AsyncClient(timeout=config.server.upstream_timeout) as client:
+            resp = await client.post(
+                f"{config.server.upstream}/v1/chat/completions",
+                json=body,
+            )
+    except (httpx.ConnectError, httpx.TimeoutException) as exc:
+        log.warning("Upstream raw passthrough failed: %s", exc)
+        raise HTTPException(
+            status_code=502,
+            detail=f"Upstream chat backend unreachable: {exc}",
+        ) from exc
+
+    try:
         if resp.status_code >= 400:
             # Mirror the guard in _forward_and_replicate: surface upstream
             # error status/body instead of forwarding an error JSON as HTTP
@@ -2898,6 +3022,12 @@ async def _forward_raw(body: dict, config: HelixConfig, helix: Optional[HelixCon
                 detail=err_detail,
             )
         data = resp.json()
+    except ValueError as exc:
+        log.warning("Upstream raw passthrough returned non-JSON", exc_info=True)
+        raise HTTPException(
+            status_code=502,
+            detail="Upstream chat backend returned a non-JSON response.",
+        ) from exc
 
     # Token accounting if helix is wired in.
     if helix is not None:

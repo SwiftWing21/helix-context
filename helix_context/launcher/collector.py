@@ -31,7 +31,7 @@ class StateCollector:
         self,
         supervisor: HelixSupervisor,
         ollama_base_url: str = "http://127.0.0.1:11434",
-        http_timeout: float = 1.5,
+        http_timeout: float = 4.0,
     ) -> None:
         self.supervisor = supervisor
         self.ollama_base_url = ollama_base_url.rstrip("/")
@@ -58,6 +58,9 @@ class StateCollector:
                 participants = sessions["participants"]
                 state["parties"] = self._parties_panel(participants)
                 state["participants"] = self._participants_panel(participants)
+                disconnected_agents = self._disconnected_agents_panel(participants)
+                if disconnected_agents:
+                    state["disconnected_agents"] = disconnected_agents
                 state["all_agents"] = self._all_agents_panel(participants)
 
             health = self._safe_get_json(client, "/health")
@@ -242,6 +245,38 @@ class StateCollector:
         return {
             "count": len(entries),
             "active_count": sum(1 for item in entries if item["status"] == "active"),
+            "entries": entries,
+        }
+
+    def _disconnected_agents_panel(self, participants: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        entries = []
+        for participant in sorted(
+            participants,
+            key=lambda item: (
+                self._status_rank(item.get("status")),
+                item.get("last_seen_s_ago", 0),
+            ),
+        ):
+            status = str(participant.get("status") or "").strip().lower()
+            if status == "active":
+                continue
+            participant_id = str(participant.get("participant_id", ""))
+            entries.append(
+                {
+                    "handle": participant.get("handle"),
+                    "party_id": participant.get("party_id"),
+                    "workspace": participant.get("workspace"),
+                    "status": status or "unknown",
+                    "last_seen_s_ago": participant.get("last_seen_s_ago", 0),
+                    "participant_id": participant_id,
+                    "participant_id_short": participant_id[:8],
+                    "identifier": self._identity_label(participant),
+                }
+            )
+        if not entries:
+            return None
+        return {
+            "count": len(entries),
             "entries": entries,
         }
 

@@ -26,6 +26,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
+import sqlite3
 import socket
 from typing import Any, Optional
 
@@ -402,6 +403,113 @@ def ribosome_info_gauge():
     return _instruments["ribosome_info"]
 
 
+def _emit_snapshot_values(
+    *,
+    chrom_rows: list[tuple[Any, Any]],
+    edge_rows: list[tuple[Any, Any]],
+    raw_chars: Optional[int],
+    compressed_chars: Optional[int],
+    in_degrees: list[int],
+) -> None:
+    """Write an aggregate genome snapshot into the OTel gauges."""
+    chrom_gauge = chromatin_state_counter()
+    for state, n in chrom_rows:
+        label = {0: "open", 1: "euchromatin", 2: "heterochromatin"}.get(
+            int(state) if state is not None else 0, "unknown",
+        )
+        chrom_gauge.set(int(n), {"state": label})
+
+    edges_gauge = harmonic_edges_counter()
+    for source, n in edge_rows:
+        edges_gauge.set(int(n), {"source": source or "unknown"})
+
+    size_gauge = genome_size_gauge()
+    if raw_chars is not None:
+        size_gauge.set(int(raw_chars), {"kind": "raw"})
+    if compressed_chars is not None:
+        size_gauge.set(int(compressed_chars), {"kind": "compressed"})
+
+    if in_degrees:
+        in_degrees.sort()
+        n = len(in_degrees)
+        mean_deg = sum(in_degrees) / n
+        top_1pct_count = max(1, n // 100)
+        top_1pct_mean = sum(in_degrees[-top_1pct_count:]) / top_1pct_count
+        ratio = top_1pct_mean / mean_deg if mean_deg > 0 else 0.0
+
+        hub_concentration_gauge().set(float(ratio))
+        deg_gauge = hub_inbound_degree_gauge()
+        deg_gauge.set(float(in_degrees[-1]), {"stat": "max"})
+        deg_gauge.set(float(in_degrees[int(n * 0.99) - 1]), {"stat": "p99"})
+        deg_gauge.set(float(in_degrees[int(n * 0.95) - 1]), {"stat": "p95"})
+        deg_gauge.set(float(in_degrees[n // 2]), {"stat": "p50"})
+        deg_gauge.set(float(mean_deg), {"stat": "mean"})
+
+
+def _emit_sharded_gauges_snapshot(genome) -> None:
+    """Aggregate telemetry directly from registered shard DBs."""
+    router = getattr(genome, "_router", None)
+    main_conn = getattr(router, "main_conn", None)
+    if main_conn is None:
+        return
+
+    shard_rows = main_conn.execute(
+        "SELECT path FROM shards WHERE health = 'ok'"
+    ).fetchall()
+    chrom_counts: dict[int | None, int] = {}
+    edge_counts: dict[str, int] = {}
+    inbound_counts: dict[str, int] = {}
+    raw_chars = 0
+    compressed_chars = 0
+
+    for row in shard_rows:
+        shard_path = row["path"] if isinstance(row, sqlite3.Row) else row[0]
+        if not shard_path or not os.path.exists(shard_path):
+            continue
+
+        conn = sqlite3.connect(shard_path)
+        try:
+            for state, count in conn.execute(
+                "SELECT chromatin, COUNT(*) FROM genes GROUP BY chromatin"
+            ).fetchall():
+                chrom_counts[state] = chrom_counts.get(state, 0) + int(count)
+
+            for source, count in conn.execute(
+                "SELECT source, COUNT(*) FROM harmonic_links GROUP BY source"
+            ).fetchall():
+                label = source or "unknown"
+                edge_counts[label] = edge_counts.get(label, 0) + int(count)
+
+            row = conn.execute(
+                "SELECT "
+                "COALESCE(SUM(LENGTH(content)), 0) AS raw, "
+                "COALESCE(SUM(LENGTH(complement)), 0) AS compressed "
+                "FROM genes WHERE chromatin=0"
+            ).fetchone()
+            if row:
+                raw_chars += int(row[0] or 0)
+                compressed_chars += int(row[1] or 0)
+
+            for gene_id_b, count in conn.execute(
+                "SELECT gene_id_b, COUNT(*) FROM harmonic_links GROUP BY gene_id_b"
+            ).fetchall():
+                inbound_counts[gene_id_b] = inbound_counts.get(gene_id_b, 0) + int(count)
+        except sqlite3.OperationalError:
+            # Best-effort metrics path: a stale or mid-migration shard should
+            # not spam warnings or break /stats.
+            continue
+        finally:
+            conn.close()
+
+    _emit_snapshot_values(
+        chrom_rows=list(chrom_counts.items()),
+        edge_rows=list(edge_counts.items()),
+        raw_chars=raw_chars,
+        compressed_chars=compressed_chars,
+        in_degrees=list(inbound_counts.values()),
+    )
+
+
 def emit_gauges_snapshot(genome) -> None:
     """Poll-driven gauges for chromatin + harmonic-edges + genome size.
 
@@ -411,67 +519,35 @@ def emit_gauges_snapshot(genome) -> None:
     No-op when OTel is off — the noop instruments just drop the calls.
     """
     try:
+        if getattr(genome, "_sharded_adapter", False):
+            _emit_sharded_gauges_snapshot(genome)
+            return
+
         cur = genome.read_conn.cursor()
-        # Chromatin state distribution.
         chrom = cur.execute(
             "SELECT chromatin, COUNT(*) FROM genes GROUP BY chromatin"
         ).fetchall()
-        chrom_gauge = chromatin_state_counter()
-        for state, n in chrom:
-            label = {0: "open", 1: "euchromatin", 2: "heterochromatin"}.get(
-                int(state) if state is not None else 0, "unknown",
-            )
-            chrom_gauge.set(int(n), {"state": label})
-
-        # Harmonic-edges by provenance source.
         edges = cur.execute(
             "SELECT source, COUNT(*) FROM harmonic_links GROUP BY source"
         ).fetchall()
-        edges_gauge = harmonic_edges_counter()
-        for source, n in edges:
-            edges_gauge.set(int(n), {"source": source or "unknown"})
-
-        # Genome total-chars (raw vs compressed) — genome.stats() owns this
-        # view; hand-roll here so we don't circular-import stats().
         row = cur.execute(
             "SELECT "
             "SUM(LENGTH(content)) AS raw, "
             "SUM(LENGTH(complement)) AS compressed "
             "FROM genes WHERE chromatin=0"
         ).fetchone()
-        size_gauge = genome_size_gauge()
-        if row and row[0]:
-            size_gauge.set(int(row[0]), {"kind": "raw"})
-        if row and row[1]:
-            size_gauge.set(int(row[1]), {"kind": "compressed"})
-
-        # Hub-concentration / inbound-degree summary. Preferential-attachment
-        # graphs have no classical percolation threshold but condense flow into
-        # hubs as N grows; the right order parameter for that pathology is the
-        # ratio of top-1% inbound degree to mean inbound degree, not the
-        # giant-component size. Backfill caps inbound at 500 (see
-        # scripts/backfill_seeded_edges.py); persistent values near the cap are
-        # the cap acting as the binding constraint, not organic structure.
         in_degrees = [
             int(n) for (_, n) in cur.execute(
                 "SELECT gene_id_b, COUNT(*) FROM harmonic_links GROUP BY gene_id_b"
             ).fetchall()
         ]
-        if in_degrees:
-            in_degrees.sort()
-            n = len(in_degrees)
-            mean_deg = sum(in_degrees) / n
-            top_1pct_count = max(1, n // 100)
-            top_1pct_mean = sum(in_degrees[-top_1pct_count:]) / top_1pct_count
-            ratio = top_1pct_mean / mean_deg if mean_deg > 0 else 0.0
-
-            hub_concentration_gauge().set(float(ratio))
-            deg_gauge = hub_inbound_degree_gauge()
-            deg_gauge.set(float(in_degrees[-1]),               {"stat": "max"})
-            deg_gauge.set(float(in_degrees[int(n * 0.99) - 1]), {"stat": "p99"})
-            deg_gauge.set(float(in_degrees[int(n * 0.95) - 1]), {"stat": "p95"})
-            deg_gauge.set(float(in_degrees[n // 2]),            {"stat": "p50"})
-            deg_gauge.set(float(mean_deg),                     {"stat": "mean"})
+        _emit_snapshot_values(
+            chrom_rows=[(r[0], r[1]) for r in chrom],
+            edge_rows=[(r[0], r[1]) for r in edges],
+            raw_chars=int(row[0] or 0) if row else 0,
+            compressed_chars=int(row[1] or 0) if row else 0,
+            in_degrees=in_degrees,
+        )
     except Exception:
         # Promoted from debug to warning: silent debug-level was hiding a
         # real failure (chromatin gauge would emit, harmonic/hub/genome_size

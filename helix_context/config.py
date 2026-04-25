@@ -233,6 +233,40 @@ class RetrievalConfig:
     # filename_stem matches a query term.
     filename_anchor_enabled: bool = False   # Dark ship — flip for A/B
     filename_anchor_weight: float = 4.0     # Per-match boost (higher than Tier 1's 3.0)
+    # BM25 shortlist post-filter (2026-04-22, research-review Pareto move 1).
+    # When enabled, query_genes restricts its final ranking to genes that
+    # cleared a BM25/FTS5 top-N pass — other tiers still accumulate scores,
+    # but candidates BM25 would never surface are dropped before the sort.
+    # Post-filter by design (isolates the ranking-set hypothesis from the
+    # candidate-generation optimisation). Dark ship.
+    bm25_shortlist_enabled: bool = False
+    bm25_shortlist_size: int = 50           # BM25 top-N kept in the final ranking
+
+
+@dataclass
+class PLRConfig:
+    """Stacked PLR query-confidence head (STATISTICAL_FUSION.md §C3).
+
+    Attaches a `plr_confidence` log-odds signal to /context/packet responses
+    when a trained artifact is on disk. Dark by default — callers that need
+    the router / HITL signal flip `enabled=true`.
+
+    The current artifact is a **query-quality head** (same score for all genes
+    in a retrieval) rather than the per-(q,g) ranker the spec originally
+    described. See `helix_context/fusion_plr.py` docstring and
+    STATISTICAL_FUSION.md §C3 addendum for the trade-off.
+    """
+    enabled: bool = False
+    model_path: str = "training/models/stacked_plr.joblib"
+    # SHA256 of the artifact — when set, load refuses to proceed unless the
+    # file's digest matches. Empty string = trust the sidecar .sha256 next
+    # to the artifact (written by the trainer). Set a pinned hex digest in
+    # helix.toml if you want explicit operator-level pinning.
+    expected_sha256: str = ""
+    # Threshold the fuser's `prob_B` is compared against to emit a coarse
+    # "likely-to-re-query" boolean alongside the log-odds. 0.5 is the
+    # symmetric default; tune only with bench evidence.
+    high_risk_threshold: float = 0.5
 
 
 @dataclass
@@ -265,6 +299,7 @@ class HelixConfig:
     cymatics: CymaticsConfig = field(default_factory=CymaticsConfig)
     retrieval: RetrievalConfig = field(default_factory=RetrievalConfig)
     session: SessionConfig = field(default_factory=SessionConfig)
+    plr: PLRConfig = field(default_factory=PLRConfig)
     headroom: HeadroomConfig = field(default_factory=HeadroomConfig)
     synonym_map: Dict[str, List[str]] = field(default_factory=dict)
 
@@ -444,6 +479,8 @@ def load_config(path: Optional[str] = None) -> HelixConfig:
             seeded_edge_weight=float(r.get("seeded_edge_weight", cfg.retrieval.seeded_edge_weight)),
             filename_anchor_enabled=bool(r.get("filename_anchor_enabled", cfg.retrieval.filename_anchor_enabled)),
             filename_anchor_weight=float(r.get("filename_anchor_weight", cfg.retrieval.filename_anchor_weight)),
+            bm25_shortlist_enabled=bool(r.get("bm25_shortlist_enabled", cfg.retrieval.bm25_shortlist_enabled)),
+            bm25_shortlist_size=int(r.get("bm25_shortlist_size", cfg.retrieval.bm25_shortlist_size)),
         )
 
     # Session (CWoLa session/party fallback — 2026-04-13 fix for always-A bucket bug)
@@ -454,6 +491,19 @@ def load_config(path: Optional[str] = None) -> HelixConfig:
             default_party_id=str(s.get("default_party_id", cfg.session.default_party_id)),
             synthetic_session_window_s=int(s.get("synthetic_session_window_s", cfg.session.synthetic_session_window_s)),
             synthetic_session_enabled=bool(s.get("synthetic_session_enabled", cfg.session.synthetic_session_enabled)),
+        )
+
+    # PLR — stacked-classifier query-confidence head (dark by default)
+    if "plr" in raw:
+        p = raw["plr"]
+        _warn_unknown("plr", p, PLRConfig)
+        cfg.plr = PLRConfig(
+            enabled=bool(p.get("enabled", cfg.plr.enabled)),
+            model_path=str(p.get("model_path", cfg.plr.model_path)),
+            expected_sha256=str(p.get("expected_sha256", cfg.plr.expected_sha256)),
+            high_risk_threshold=float(
+                p.get("high_risk_threshold", cfg.plr.high_risk_threshold)
+            ),
         )
 
     # Headroom — optional proxy lifecycle controls

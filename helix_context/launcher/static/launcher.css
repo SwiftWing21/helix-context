@@ -252,6 +252,15 @@ button {
   font-style: italic;
 }
 
+.panel--health-warning {
+  border-left: 3px solid var(--color-warn);
+  color: var(--color-text-muted);
+}
+
+.panel--health-warning p {
+  margin: 0;
+}
+
 .panel-title {
   display: flex;
   align-items: baseline;
@@ -326,6 +335,24 @@ button {
   color: var(--color-warn);
   border-color: var(--color-warn);
   background: rgba(245, 185, 113, 0.08);
+}
+
+.chip--agent-status {
+  color: var(--color-text-muted);
+  border-color: var(--color-border);
+}
+
+.chip--agent-status-idle {
+  color: var(--color-warn);
+  border-color: var(--color-warn);
+  background: rgba(245, 185, 113, 0.08);
+}
+
+.chip--agent-status-stale,
+.chip--agent-status-gone {
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+  background: var(--color-danger-soft);
 }
 
 .chip--model {

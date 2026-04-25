@@ -8,8 +8,8 @@
   },
   "modes": {
     "raw_newest": {
-      "latency_ms_p50": 0.029,
-      "latency_ms_mean": 0.037,
+      "latency_ms_p50": 0.03,
+      "latency_ms_mean": 0.038,
       "versioned_mono": {
         "n": 4,
         "correct_current_rate": 1.0,
@@ -31,7 +31,7 @@
     },
     "raw_all": {
       "latency_ms_p50": 0.03,
-      "latency_ms_mean": 0.032,
+      "latency_ms_mean": 0.03,
       "versioned_mono": {
         "n": 4,
         "correct_current_rate": 1.0,
@@ -52,8 +52,8 @@
       }
     },
     "helix_dag": {
-      "latency_ms_p50": 0.136,
-      "latency_ms_mean": 0.161,
+      "latency_ms_p50": 0.108,
+      "latency_ms_mean": 0.109,
       "versioned_mono": {
         "n": 4,
         "correct_current_rate": 1.0,

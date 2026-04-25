@@ -186,6 +186,88 @@ def test_file_grain_passes_when_filename_matches():
         genome.close()
 
 
+def test_default_mode_truncates_to_thumbnail():
+    """Default caller contract unchanged — per-item content capped near
+    280 chars via the ribosome-compressed summary path."""
+    now_ts = 10_000.0
+    genome = Genome(":memory:")
+    try:
+        body = "Helix design discussion. " * 200  # ~5000 chars raw
+        gene = make_gene(body, domains=["helix", "design"])
+        gene.source_id = "/repo/docs/design.md"
+        gene.source_kind = "doc"
+        gene.volatility_class = "stable"
+        gene.authority_class = "primary"
+        gene.last_verified_at = now_ts - 120.0
+        genome.upsert_gene(gene, apply_gate=False)
+
+        packet = build_context_packet(
+            "helix design", task_type="explain",
+            genome=genome, now_ts=now_ts,
+        )
+        assert len(packet.verified) == 1
+        assert len(packet.verified[0].content) <= 280
+    finally:
+        genome.close()
+
+
+def test_include_raw_bypasses_thumbnail_cap():
+    """Opt-in raw mode returns gene.content up to 48k chars per item."""
+    now_ts = 10_000.0
+    genome = Genome(":memory:")
+    try:
+        body = "Helix design discussion. " * 200  # ~5000 chars
+        gene = make_gene(body, domains=["helix", "design"])
+        gene.source_id = "/repo/docs/design.md"
+        gene.source_kind = "doc"
+        gene.volatility_class = "stable"
+        gene.authority_class = "primary"
+        gene.last_verified_at = now_ts - 120.0
+        genome.upsert_gene(gene, apply_gate=False)
+
+        packet = build_context_packet(
+            "helix design", task_type="explain",
+            genome=genome, now_ts=now_ts,
+            include_raw=True,
+        )
+        assert len(packet.verified) == 1
+        content = packet.verified[0].content
+        # Raw body is ~5000 chars; 280-char cap would have left a stub
+        # with "...". Raw mode delivers the real content.
+        assert len(content) > 1000
+        assert not content.endswith("...")
+        assert "Helix design discussion" in content
+    finally:
+        genome.close()
+
+
+def test_max_item_chars_override_caps_raw_mode():
+    """Custom `max_item_chars` lets callers set a mid-point cap between
+    the 280 default and the 48k raw ceiling."""
+    now_ts = 10_000.0
+    genome = Genome(":memory:")
+    try:
+        body = "Helix design discussion. " * 200
+        gene = make_gene(body, domains=["helix", "design"])
+        gene.source_id = "/repo/docs/design.md"
+        gene.source_kind = "doc"
+        gene.volatility_class = "stable"
+        gene.authority_class = "primary"
+        gene.last_verified_at = now_ts - 120.0
+        genome.upsert_gene(gene, apply_gate=False)
+
+        packet = build_context_packet(
+            "helix design", task_type="explain",
+            genome=genome, now_ts=now_ts,
+            include_raw=True,
+            max_item_chars=1000,
+        )
+        assert len(packet.verified) == 1
+        assert len(packet.verified[0].content) <= 1000
+    finally:
+        genome.close()
+
+
 def test_get_refresh_targets_returns_only_refreshable_sources():
     now_ts = 40_000.0
     genome = Genome(":memory:")

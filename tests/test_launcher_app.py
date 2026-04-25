@@ -140,12 +140,39 @@ class TestPanelsPartial:
                 "running": True,
                 "availability": "degraded",
                 "next_action": "Restart it from the launcher UI.",
+                "health_message": "Upstream model server is unreachable.",
                 "port": 11437,
             }
         }
         resp = client.get("/api/state/panels")
         assert resp.status_code == 200
-        assert "not answering health checks cleanly" in resp.text
+        assert "Upstream model server is unreachable." in resp.text
+
+    def test_panels_partial_renders_disconnected_agents(self, client, fake_collector):
+        fake_collector.collect.return_value = {
+            "helix": {
+                "running": True,
+                "availability": "available",
+                "port": 11437,
+            },
+            "disconnected_agents": {
+                "count": 1,
+                "entries": [
+                    {
+                        "handle": "raude",
+                        "participant_id_short": "abc12345",
+                        "participant_id": "abc12345-full",
+                        "status": "stale",
+                        "last_seen_s_ago": 3600,
+                        "identifier": "swift_wing21",
+                    }
+                ],
+            },
+        }
+        resp = client.get("/api/state/panels")
+        assert resp.status_code == 200
+        assert "Disconnected Agents" in resp.text
+        assert "abc12345-full" in resp.text
 
 
 class TestControlStart:

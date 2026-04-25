@@ -1,5 +1,25 @@
 # SNOW Benchmark Implementation Plan
 
+> **Status against git history (checked on 2026-04-24, HEAD `4190aab`):**
+> Tasks 1-6 in this plan shipped on `master` via the following commit chain:
+> - `6a78ea0` - scaffold + N=65 query set
+> - `92d8d85` - prompt templates
+> - `eb91c86` - oracle consumer
+> - `8312f56` - LLM cascade consumer
+> - `31b753e` - main harness
+> - `b052767` - comparison table generator
+>
+> Task 7 also has tracked evidence in `benchmarks/snow/results/`, including:
+> - `snow_oracle-only_2026-04-16.json`
+> - `snow_qwen3_4b_2026-04-16.json`
+> - later ablation and sharding-baseline result files
+>
+> Verified today:
+> - `python -m pytest tests/test_snow_oracle.py tests/test_snow_cascade.py tests/test_snow_bench.py -q` -> `14 passed`
+>
+> Remaining status:
+> - Task 8 (`Claude API Models`) is still intentionally deferred.
+> - The unchecked boxes below were never updated after the implementation landed.
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build the SNOW benchmark harness that measures multi-hop navigation efficiency on helix's 5-tier data cascade, with oracle + real-LLM consumers and per-model scorecards.

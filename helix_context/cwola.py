@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import sqlite3
 import time
 from typing import Any, Dict, List, Optional, Sequence
@@ -26,6 +27,42 @@ from typing import Any, Dict, List, Optional, Sequence
 log = logging.getLogger("helix.cwola")
 
 BUCKET_WINDOW_S = 60.0  # same-session re-query counts as Bucket B within this
+
+# STATISTICAL_FUSION.md §C2: a re-query within BUCKET_WINDOW_S only counts as
+# B if query_t and query_{t+1} are "textually related" — cosine sim of the
+# 20-d ΣĒMA embeddings above this threshold. Re-queries below it indicate
+# the user moved on to a different topic (accept, not dissatisfaction).
+# 0.4 is the spec default; offline evaluation in SPRINT3_TRAINER_2026-04-21.md
+# showed 0.7 gives the best classifier AUC. Tune via sweep_buckets' kwarg.
+BUCKET_SEMA_COS_THRESHOLD = 0.4
+
+
+def _cos_from_jsons(a_json: Any, b_json: Any) -> Optional[float]:
+    """Cosine of two JSON-encoded embedding vectors. None when unavailable.
+
+    Returns None (caller falls back to the time-only rule) when either
+    payload is missing, malformed, dimensionally mismatched, or zero-norm.
+    """
+    if not a_json or not b_json:
+        return None
+    try:
+        a = json.loads(a_json)
+        b = json.loads(b_json)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return None
+    if not isinstance(a, list) or not isinstance(b, list):
+        return None
+    if not a or len(a) != len(b):
+        return None
+    try:
+        dot = sum(float(x) * float(y) for x, y in zip(a, b))
+        na = math.sqrt(sum(float(x) * float(x) for x in a))
+        nb = math.sqrt(sum(float(y) * float(y) for y in b))
+    except (TypeError, ValueError):
+        return None
+    if na == 0.0 or nb == 0.0:
+        return None
+    return dot / (na * nb)
 
 
 def _embed_json(vec: Optional[Sequence[float]]) -> Optional[str]:
@@ -99,24 +136,32 @@ def log_query(
         return None
 
 
-def sweep_buckets(conn: sqlite3.Connection, now: Optional[float] = None) -> int:
+def sweep_buckets(
+    conn: sqlite3.Connection,
+    now: Optional[float] = None,
+    *,
+    cos_threshold: float = BUCKET_SEMA_COS_THRESHOLD,
+) -> int:
     """Assign buckets to pending entries older than BUCKET_WINDOW_S.
 
     An entry is assigned:
-      'B' if there is any row with the same session_id and
-          0 < (other.ts - this.ts) <= BUCKET_WINDOW_S
-      'A' otherwise.
+      'B' if there is a same-session row with 0 < (other.ts - this.ts) <=
+          BUCKET_WINDOW_S AND cos(this.query_sema, other.query_sema) >
+          cos_threshold (STATISTICAL_FUSION.md §C2 intent-delta filter).
+          Legacy rows lacking one or both sema vectors fall back to the
+          time-only rule so behavior is preserved for pre-PWPC-Phase-1 data.
+      'A' otherwise — including re-queries that fail the cos filter (user
+          changed topic, not dissatisfied).
 
-    Only rows older than BUCKET_WINDOW_S are eligible - anything newer
-    could still flip to 'B' if a re-query arrives. Returns count of
-    rows updated.
+    Only rows older than BUCKET_WINDOW_S are eligible — anything newer could
+    still flip to 'B' if a re-query arrives. Returns count of rows updated.
     """
     if now is None:
         now = time.time()
     cutoff = now - BUCKET_WINDOW_S
     try:
         rows = conn.execute(
-            "SELECT retrieval_id, session_id, ts FROM cwola_log "
+            "SELECT retrieval_id, session_id, ts, query_sema FROM cwola_log "
             "WHERE bucket IS NULL AND ts <= ?",
             (cutoff,),
         ).fetchall()
@@ -126,20 +171,35 @@ def sweep_buckets(conn: sqlite3.Connection, now: Optional[float] = None) -> int:
 
     updates = 0
     updated_rids: List[Any] = []
-    for rid, session_id, ts in rows:
+    n_filtered = 0
+    n_fallback_legacy = 0
+    for rid, session_id, ts, this_sema in rows:
         if not session_id:
             bucket, delta = "A", None
         else:
             next_row = conn.execute(
-                "SELECT ts FROM cwola_log "
+                "SELECT ts, query_sema FROM cwola_log "
                 "WHERE session_id = ? AND ts > ? AND ts <= ? "
                 "ORDER BY ts ASC LIMIT 1",
                 (session_id, ts, ts + BUCKET_WINDOW_S),
             ).fetchone()
-            if next_row:
-                bucket, delta = "B", float(next_row[0]) - float(ts)
-            else:
+            if not next_row:
                 bucket, delta = "A", None
+            else:
+                next_ts, next_sema = next_row
+                cos = _cos_from_jsons(this_sema, next_sema)
+                if cos is None:
+                    # Legacy: one or both sema missing. Preserve the old
+                    # time-only rule so historical data still buckets.
+                    bucket, delta = "B", float(next_ts) - float(ts)
+                    n_fallback_legacy += 1
+                elif cos > cos_threshold:
+                    bucket, delta = "B", float(next_ts) - float(ts)
+                else:
+                    # Intent-delta filter: re-query was topically unrelated.
+                    # User moved on — treat as accept, not dissatisfaction.
+                    bucket, delta = "A", None
+                    n_filtered += 1
         try:
             conn.execute(
                 "UPDATE cwola_log SET bucket = ?, bucket_assigned_at = ?, "
@@ -181,6 +241,12 @@ def sweep_buckets(conn: sqlite3.Connection, now: Optional[float] = None) -> int:
                 cwola_f_gap_gauge().set(float(s["f_gap_sq"]))
         except Exception:
             log.debug("cwola telemetry emit failed", exc_info=True)
+    if n_filtered or n_fallback_legacy:
+        log.info(
+            "sweep_buckets: intent-delta filter reassigned %d row(s) "
+            "B->A (cos <= %.2f); %d row(s) used legacy time-only rule "
+            "(sema missing)", n_filtered, cos_threshold, n_fallback_legacy,
+        )
     return updates
 
 

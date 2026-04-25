@@ -159,7 +159,7 @@ distance_metric = "cosine"              # "cosine" (weighted dot) | "w1" (Werman
 [retrieval]
 # Tier 5.5 — Successor Representation (Stachenfeld 2017). γ-discounted
 # future-occupancy boost over the co-activation graph. Lazy, on-demand.
-sr_enabled = false                      # Dark ship — flip to true for A/B on bench_dimensional_lock.py v2-3
+sr_enabled = true                       # Stage-1 bench flip (2026-04-22); research review flagged this as dark-shipped signal-positive
 sr_gamma = 0.85                         # 5-10 hop horizon (Stachenfeld grid-cell sweet spot)
 sr_k_steps = 4                          # Power-series truncation (cap runaway propagation)
 sr_weight = 1.5                         # Per-gene SR contribution multiplier
@@ -175,8 +175,34 @@ seeded_edge_weight = 1.0                # Base weight stamped at seed insertion
 # Dewey bench 2026-04-14: filename-as-primary-anchor gave +24pp
 # retrieval over full path-token bag. Boosts genes whose filename
 # stem matches a query term. Env override: HELIX_FILENAME_ANCHOR_ENABLED=1.
-filename_anchor_enabled = false         # Dark ship — spike 2026-04-15 showed +12pp on axis-2 Dewey; flip to A/B in your genome
+filename_anchor_enabled = true          # Stage-1 bench flip (2026-04-22); +12pp on Dewey axis-2 spike
 filename_anchor_weight = 4.0            # Per-match boost (Tier 1 exact-tag = 3.0 for reference)
+# BM25 shortlist post-filter (Stage-2 bench flip 2026-04-22, research-review Pareto move 1).
+# When on, query_genes restricts its final ranking to genes in the BM25 top-N.
+# Dark by default — flip to true for Stage-2 A/B measurement.
+bm25_shortlist_enabled = true           # Keep on (2026-04-22 sprint): +1/8 ans_full on helix_rag + helix_full_stack, clean attribution
+bm25_shortlist_size = 50
+
+[plr]
+# Stacked PLR query-confidence head (STATISTICAL_FUSION.md §C3).
+#
+# Attaches a `plr_confidence` log-odds signal to /context/packet responses —
+# predicted log-odds that the user will re-query within 60s under the
+# training discipline (cos(q_t, q_{t+1}) filter + 60s window). Higher =
+# more likely to re-query = lower confidence in the retrieval.
+#
+# The current artifact is a **query-quality head**, not the per-(q, g)
+# ranker originally described in the spec. Gene ranking stays on the
+# additive fuser; this signal only feeds the packet / router.
+# See helix_context/fusion_plr.py docstring for the scope trade-off.
+#
+# Train a fresh artifact with:
+#   python scripts/pwpc/sprint3.py <windowed_export.json> \
+#       --save-model training/models/stacked_plr.joblib --save-label-set best
+enabled = false                         # Dark by default; bench before flipping
+model_path = "training/models/stacked_plr.joblib"
+expected_sha256 = ""                    # Empty = trust the .sha256 sidecar (written by the trainer)
+high_risk_threshold = 0.5               # `prob_B > this` surfaces a coarse "likely-to-re-query" boolean
 
 [mem_sync]
 # Auto-memory → helix sync. Every .md file in a watched dir becomes a

@@ -281,6 +281,14 @@ def cell_helix_only(client: httpx.Client, needle: dict) -> dict:
                 "query": needle["query"],
                 "task_type": "explain",
                 "read_only": True,
+                # Proposal 3 (research review 2026-04-22): opt in to full
+                # gene.content per item instead of the 280-char ribosome
+                # thumbnail. This cell is meant to measure retrieval
+                # quality without external I/O — the thumbnail caps
+                # answer recall at whatever survives splice, which was
+                # masking retrieval-side wins (helix_rag reads files
+                # from disk so it wasn't affected).
+                "include_raw": True,
             },
             timeout=60,
         )

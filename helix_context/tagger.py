@@ -230,6 +230,15 @@ class CpuTagger:
         # 2. Extract domains via tech dictionary + content scanning
         domains = self._extract_domains(doc, content, entities)
 
+        # 2b. Prepend filename-derived tokens so the tagger sees the file's
+        # own name as a primary domain signal (e.g. claims.py → "claims").
+        # Prepend so filename tokens survive the [:10] cap even on content-rich files.
+        filename_domains = self._extract_filename_domains(source_id)
+        if filename_domains:
+            seen = set(domains)
+            prepend = [t for t in filename_domains if t not in seen]
+            domains = prepend + domains
+
         # 3. Extract key-value facts via regex
         key_values = self._extract_key_values(content)
 
@@ -337,6 +346,49 @@ class CpuTagger:
         domains.sort(key=lambda d: freq.get(d, 0), reverse=True)
 
         return domains
+
+    def _extract_filename_domains(self, source_id: Optional[str]) -> List[str]:
+        """Return domain tokens derived from the file path.
+
+        Extracts the filename stem and parent directory name, then splits
+        on underscores and dashes to surface sub-tokens (e.g.
+        'claim_types_handler' → ['claim_types_handler', 'claim', 'types',
+        'handler']).  The full stem always comes first so it scores highest
+        when the cap truncates the list.
+
+        Noise stems from filename_anchor._NOISE_STEMS are skipped, and
+        tokens of 2 chars or fewer are dropped.
+        """
+        if not source_id:
+            return []
+
+        from helix_context.filename_anchor import filename_stem, _NOISE_STEMS
+
+        stem = filename_stem(source_id)  # None for noise / no-extension / short
+        tokens: list[str] = []
+        seen: set[str] = set()
+
+        def _push(tok: str) -> None:
+            t = tok.lower()
+            if len(t) > 2 and t not in _NOISE_STEMS and t not in seen:
+                seen.add(t)
+                tokens.append(t)
+
+        # ── filename stem (full, then sub-tokens) ──────────────────
+        if stem:
+            _push(stem)
+            for part in re.split(r"[_\-]+", stem):
+                _push(part)
+
+        # ── parent directory name (single level) ────────────────────
+        parts = source_id.replace("\\", "/").rstrip("/").split("/")
+        if len(parts) >= 2:
+            parent = parts[-2]
+            _push(parent)
+            for part in re.split(r"[_\-]+", parent):
+                _push(part)
+
+        return tokens
 
     # ── KV extraction (regex patterns) ────────────────────────────
 

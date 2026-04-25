@@ -1,0 +1,1429 @@
+{
+  "genome": {
+    "total_genes": 17022,
+    "compression_ratio": 5.018007904385389
+  },
+  "n_needles": 8,
+  "results": [
+    {
+      "name": "helix_and_headroom_ports",
+      "query": "what ports do helix and headroom listen on",
+      "expected": [
+        "11437",
+        "8787"
+      ],
+      "cells": {
+        "pure_rag_bm25": {
+          "cell": "pure_rag_bm25",
+          "latency_s": 0.104,
+          "delivered_srcs": [
+            "F:/Projects\\Education\\fleet\\skills\\security_suite.py",
+            "F:/Projects\\helix-context\\tests\\test_headroom_supervisor.py",
+            "F:/Projects\\helix-context\\docs\\FUTURE\\INDEX_MODE_ENDPOINT.md",
+            "F:/Projects\\helix-context\\deploy\\otel\\docker-compose.yml",
+            "F:/Projects\\helix-context\\tests\\test_launcher_supervisor.py",
+            "F:/Projects\\helix-context\\deploy\\otel\\tempo.yaml",
+            "F:/Projects\\helix-context\\helix_context\\launcher\\headroom_supervisor.py",
+            "F:/Projects\\helix-context\\docs\\collab\\HELIX_CODEBASE_INTRO.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\wiki\\macos-deployment.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\wiki\\macos-deployment.md",
+            "F:/Projects\\helix-context\\tests\\test_claims.py",
+            "F:/Projects\\helix-context\\docs\\collab\\ROADMAP_FOR_TODD.md"
+          ],
+          "n_delivered": 12,
+          "content_chars": 38582,
+          "score": {
+            "pointer_full": false,
+            "pointer_partial": 0.0,
+            "content_full": true,
+            "content_partial": 1.0,
+            "group_hits": [
+              false,
+              false
+            ],
+            "answer_found": [
+              true,
+              true
+            ]
+          }
+        },
+        "pure_rag_embedding": {
+          "cell": "pure_rag_embedding",
+          "latency_s": 10.279,
+          "delivered_srcs": [],
+          "n_delivered": 0,
+          "content_chars": 0,
+          "score": {
+            "pointer_full": false,
+            "pointer_partial": 0.0,
+            "content_full": false,
+            "content_partial": 0.0,
+            "group_hits": [
+              false,
+              false
+            ],
+            "answer_found": [
+              false,
+              false
+            ]
+          }
+        },
+        "helix_only": {
+          "cell": "helix_only",
+          "latency_s": 1.953,
+          "delivered_srcs": [
+            "F:/Projects\\helix-context\\training\\export_training_data.py",
+            "F:/Projects\\helix-context\\tests\\test_stress.py",
+            "F:/Projects\\helix-context\\tests\\test_pipeline.py",
+            "F:/Projects\\helix-context\\tests\\conftest.py",
+            "F:/Projects\\helix-context\\scripts\\validate_layered_fingerprints.py",
+            "F:/Projects\\helix-context\\scripts\\backfill_parent_genes.py",
+            "F:/Projects\\helix-context\\helix_context\\ribosome.py",
+            "F:/Projects\\helix-context\\helix_context\\context_manager.py",
+            "F:/Projects\\helix-context\\docs\\research\\RESEARCH.md",
+            "F:/Projects\\helix-context\\docs\\research\\RESEARCH.md",
+            "F:/Projects\\helix-context\\docs\\collab\\HELIX_CODEBASE_INTRO.md",
+            "F:/Projects\\helix-context\\docs\\ROSETTA.md",
+            "F:/Projects\\helix-context\\docs\\ROSETTA.md",
+            "F:/Projects\\Education\\docs\\superpowers\\specs\\2026-04-07-helix-context-design.md",
+            "F:/Projects\\Education\\docs\\superpowers\\specs\\2026-04-07-helix-context-design.md",
+            "F:/Projects\\Education\\docs\\superpowers\\specs\\2026-04-07-helix-context-design.md"
+          ],
+          "n_delivered": 16,
+          "content_chars": 55065,
+          "packet_notes": [
+            "source_index unavailable; using gene-local metadata only"
+          ],
+          "n_refresh_targets": 0,
+          "score": {
+            "pointer_full": false,
+            "pointer_partial": 0.0,
+            "content_full": false,
+            "content_partial": 0.5,
+            "group_hits": [
+              false,
+              false
+            ],
+            "answer_found": [
+              true,
+              false
+            ]
+          }
+        },
+        "helix_rag": {
+          "cell": "helix_rag",
+          "latency_s": 1.664,
+          "delivered_srcs": [
+            "F:/Projects\\helix-context\\training\\export_training_data.py",
+            "F:/Projects\\helix-context\\tests\\test_stress.py",
+            "F:/Projects\\helix-context\\tests\\test_pipeline.py",
+            "F:/Projects\\helix-context\\tests\\conftest.py",
+            "F:/Projects\\helix-context\\scripts\\validate_layered_fingerprints.py",
+            "F:/Projects\\helix-context\\scripts\\backfill_parent_genes.py",
+            "F:/Projects\\helix-context\\helix_context\\ribosome.py",
+            "F:/Projects\\helix-context\\helix_context\\context_manager.py",
+            "F:/Projects\\helix-context\\docs\\research\\RESEARCH.md",
+            "F:/Projects\\helix-context\\docs\\collab\\HELIX_CODEBASE_INTRO.md",
+            "F:/Projects\\helix-context\\docs\\ROSETTA.md",
+            "F:/Projects\\Education\\docs\\superpowers\\specs\\2026-04-07-helix-context-design.md"
+          ],
+          "n_delivered": 12,
+          "n_read": 12,
+          "n_missing": 0,
+          "content_chars": 58093,
+          "score": {
+            "pointer_full": false,
+            "pointer_partial": 0.0,
+            "content_full": false,
+            "content_partial": 0.5,
+            "group_hits": [
+              false,
+              false
+            ],
+            "answer_found": [
+              true,
+              false
+            ]
+          }
+        },
+        "helix_full_stack": {
+          "cell": "helix_full_stack",
+          "latency_s": 1.646,
+          "delivered_srcs": [
+            "F:/Projects\\helix-context\\training\\export_training_data.py",
+            "F:/Projects\\helix-context\\tests\\test_stress.py",
+            "F:/Projects\\helix-context\\tests\\test_pipeline.py",
+            "F:/Projects\\helix-context\\tests\\conftest.py",
+            "F:/Projects\\helix-context\\scripts\\validate_layered_fingerprints.py",
+            "F:/Projects\\helix-context\\scripts\\backfill_parent_genes.py",
+            "F:/Projects\\helix-context\\helix_context\\ribosome.py",
+            "F:/Projects\\helix-context\\helix_context\\context_manager.py",
+            "F:/Projects\\helix-context\\docs\\research\\RESEARCH.md",
+            "F:/Projects\\helix-context\\docs\\collab\\HELIX_CODEBASE_INTRO.md",
+            "F:/Projects\\helix-context\\docs\\ROSETTA.md",
+            "F:/Projects\\Education\\docs\\superpowers\\specs\\2026-04-07-helix-context-design.md"
+          ],
+          "n_delivered": 12,
+          "n_claims_resolved": 95,
+          "content_chars": 60476,
+          "score": {
+            "pointer_full": false,
+            "pointer_partial": 0.0,
+            "content_full": false,
+            "content_partial": 0.5,
+            "group_hits": [
+              false,
+              false
+            ],
+            "answer_found": [
+              true,
+              false
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "python_version_and_codec_extra",
+      "query": "python version helix requires and extra that enables headroom",
+      "expected": [
+        "3.11",
+        "codec"
+      ],
+      "cells": {
+        "pure_rag_bm25": {
+          "cell": "pure_rag_bm25",
+          "latency_s": 0.197,
+          "delivered_srcs": [
+            "F:/Projects\\agentome\\README.md",
+            "F:/Projects\\agentome\\pyproject.toml",
+            "F:/Projects\\helix-context\\pyproject.toml",
+            "F:/Projects\\helix-context\\deploy\\windows\\setup-helix.ps1",
+            "F:/Projects\\helix-context\\docs\\architecture\\LAUNCHER.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\docs\\spec\\003-adrs.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\docs\\spec\\003-adrs.md",
+            "F:/Projects\\helix-context\\docs\\INTEGRATING_WITH_EXISTING_RAG.md",
+            "F:/Projects\\helix-context\\docs\\ops\\SKILLS_BUNDLE.md",
+            "F:/Projects\\Education\\fleet\\skills\\model_eval_framework.py",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\docs\\spec\\014-governance.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\docs\\spec\\014-governance.md"
+          ],
+          "n_delivered": 12,
+          "content_chars": 42169,
+          "score": {
+            "pointer_full": true,
+            "pointer_partial": 1.0,
+            "content_full": true,
+            "content_partial": 1.0,
+            "group_hits": [
+              true,
+              true
+            ],
+            "answer_found": [
+              true,
+              true
+            ]
+          }
+        },
+        "pure_rag_embedding": {
+          "cell": "pure_rag_embedding",
+          "latency_s": 0.069,
+          "delivered_srcs": [],
+          "n_delivered": 0,
+          "content_chars": 0,
+          "score": {
+            "pointer_full": false,
+            "pointer_partial": 0.0,
+            "content_full": false,
+            "content_partial": 0.0,
+            "group_hits": [
+              false,
+              false
+            ],
+            "answer_found": [
+              false,
+              false
+            ]
+          }
+        },
+        "helix_only": {
+          "cell": "helix_only",
+          "latency_s": 3.797,
+          "delivered_srcs": [
+            "F:/Projects\\helix-context\\training\\export_training_data.py",
+            "F:/Projects\\helix-context\\tests\\test_stress.py",
+            "F:/Projects\\helix-context\\tests\\test_pipeline.py",
+            "F:/Projects\\helix-context\\tests\\conftest.py",
+            "F:/Projects\\helix-context\\scripts\\validate_layered_fingerprints.py",
+            "F:/Projects\\helix-context\\scripts\\claude_core_ingest.py",
+            "F:/Projects\\helix-context\\helix_context\\ribosome.py",
+            "F:/Projects\\helix-context\\helix_context\\cymatics.py",
+            "F:/Projects\\helix-context\\helix_context\\context_manager.py",
+            "F:/Projects\\helix-context\\docs\\research\\RESEARCH.md",
+            "F:/Projects\\helix-context\\docs\\ROSETTA.md",
+            "F:/Projects\\helix-context\\docs\\ROSETTA.md",
+            "F:/Projects\\helix-context\\README.md",
+            "F:/Projects\\Education\\docs\\superpowers\\specs\\2026-04-07-helix-context-design.md",
+            "F:/Projects\\Education\\docs\\superpowers\\specs\\2026-04-07-helix-context-design.md",
+            "F:/Projects\\Education\\docs\\superpowers\\specs\\2026-04-07-helix-context-design.md"
+          ],
+          "n_delivered": 16,
+          "content_chars": 55003,
+          "packet_notes": [
+            "source_index unavailable; using gene-local metadata only"
+          ],
+          "n_refresh_targets": 0,
+          "score": {
+            "pointer_full": false,
+            "pointer_partial": 0.5,
+            "content_full": false,
+            "content_partial": 0.5,
+            "group_hits": [
+              false,
+              true
+            ],
+            "answer_found": [
+              false,
+              true
+            ]
+          }
+        },
+        "helix_rag": {
+          "cell": "helix_rag",
+          "latency_s": 4.158,
+          "delivered_srcs": [
+            "F:/Projects\\helix-context\\training\\export_training_data.py",
+            "F:/Projects\\helix-context\\tests\\test_stress.py",
+            "F:/Projects\\helix-context\\tests\\test_pipeline.py",
+            "F:/Projects\\helix-context\\tests\\conftest.py",
+            "F:/Projects\\helix-context\\scripts\\validate_layered_fingerprints.py",
+            "F:/Projects\\helix-context\\scripts\\claude_core_ingest.py",
+            "F:/Projects\\helix-context\\helix_context\\ribosome.py",
+            "F:/Projects\\helix-context\\helix_context\\cymatics.py",
+            "F:/Projects\\helix-context\\helix_context\\context_manager.py",
+            "F:/Projects\\helix-context\\docs\\research\\RESEARCH.md",
+            "F:/Projects\\helix-context\\docs\\ROSETTA.md",
+            "F:/Projects\\helix-context\\README.md"
+          ],
+          "n_delivered": 12,
+          "n_read": 12,
+          "n_missing": 0,
+          "content_chars": 58093,
+          "score": {
+            "pointer_full": false,
+            "pointer_partial": 0.5,
+            "content_full": true,
+            "content_partial": 1.0,
+            "group_hits": [
+              false,
+              true
+            ],
+            "answer_found": [
+              true,
+              true
+            ]
+          }
+        },
+        "helix_full_stack": {
+          "cell": "helix_full_stack",
+          "latency_s": 2.896,
+          "delivered_srcs": [
+            "F:/Projects\\helix-context\\training\\export_training_data.py",
+            "F:/Projects\\helix-context\\tests\\test_stress.py",
+            "F:/Projects\\helix-context\\tests\\test_pipeline.py",
+            "F:/Projects\\helix-context\\tests\\conftest.py",
+            "F:/Projects\\helix-context\\scripts\\validate_layered_fingerprints.py",
+            "F:/Projects\\helix-context\\scripts\\claude_core_ingest.py",
+            "F:/Projects\\helix-context\\helix_context\\ribosome.py",
+            "F:/Projects\\helix-context\\helix_context\\cymatics.py",
+            "F:/Projects\\helix-context\\helix_context\\context_manager.py",
+            "F:/Projects\\helix-context\\docs\\research\\RESEARCH.md",
+            "F:/Projects\\helix-context\\docs\\ROSETTA.md",
+            "F:/Projects\\helix-context\\README.md"
+          ],
+          "n_delivered": 12,
+          "n_claims_resolved": 92,
+          "content_chars": 60479,
+          "score": {
+            "pointer_full": false,
+            "pointer_partial": 0.5,
+            "content_full": true,
+            "content_partial": 1.0,
+            "group_hits": [
+              false,
+              true
+            ],
+            "answer_found": [
+              true,
+              true
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "pipeline_steps_and_compression_target",
+      "query": "steps in helix pipeline and target compression ratio",
+      "expected": [
+        "6",
+        "5x"
+      ],
+      "cells": {
+        "pure_rag_bm25": {
+          "cell": "pure_rag_bm25",
+          "latency_s": 0.335,
+          "delivered_srcs": [
+            "F:/Projects\\helix-context\\helix.toml",
+            "F:/Projects\\Education\\docs\\superpowers\\specs\\2026-04-07-helix-context-design.md",
+            "F:/Projects\\Education\\docs\\superpowers\\specs\\2026-04-07-helix-context-design.md",
+            "F:/Projects\\helix-context\\docs\\architecture\\PIPELINE_LANES.md",
+            "F:/Projects\\helix-context\\deploy\\otel\\grafana\\dashboards\\helix-overview.json",
+            "F:/Projects\\helix-context\\tests\\test_genome.py",
+            "F:/Projects\\helix-context\\docs\\FUTURE\\genome_cross_compare_2026-04-15_0111.md",
+            "F:/Projects\\helix-context\\tests\\test_pipeline.py",
+            "F:/Projects\\Education\\docs\\superpowers\\specs\\2026-04-07-helix-context-design.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\headroom\\compress.py",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\headroom\\compress.py",
+            "F:/Projects\\helix-context\\docs\\FUTURE\\AB_TEST_PLAN.md"
+          ],
+          "n_delivered": 12,
+          "content_chars": 44047,
+          "score": {
+            "pointer_full": false,
+            "pointer_partial": 0.5,
+            "content_full": true,
+            "content_partial": 1.0,
+            "group_hits": [
+              true,
+              false
+            ],
+            "answer_found": [
+              true,
+              true
+            ]
+          }
+        },
+        "pure_rag_embedding": {
+          "cell": "pure_rag_embedding",
+          "latency_s": 0.089,
+          "delivered_srcs": [],
+          "n_delivered": 0,
+          "content_chars": 0,
+          "score": {
+            "pointer_full": false,
+            "pointer_partial": 0.0,
+            "content_full": false,
+            "content_partial": 0.0,
+            "group_hits": [
+              false,
+              false
+            ],
+            "answer_found": [
+              false,
+              false
+            ]
+          }
+        },
+        "helix_only": {
+          "cell": "helix_only",
+          "latency_s": 2.998,
+          "delivered_srcs": [
+            "F:/Projects\\helix-context\\training\\export_training_data.py",
+            "F:/Projects\\helix-context\\tests\\test_stress.py",
+            "F:/Projects\\helix-context\\tests\\test_pipeline.py",
+            "F:/Projects\\helix-context\\tests\\conftest.py",
+            "F:/Projects\\helix-context\\helix_context\\tagger.py",
+            "F:/Projects\\helix-context\\helix_context\\ribosome.py",
+            "F:/Projects\\helix-context\\helix_context\\context_manager.py",
+            "F:/Projects\\helix-context\\docs\\research\\RESEARCH.md",
+            "F:/Projects\\helix-context\\docs\\collab\\HELIX_CODEBASE_INTRO.md",
+            "F:/Projects\\helix-context\\docs\\ROSETTA.md",
+            "F:/Projects\\helix-context\\docs\\ROSETTA.md",
+            "F:/Projects\\helix-context\\README.md",
+            "F:/Projects\\helix-context\\BENCHMARK_NOTES.md",
+            "F:/Projects\\Education\\docs\\superpowers\\specs\\2026-04-07-helix-context-design.md",
+            "F:/Projects\\Education\\docs\\superpowers\\specs\\2026-04-07-helix-context-design.md",
+            "F:/Projects\\Education\\docs\\superpowers\\specs\\2026-04-07-helix-context-design.md"
+          ],
+          "n_delivered": 16,
+          "content_chars": 55521,
+          "packet_notes": [
+            "source_index unavailable; using gene-local metadata only"
+          ],
+          "n_refresh_targets": 0,
+          "score": {
+            "pointer_full": true,
+            "pointer_partial": 1.0,
+            "content_full": true,
+            "content_partial": 1.0,
+            "group_hits": [
+              true,
+              true
+            ],
+            "answer_found": [
+              true,
+              true
+            ]
+          }
+        },
+        "helix_rag": {
+          "cell": "helix_rag",
+          "latency_s": 3.296,
+          "delivered_srcs": [
+            "F:/Projects\\helix-context\\training\\export_training_data.py",
+            "F:/Projects\\helix-context\\tests\\test_stress.py",
+            "F:/Projects\\helix-context\\tests\\test_pipeline.py",
+            "F:/Projects\\helix-context\\tests\\conftest.py",
+            "F:/Projects\\helix-context\\helix_context\\tagger.py",
+            "F:/Projects\\helix-context\\helix_context\\ribosome.py",
+            "F:/Projects\\helix-context\\helix_context\\context_manager.py",
+            "F:/Projects\\helix-context\\docs\\research\\RESEARCH.md",
+            "F:/Projects\\helix-context\\docs\\collab\\HELIX_CODEBASE_INTRO.md",
+            "F:/Projects\\helix-context\\docs\\ROSETTA.md",
+            "F:/Projects\\helix-context\\README.md",
+            "F:/Projects\\helix-context\\BENCHMARK_NOTES.md"
+          ],
+          "n_delivered": 12,
+          "n_read": 12,
+          "n_missing": 0,
+          "content_chars": 58060,
+          "score": {
+            "pointer_full": true,
+            "pointer_partial": 1.0,
+            "content_full": true,
+            "content_partial": 1.0,
+            "group_hits": [
+              true,
+              true
+            ],
+            "answer_found": [
+              true,
+              true
+            ]
+          }
+        },
+        "helix_full_stack": {
+          "cell": "helix_full_stack",
+          "latency_s": 2.099,
+          "delivered_srcs": [
+            "F:/Projects\\helix-context\\training\\export_training_data.py",
+            "F:/Projects\\helix-context\\tests\\test_stress.py",
+            "F:/Projects\\helix-context\\tests\\test_pipeline.py",
+            "F:/Projects\\helix-context\\tests\\conftest.py",
+            "F:/Projects\\helix-context\\helix_context\\tagger.py",
+            "F:/Projects\\helix-context\\helix_context\\ribosome.py",
+            "F:/Projects\\helix-context\\helix_context\\context_manager.py",
+            "F:/Projects\\helix-context\\docs\\research\\RESEARCH.md",
+            "F:/Projects\\helix-context\\docs\\collab\\HELIX_CODEBASE_INTRO.md",
+            "F:/Projects\\helix-context\\docs\\ROSETTA.md",
+            "F:/Projects\\helix-context\\README.md",
+            "F:/Projects\\helix-context\\BENCHMARK_NOTES.md"
+          ],
+          "n_delivered": 12,
+          "n_claims_resolved": 89,
+          "content_chars": 60417,
+          "score": {
+            "pointer_full": true,
+            "pointer_partial": 1.0,
+            "content_full": true,
+            "content_partial": 1.0,
+            "group_hits": [
+              true,
+              true
+            ],
+            "answer_found": [
+              true,
+              true
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "claim_types_and_spec_source",
+      "query": "claim_type allowed values helix claims layer specification",
+      "expected": [
+        "path_value",
+        "agent-context-index"
+      ],
+      "cells": {
+        "pure_rag_bm25": {
+          "cell": "pure_rag_bm25",
+          "latency_s": 0.305,
+          "delivered_srcs": [
+            "F:/Projects\\helix-context\\docs\\specs\\2026-04-17-agent-context-index-build-spec.md",
+            "F:/Projects\\helix-context\\tests\\test_claims.py",
+            "F:/Projects\\helix-context\\tests\\test_claims.py",
+            "F:/Projects\\helix-context\\tests\\test_shard_schema.py",
+            "F:/Projects\\helix-context\\helix_context\\claims.py",
+            "F:/Projects\\helix-context\\helix_context\\shard_schema.py",
+            "F:/Projects\\helix-context\\tests\\test_claims_analyze.py",
+            "F:/Projects\\helix-context\\helix_context\\shard_schema.py",
+            "F:/Projects\\helix-context\\helix_context\\shard_schema.py",
+            "F:/Projects\\helix-context\\helix_context\\claims_graph.py",
+            "F:/Projects\\helix-context\\docs\\specs\\2026-04-17-agent-context-index-build-spec.md",
+            "F:/Projects\\helix-context\\helix_context\\claims.py"
+          ],
+          "n_delivered": 12,
+          "content_chars": 42373,
+          "score": {
+            "pointer_full": true,
+            "pointer_partial": 1.0,
+            "content_full": true,
+            "content_partial": 1.0,
+            "group_hits": [
+              true,
+              true
+            ],
+            "answer_found": [
+              true,
+              true
+            ]
+          }
+        },
+        "pure_rag_embedding": {
+          "cell": "pure_rag_embedding",
+          "latency_s": 0.077,
+          "delivered_srcs": [],
+          "n_delivered": 0,
+          "content_chars": 0,
+          "score": {
+            "pointer_full": false,
+            "pointer_partial": 0.0,
+            "content_full": false,
+            "content_partial": 0.0,
+            "group_hits": [
+              false,
+              false
+            ],
+            "answer_found": [
+              false,
+              false
+            ]
+          }
+        },
+        "helix_only": {
+          "cell": "helix_only",
+          "latency_s": 2.454,
+          "delivered_srcs": [
+            "F:/Projects\\helix-context\\training\\export_training_data.py",
+            "F:/Projects\\helix-context\\tests\\test_stress.py",
+            "F:/Projects\\helix-context\\tests\\test_shard_router.py",
+            "F:/Projects\\helix-context\\tests\\test_pipeline.py",
+            "F:/Projects\\helix-context\\tests\\conftest.py",
+            "F:/Projects\\helix-context\\scripts\\backfill_parent_genes.py",
+            "F:/Projects\\helix-context\\helix_context\\ribosome.py",
+            "F:/Projects\\helix-context\\helix_context\\context_manager.py",
+            "F:/Projects\\helix-context\\docs\\research\\RESEARCH.md",
+            "F:/Projects\\helix-context\\docs\\research\\RESEARCH.md",
+            "F:/Projects\\helix-context\\docs\\ROSETTA.md",
+            "F:/Projects\\helix-context\\docs\\ROSETTA.md",
+            "F:/Projects\\helix-context\\BENCHMARK_NOTES.md",
+            "F:/Projects\\Education\\docs\\superpowers\\specs\\2026-04-07-helix-context-design.md",
+            "F:/Projects\\Education\\docs\\superpowers\\specs\\2026-04-07-helix-context-design.md",
+            "F:/Projects\\Education\\docs\\superpowers\\specs\\2026-04-07-helix-context-design.md"
+          ],
+          "n_delivered": 16,
+          "content_chars": 54075,
+          "packet_notes": [
+            "source_index unavailable; using gene-local metadata only"
+          ],
+          "n_refresh_targets": 0,
+          "score": {
+            "pointer_full": false,
+            "pointer_partial": 0.0,
+            "content_full": false,
+            "content_partial": 0.0,
+            "group_hits": [
+              false,
+              false
+            ],
+            "answer_found": [
+              false,
+              false
+            ]
+          }
+        },
+        "helix_rag": {
+          "cell": "helix_rag",
+          "latency_s": 1.684,
+          "delivered_srcs": [
+            "F:/Projects\\helix-context\\training\\export_training_data.py",
+            "F:/Projects\\helix-context\\tests\\test_stress.py",
+            "F:/Projects\\helix-context\\tests\\test_shard_router.py",
+            "F:/Projects\\helix-context\\tests\\test_pipeline.py",
+            "F:/Projects\\helix-context\\tests\\conftest.py",
+            "F:/Projects\\helix-context\\scripts\\backfill_parent_genes.py",
+            "F:/Projects\\helix-context\\helix_context\\ribosome.py",
+            "F:/Projects\\helix-context\\helix_context\\context_manager.py",
+            "F:/Projects\\helix-context\\docs\\research\\RESEARCH.md",
+            "F:/Projects\\helix-context\\docs\\ROSETTA.md",
+            "F:/Projects\\helix-context\\BENCHMARK_NOTES.md",
+            "F:/Projects\\Education\\docs\\superpowers\\specs\\2026-04-07-helix-context-design.md"
+          ],
+          "n_delivered": 12,
+          "n_read": 12,
+          "n_missing": 0,
+          "content_chars": 58060,
+          "score": {
+            "pointer_full": false,
+            "pointer_partial": 0.0,
+            "content_full": false,
+            "content_partial": 0.0,
+            "group_hits": [
+              false,
+              false
+            ],
+            "answer_found": [
+              false,
+              false
+            ]
+          }
+        },
+        "helix_full_stack": {
+          "cell": "helix_full_stack",
+          "latency_s": 2.851,
+          "delivered_srcs": [
+            "F:/Projects\\helix-context\\training\\export_training_data.py",
+            "F:/Projects\\helix-context\\tests\\test_stress.py",
+            "F:/Projects\\helix-context\\tests\\test_shard_router.py",
+            "F:/Projects\\helix-context\\tests\\test_pipeline.py",
+            "F:/Projects\\helix-context\\tests\\conftest.py",
+            "F:/Projects\\helix-context\\scripts\\backfill_parent_genes.py",
+            "F:/Projects\\helix-context\\helix_context\\ribosome.py",
+            "F:/Projects\\helix-context\\helix_context\\context_manager.py",
+            "F:/Projects\\helix-context\\docs\\research\\RESEARCH.md",
+            "F:/Projects\\helix-context\\docs\\ROSETTA.md",
+            "F:/Projects\\helix-context\\BENCHMARK_NOTES.md",
+            "F:/Projects\\Education\\docs\\superpowers\\specs\\2026-04-07-helix-context-design.md"
+          ],
+          "n_delivered": 12,
+          "n_claims_resolved": 79,
+          "content_chars": 60013,
+          "score": {
+            "pointer_full": false,
+            "pointer_partial": 0.0,
+            "content_full": false,
+            "content_partial": 0.0,
+            "group_hits": [
+              false,
+              false
+            ],
+            "answer_found": [
+              false,
+              false
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "headroom_port_and_mode_default",
+      "query": "headroom dashboard port default compression mode",
+      "expected": [
+        "8787",
+        "token"
+      ],
+      "cells": {
+        "pure_rag_bm25": {
+          "cell": "pure_rag_bm25",
+          "latency_s": 0.337,
+          "delivered_srcs": [
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\docs\\spec\\018-policies.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\docs\\spec\\018-policies.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\docs\\spec\\002-architecture.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\docs\\spec\\002-architecture.md",
+            "F:/Projects\\helix-context\\helix.toml",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\docs\\spec\\015-interfaces.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\docs\\spec\\015-interfaces.md",
+            "F:/Projects\\helix-context\\helix_context\\config.py",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\headroom\\proxy\\server.py",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\headroom\\proxy\\server.py",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\docs\\spec\\006-actors.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\docs\\spec\\006-actors.md"
+          ],
+          "n_delivered": 12,
+          "content_chars": 42613,
+          "score": {
+            "pointer_full": true,
+            "pointer_partial": 1.0,
+            "content_full": true,
+            "content_partial": 1.0,
+            "group_hits": [
+              true,
+              true
+            ],
+            "answer_found": [
+              true,
+              true
+            ]
+          }
+        },
+        "pure_rag_embedding": {
+          "cell": "pure_rag_embedding",
+          "latency_s": 0.07,
+          "delivered_srcs": [],
+          "n_delivered": 0,
+          "content_chars": 0,
+          "score": {
+            "pointer_full": false,
+            "pointer_partial": 0.0,
+            "content_full": false,
+            "content_partial": 0.0,
+            "group_hits": [
+              false,
+              false
+            ],
+            "answer_found": [
+              false,
+              false
+            ]
+          }
+        },
+        "helix_only": {
+          "cell": "helix_only",
+          "latency_s": 4.708,
+          "delivered_srcs": [
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\wiki\\macos-deployment.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\wiki\\macos-deployment.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\wiki\\macos-deployment.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\wiki\\macos-deployment.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\wiki\\configuration.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\wiki\\cli.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\wiki\\cli.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\wiki\\cli.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\docs\\spec\\015-interfaces.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\docs\\spec\\006-actors.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\docs\\spec\\002-architecture.md",
+            "F:/Projects\\headroom\\wiki\\configuration.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\examples\\deployment\\macos-launchagent\\README.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\docs\\spec\\011-deployment.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\docs\\spec\\009-compliance.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\docs\\spec\\001-vision.md"
+          ],
+          "n_delivered": 16,
+          "content_chars": 57536,
+          "packet_notes": [
+            "source_index unavailable; using gene-local metadata only"
+          ],
+          "n_refresh_targets": 0,
+          "score": {
+            "pointer_full": false,
+            "pointer_partial": 0.0,
+            "content_full": true,
+            "content_partial": 1.0,
+            "group_hits": [
+              false,
+              false
+            ],
+            "answer_found": [
+              true,
+              true
+            ]
+          }
+        },
+        "helix_rag": {
+          "cell": "helix_rag",
+          "latency_s": 5.877,
+          "delivered_srcs": [
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\wiki\\macos-deployment.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\wiki\\configuration.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\wiki\\cli.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\docs\\spec\\015-interfaces.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\docs\\spec\\006-actors.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\docs\\spec\\002-architecture.md",
+            "F:/Projects\\headroom\\wiki\\configuration.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\examples\\deployment\\macos-launchagent\\README.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\docs\\spec\\011-deployment.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\docs\\spec\\009-compliance.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\docs\\spec\\001-vision.md"
+          ],
+          "n_delivered": 11,
+          "n_read": 11,
+          "n_missing": 0,
+          "content_chars": 46740,
+          "score": {
+            "pointer_full": false,
+            "pointer_partial": 0.0,
+            "content_full": true,
+            "content_partial": 1.0,
+            "group_hits": [
+              false,
+              false
+            ],
+            "answer_found": [
+              true,
+              true
+            ]
+          }
+        },
+        "helix_full_stack": {
+          "cell": "helix_full_stack",
+          "latency_s": 6.004,
+          "delivered_srcs": [
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\wiki\\macos-deployment.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\wiki\\configuration.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\wiki\\cli.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\docs\\spec\\015-interfaces.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\docs\\spec\\006-actors.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\docs\\spec\\002-architecture.md",
+            "F:/Projects\\headroom\\wiki\\configuration.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\examples\\deployment\\macos-launchagent\\README.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\docs\\spec\\011-deployment.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\docs\\spec\\009-compliance.md",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\docs\\spec\\001-vision.md"
+          ],
+          "n_delivered": 11,
+          "n_claims_resolved": 0,
+          "content_chars": 46740,
+          "score": {
+            "pointer_full": false,
+            "pointer_partial": 0.0,
+            "content_full": true,
+            "content_partial": 1.0,
+            "group_hits": [
+              false,
+              false
+            ],
+            "answer_found": [
+              true,
+              true
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "freshness_half_lives_stable_and_hot",
+      "query": "freshness half-life stable hot volatility",
+      "expected": [
+        "7d",
+        "15min"
+      ],
+      "cells": {
+        "pure_rag_bm25": {
+          "cell": "pure_rag_bm25",
+          "latency_s": 0.053,
+          "delivered_srcs": [
+            "F:/Projects\\helix-context\\docs\\INTEGRATING_WITH_EXISTING_RAG.md",
+            "F:/Projects\\helix-context\\helix_context\\context_packet.py",
+            "F:/Projects\\helix-context\\README.md",
+            "F:/Projects\\helix-context\\docs\\specs\\2026-04-17-agent-context-index-build-spec.md",
+            "F:/Projects\\helix-context\\docs\\architecture\\PIPELINE_LANES.md",
+            "F:/Projects\\helix-context\\helix_context\\provenance.py",
+            "F:/Projects\\helix-context\\docs\\architecture\\PIPELINE_LANES.md",
+            "F:/Projects\\helix-context\\helix_context\\provenance.py",
+            "F:/Projects\\helix-context\\helix_context\\adapters\\cache.py",
+            "F:/Projects\\helix-context\\docs\\architecture\\PIPELINE_LANES.md",
+            "F:/Projects\\helix-context\\tests\\test_context_packet.py",
+            "F:/Projects\\helix-context\\docs\\INTEGRATING_WITH_EXISTING_RAG.md"
+          ],
+          "n_delivered": 12,
+          "content_chars": 44060,
+          "score": {
+            "pointer_full": true,
+            "pointer_partial": 1.0,
+            "content_full": true,
+            "content_partial": 1.0,
+            "group_hits": [
+              true,
+              true
+            ],
+            "answer_found": [
+              true,
+              true
+            ]
+          }
+        },
+        "pure_rag_embedding": {
+          "cell": "pure_rag_embedding",
+          "latency_s": 0.081,
+          "delivered_srcs": [],
+          "n_delivered": 0,
+          "content_chars": 0,
+          "score": {
+            "pointer_full": false,
+            "pointer_partial": 0.0,
+            "content_full": false,
+            "content_partial": 0.0,
+            "group_hits": [
+              false,
+              false
+            ],
+            "answer_found": [
+              false,
+              false
+            ]
+          }
+        },
+        "helix_only": {
+          "cell": "helix_only",
+          "latency_s": 1.903,
+          "delivered_srcs": [
+            "F:/Projects\\helix-context\\tests\\test_ingest_metadata.py",
+            "F:/Projects\\helix-context\\tests\\test_context_packet.py",
+            "F:/Projects\\helix-context\\tests\\test_context_packet.py",
+            "F:/Projects\\helix-context\\scripts\\backfill_gene_provenance.py",
+            "F:/Projects\\helix-context\\helix_context\\adapters\\cache.py",
+            "F:/Projects\\helix-context\\helix_context\\adapters\\cache.py",
+            "F:/Projects\\helix-context\\helix_context\\shard_schema.py",
+            "F:/Projects\\helix-context\\helix_context\\provenance.py",
+            "F:/Projects\\helix-context\\helix_context\\provenance.py",
+            "F:/Projects\\helix-context\\helix_context\\context_packet.py",
+            "F:/Projects\\helix-context\\docs\\specs\\2026-04-17-agent-context-index-build-spec.md",
+            "F:/Projects\\helix-context\\docs\\specs\\2026-04-17-agent-context-index-build-spec.md",
+            "F:/Projects\\helix-context\\docs\\architecture\\PIPELINE_LANES.md",
+            "F:/Projects\\helix-context\\docs\\architecture\\PIPELINE_LANES.md",
+            "F:/Projects\\helix-context\\docs\\INTEGRATING_WITH_EXISTING_RAG.md",
+            "F:/Projects\\helix-context\\README.md"
+          ],
+          "n_delivered": 16,
+          "content_chars": 58660,
+          "packet_notes": [
+            "source_index unavailable; using gene-local metadata only",
+            "coordinate_confidence=0.00 below 0.30 floor (folder=0.00, file=0.00) \u2014 retrieval may not have located the right coordinate region"
+          ],
+          "n_refresh_targets": 16,
+          "score": {
+            "pointer_full": true,
+            "pointer_partial": 1.0,
+            "content_full": true,
+            "content_partial": 1.0,
+            "group_hits": [
+              true,
+              true
+            ],
+            "answer_found": [
+              true,
+              true
+            ]
+          }
+        },
+        "helix_rag": {
+          "cell": "helix_rag",
+          "latency_s": 2.003,
+          "delivered_srcs": [
+            "F:/Projects\\helix-context\\tests\\test_ingest_metadata.py",
+            "F:/Projects\\helix-context\\tests\\test_context_packet.py",
+            "F:/Projects\\helix-context\\scripts\\backfill_gene_provenance.py",
+            "F:/Projects\\helix-context\\helix_context\\adapters\\cache.py",
+            "F:/Projects\\helix-context\\helix_context\\shard_schema.py",
+            "F:/Projects\\helix-context\\helix_context\\provenance.py",
+            "F:/Projects\\helix-context\\helix_context\\context_packet.py",
+            "F:/Projects\\helix-context\\docs\\specs\\2026-04-17-agent-context-index-build-spec.md",
+            "F:/Projects\\helix-context\\docs\\architecture\\PIPELINE_LANES.md",
+            "F:/Projects\\helix-context\\docs\\INTEGRATING_WITH_EXISTING_RAG.md",
+            "F:/Projects\\helix-context\\README.md"
+          ],
+          "n_delivered": 11,
+          "n_read": 11,
+          "n_missing": 0,
+          "content_chars": 55050,
+          "score": {
+            "pointer_full": true,
+            "pointer_partial": 1.0,
+            "content_full": true,
+            "content_partial": 1.0,
+            "group_hits": [
+              true,
+              true
+            ],
+            "answer_found": [
+              true,
+              true
+            ]
+          }
+        },
+        "helix_full_stack": {
+          "cell": "helix_full_stack",
+          "latency_s": 0.73,
+          "delivered_srcs": [
+            "F:/Projects\\helix-context\\tests\\test_ingest_metadata.py",
+            "F:/Projects\\helix-context\\tests\\test_context_packet.py",
+            "F:/Projects\\helix-context\\scripts\\backfill_gene_provenance.py",
+            "F:/Projects\\helix-context\\helix_context\\adapters\\cache.py",
+            "F:/Projects\\helix-context\\helix_context\\shard_schema.py",
+            "F:/Projects\\helix-context\\helix_context\\provenance.py",
+            "F:/Projects\\helix-context\\helix_context\\context_packet.py",
+            "F:/Projects\\helix-context\\docs\\specs\\2026-04-17-agent-context-index-build-spec.md",
+            "F:/Projects\\helix-context\\docs\\architecture\\PIPELINE_LANES.md",
+            "F:/Projects\\helix-context\\docs\\INTEGRATING_WITH_EXISTING_RAG.md",
+            "F:/Projects\\helix-context\\README.md"
+          ],
+          "n_delivered": 11,
+          "n_claims_resolved": 0,
+          "content_chars": 55050,
+          "score": {
+            "pointer_full": true,
+            "pointer_partial": 1.0,
+            "content_full": true,
+            "content_partial": 1.0,
+            "group_hits": [
+              true,
+              true
+            ],
+            "answer_found": [
+              true,
+              true
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "coord_floor_and_file_grain_floor",
+      "query": "coordinate confidence floor file-grain coverage floor",
+      "expected": [
+        "0.30",
+        "0.15"
+      ],
+      "cells": {
+        "pure_rag_bm25": {
+          "cell": "pure_rag_bm25",
+          "latency_s": 0.098,
+          "delivered_srcs": [
+            "F:/Projects\\helix-context\\helix_context\\context_packet.py",
+            "F:/Projects\\helix-context\\helix_context\\context_packet.py",
+            "F:/Projects\\helix-context\\helix_context\\context_manager.py",
+            "F:/Projects\\helix-context\\docs\\FUTURE\\INDEX_MODE_ENDPOINT.md",
+            "F:/Projects\\helix-context\\README.md",
+            "F:/Projects\\helix-context\\helix_context\\schemas.py",
+            "F:/Projects\\helix-context\\docs\\architecture\\PIPELINE_LANES.md",
+            "F:/Projects\\helix-context\\tests\\test_context_packet.py",
+            "F:/Projects\\helix-context\\docs\\FUTURE\\INDEX_MODE_ENDPOINT.md",
+            "F:/Projects\\helix-context\\docs\\architecture\\PIPELINE_LANES.md",
+            "F:/Projects\\helix-context\\docs\\collab\\from_todd\\PWPC_EXPERIMENT_SPEC.md",
+            "F:/Projects\\helix-context\\helix_context\\context_packet.py"
+          ],
+          "n_delivered": 12,
+          "content_chars": 45948,
+          "score": {
+            "pointer_full": true,
+            "pointer_partial": 1.0,
+            "content_full": true,
+            "content_partial": 1.0,
+            "group_hits": [
+              true,
+              true
+            ],
+            "answer_found": [
+              true,
+              true
+            ]
+          }
+        },
+        "pure_rag_embedding": {
+          "cell": "pure_rag_embedding",
+          "latency_s": 0.071,
+          "delivered_srcs": [],
+          "n_delivered": 0,
+          "content_chars": 0,
+          "score": {
+            "pointer_full": false,
+            "pointer_partial": 0.0,
+            "content_full": false,
+            "content_partial": 0.0,
+            "group_hits": [
+              false,
+              false
+            ],
+            "answer_found": [
+              false,
+              false
+            ]
+          }
+        },
+        "helix_only": {
+          "cell": "helix_only",
+          "latency_s": 1.056,
+          "delivered_srcs": [
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\sdk\\typescript\\examples\\middleware-composition.ts",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\headroom\\transforms\\adaptive_sizer.py",
+            "F:/Projects\\two-brain-audit\\src\\scorerift\\engine.py",
+            "F:/Projects\\two-brain-audit\\src\\scorerift\\engine.py",
+            "F:/Projects\\two-brain-audit\\src\\scorerift\\engine.py",
+            "F:/Projects\\helix-context\\tests\\test_context_packet.py",
+            "F:/Projects\\helix-context\\scripts\\diagnose_file_grain.py",
+            "F:/Projects\\helix-context\\scripts\\diagnose_file_grain.py",
+            "F:/Projects\\helix-context\\helix_context\\schemas.py",
+            "F:/Projects\\helix-context\\helix_context\\mcp_server.py",
+            "F:/Projects\\helix-context\\helix_context\\genome.py",
+            "F:/Projects\\helix-context\\helix_context\\context_packet.py",
+            "F:/Projects\\helix-context\\helix_context\\context_packet.py",
+            "F:/Projects\\helix-context\\helix_context\\context_manager.py",
+            "F:/Projects\\helix-context\\docs\\FUTURE\\INDEX_MODE_ENDPOINT.md",
+            "F:/Projects\\helix-context\\docs\\FUTURE\\INDEX_MODE_ENDPOINT.md"
+          ],
+          "n_delivered": 16,
+          "content_chars": 105250,
+          "packet_notes": [
+            "source_index unavailable; using gene-local metadata only",
+            "coordinate_confidence=0.00 below 0.30 floor (folder=0.00, file=0.00) \u2014 retrieval may not have located the right coordinate region"
+          ],
+          "n_refresh_targets": 16,
+          "score": {
+            "pointer_full": true,
+            "pointer_partial": 1.0,
+            "content_full": true,
+            "content_partial": 1.0,
+            "group_hits": [
+              true,
+              true
+            ],
+            "answer_found": [
+              true,
+              true
+            ]
+          }
+        },
+        "helix_rag": {
+          "cell": "helix_rag",
+          "latency_s": 2.293,
+          "delivered_srcs": [
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\sdk\\typescript\\examples\\middleware-composition.ts",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\headroom\\transforms\\adaptive_sizer.py",
+            "F:/Projects\\two-brain-audit\\src\\scorerift\\engine.py",
+            "F:/Projects\\helix-context\\tests\\test_context_packet.py",
+            "F:/Projects\\helix-context\\scripts\\diagnose_file_grain.py",
+            "F:/Projects\\helix-context\\helix_context\\schemas.py",
+            "F:/Projects\\helix-context\\helix_context\\mcp_server.py",
+            "F:/Projects\\helix-context\\helix_context\\genome.py",
+            "F:/Projects\\helix-context\\helix_context\\context_packet.py",
+            "F:/Projects\\helix-context\\helix_context\\context_manager.py",
+            "F:/Projects\\helix-context\\docs\\FUTURE\\INDEX_MODE_ENDPOINT.md"
+          ],
+          "n_delivered": 11,
+          "n_read": 11,
+          "n_missing": 0,
+          "content_chars": 51826,
+          "score": {
+            "pointer_full": true,
+            "pointer_partial": 1.0,
+            "content_full": true,
+            "content_partial": 1.0,
+            "group_hits": [
+              true,
+              true
+            ],
+            "answer_found": [
+              true,
+              true
+            ]
+          }
+        },
+        "helix_full_stack": {
+          "cell": "helix_full_stack",
+          "latency_s": 1.052,
+          "delivered_srcs": [
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\sdk\\typescript\\examples\\middleware-composition.ts",
+            "F:/Projects\\_worktrees\\headroom\\feat-kompress-backend-selection\\headroom\\transforms\\adaptive_sizer.py",
+            "F:/Projects\\two-brain-audit\\src\\scorerift\\engine.py",
+            "F:/Projects\\helix-context\\tests\\test_context_packet.py",
+            "F:/Projects\\helix-context\\scripts\\diagnose_file_grain.py",
+            "F:/Projects\\helix-context\\helix_context\\schemas.py",
+            "F:/Projects\\helix-context\\helix_context\\mcp_server.py",
+            "F:/Projects\\helix-context\\helix_context\\genome.py",
+            "F:/Projects\\helix-context\\helix_context\\context_packet.py",
+            "F:/Projects\\helix-context\\helix_context\\context_manager.py",
+            "F:/Projects\\helix-context\\docs\\FUTURE\\INDEX_MODE_ENDPOINT.md"
+          ],
+          "n_delivered": 11,
+          "n_claims_resolved": 0,
+          "content_chars": 51826,
+          "score": {
+            "pointer_full": true,
+            "pointer_partial": 1.0,
+            "content_full": true,
+            "content_partial": 1.0,
+            "group_hits": [
+              true,
+              true
+            ],
+            "answer_found": [
+              true,
+              true
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "helix_port_and_fleet_port",
+      "query": "helix listen port bigEd fleet dashboard port",
+      "expected": [
+        "11437",
+        "5555"
+      ],
+      "cells": {
+        "pure_rag_bm25": {
+          "cell": "pure_rag_bm25",
+          "latency_s": 0.062,
+          "delivered_srcs": [
+            "F:/Projects\\helix-context\\helix_context\\tagger.py",
+            "F:/Projects\\Education\\docs\\screenshots\\dashboard_snapshot.txt",
+            "F:/Projects\\Education\\fleet\\skills\\security_suite.py",
+            "F:/Projects\\helix-context\\helix.toml",
+            "F:/Projects\\Education\\fleet\\settings_blueprint.py",
+            "F:/Projects\\Education\\BigEd\\launcher\\launcher_webview.py",
+            "F:/Projects\\helix-context\\tests\\test_launcher_supervisor.py",
+            "F:/Projects\\helix-context\\deploy\\otel\\tempo.yaml",
+            "F:/Projects\\Education\\fleet\\mcp_server.py",
+            "F:/Projects\\Education\\deploy\\helm\\biged-cc\\templates\\deployment-dashboard.yaml",
+            "F:/Projects\\helix-context\\tests\\test_headroom_supervisor.py",
+            "F:/Projects\\Education\\biged-rs\\tests\\config_test.rs"
+          ],
+          "n_delivered": 12,
+          "content_chars": 39087,
+          "score": {
+            "pointer_full": false,
+            "pointer_partial": 0.5,
+            "content_full": true,
+            "content_partial": 1.0,
+            "group_hits": [
+              true,
+              false
+            ],
+            "answer_found": [
+              true,
+              true
+            ]
+          }
+        },
+        "pure_rag_embedding": {
+          "cell": "pure_rag_embedding",
+          "latency_s": 0.061,
+          "delivered_srcs": [],
+          "n_delivered": 0,
+          "content_chars": 0,
+          "score": {
+            "pointer_full": false,
+            "pointer_partial": 0.0,
+            "content_full": false,
+            "content_partial": 0.0,
+            "group_hits": [
+              false,
+              false
+            ],
+            "answer_found": [
+              false,
+              false
+            ]
+          }
+        },
+        "helix_only": {
+          "cell": "helix_only",
+          "latency_s": 7.16,
+          "delivered_srcs": [
+            "F:/Projects\\helix-context\\training\\export_training_data.py",
+            "F:/Projects\\helix-context\\helix_context\\context_manager.py",
+            "F:/Projects\\Education\\biged-rs\\Cargo.toml",
+            "F:/Projects\\_plans\\dual_track_plan.md",
+            "F:/Projects\\_plans\\dual_track_plan.md",
+            "F:/Projects\\helix-context\\docs\\FUTURE\\genome_cross_compare_2026-04-15_0111.md",
+            "F:/Projects\\helix-context\\docs\\ROSETTA.md",
+            "F:/Projects\\Education\\docs\\superpowers\\specs\\2026-04-07-helix-context-design.md",
+            "F:/Projects\\Education\\docs\\superpowers\\specs\\2026-03-24-rust-hybrid-architecture-design.md",
+            "F:/Projects\\Education\\docs\\superpowers\\plans\\2026-03-24-rust-phase2-server.md",
+            "F:/Projects\\Education\\docs\\superpowers\\plans\\2026-03-24-rust-phase2-server.md",
+            "F:/Projects\\Education\\biged-rs\\docs\\RUNBOOK.md",
+            "F:/Projects\\Education\\biged-rs\\docs\\MIGRATION.md",
+            "F:/Projects\\Education\\biged-rs\\DEPLOYMENT.md",
+            "F:/Projects\\Education\\fleet\\knowledge\\wiki\\architecture.md",
+            "F:/Projects\\Education\\biged-rs\\README.md"
+          ],
+          "n_delivered": 16,
+          "content_chars": 54436,
+          "packet_notes": [
+            "source_index unavailable; using gene-local metadata only"
+          ],
+          "n_refresh_targets": 0,
+          "score": {
+            "pointer_full": false,
+            "pointer_partial": 0.0,
+            "content_full": true,
+            "content_partial": 1.0,
+            "group_hits": [
+              false,
+              false
+            ],
+            "answer_found": [
+              true,
+              true
+            ]
+          }
+        },
+        "helix_rag": {
+          "cell": "helix_rag",
+          "latency_s": 9.479,
+          "delivered_srcs": [
+            "F:/Projects\\helix-context\\training\\export_training_data.py",
+            "F:/Projects\\helix-context\\helix_context\\context_manager.py",
+            "F:/Projects\\Education\\biged-rs\\Cargo.toml",
+            "F:/Projects\\_plans\\dual_track_plan.md",
+            "F:/Projects\\helix-context\\docs\\FUTURE\\genome_cross_compare_2026-04-15_0111.md",
+            "F:/Projects\\helix-context\\docs\\ROSETTA.md",
+            "F:/Projects\\Education\\docs\\superpowers\\specs\\2026-04-07-helix-context-design.md",
+            "F:/Projects\\Education\\docs\\superpowers\\specs\\2026-03-24-rust-hybrid-architecture-design.md",
+            "F:/Projects\\Education\\docs\\superpowers\\plans\\2026-03-24-rust-phase2-server.md",
+            "F:/Projects\\Education\\biged-rs\\docs\\RUNBOOK.md",
+            "F:/Projects\\Education\\biged-rs\\docs\\MIGRATION.md",
+            "F:/Projects\\Education\\biged-rs\\DEPLOYMENT.md"
+          ],
+          "n_delivered": 12,
+          "n_read": 12,
+          "n_missing": 0,
+          "content_chars": 56268,
+          "score": {
+            "pointer_full": false,
+            "pointer_partial": 0.0,
+            "content_full": true,
+            "content_partial": 1.0,
+            "group_hits": [
+              false,
+              false
+            ],
+            "answer_found": [
+              true,
+              true
+            ]
+          }
+        },
+        "helix_full_stack": {
+          "cell": "helix_full_stack",
+          "latency_s": 9.187,
+          "delivered_srcs": [
+            "F:/Projects\\helix-context\\training\\export_training_data.py",
+            "F:/Projects\\helix-context\\helix_context\\context_manager.py",
+            "F:/Projects\\Education\\biged-rs\\Cargo.toml",
+            "F:/Projects\\_plans\\dual_track_plan.md",
+            "F:/Projects\\helix-context\\docs\\FUTURE\\genome_cross_compare_2026-04-15_0111.md",
+            "F:/Projects\\helix-context\\docs\\ROSETTA.md",
+            "F:/Projects\\Education\\docs\\superpowers\\specs\\2026-04-07-helix-context-design.md",
+            "F:/Projects\\Education\\docs\\superpowers\\specs\\2026-03-24-rust-hybrid-architecture-design.md",
+            "F:/Projects\\Education\\docs\\superpowers\\plans\\2026-03-24-rust-phase2-server.md",
+            "F:/Projects\\Education\\biged-rs\\docs\\RUNBOOK.md",
+            "F:/Projects\\Education\\biged-rs\\docs\\MIGRATION.md",
+            "F:/Projects\\Education\\biged-rs\\DEPLOYMENT.md"
+          ],
+          "n_delivered": 12,
+          "n_claims_resolved": 233,
+          "content_chars": 62278,
+          "score": {
+            "pointer_full": false,
+            "pointer_partial": 0.0,
+            "content_full": true,
+            "content_partial": 1.0,
+            "group_hits": [
+              false,
+              false
+            ],
+            "answer_found": [
+              true,
+              true
+            ]
+          }
+        }
+      }
+    }
+  ]
+}
