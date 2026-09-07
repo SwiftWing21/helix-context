@@ -14,10 +14,12 @@ raising — the dashboard is expected to hide panels whose data is empty.
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any, Dict, List, Optional
 
 import httpx
 
+from .graph_summary import GraphSummaryCache
 from .supervisor import CymatixSupervisor
 from .host_labels import compose_label, host_pretty, vendor_pretty
 from .model_labels import model_pretty
@@ -100,11 +102,13 @@ class StateCollector:
         ollama_base_url: str = "http://127.0.0.1:11434",
         http_timeout: float = 4.0,
         update_checker: Optional[Any] = None,
+        graph_summary_cache: Optional[GraphSummaryCache] = None,
     ) -> None:
         self.supervisor = supervisor
         self.ollama_base_url = ollama_base_url.rstrip("/")
         self.http_timeout = http_timeout
         self.update_checker = update_checker
+        self.graph_summary_cache = graph_summary_cache or GraphSummaryCache()
 
     def collect(self) -> Dict[str, Any]:
         """Return the full launcher state dict. Never raises."""
@@ -118,6 +122,13 @@ class StateCollector:
         # Pipeline/runs panels need a live cymatix so they stay gated below.
         state["switchboard"] = self._switchboard_panel()
         state["database"] = self._database_panel()
+
+        # The graph summary counts rows in the genome file, so it is
+        # meaningful with cymatix stopped and belongs above the early
+        # return too.
+        summary = self._graph_summary_panel(state["database"])
+        if summary is not None:
+            state["graph_summary"] = summary
 
         if not cymatix_state["running"]:
             return state
@@ -606,7 +617,12 @@ class StateCollector:
 
         try:
             entries = discover_genomes()
-            active = str(active_genome_path()).lower()
+            # Published as resolved, NOT case-folded: this string is opened
+            # with sqlite downstream, and on a case-sensitive filesystem a
+            # lowercased path names a file that does not exist. `is_active`
+            # below still compares case-insensitively, which is what the
+            # Windows "F:/Genomes" vs "f:/genomes" case needs.
+            active = str(active_genome_path())
         except Exception as exc:
             log.warning("Database panel: discovery failed (%s)", exc, exc_info=True)
             return {"error": str(exc), "entries": []}
@@ -622,6 +638,27 @@ class StateCollector:
             "entries": out_entries,
             "count": len(out_entries),
         }
+
+    # ── graph summary ──────────────────────────────────────────────
+
+    def _graph_summary_panel(
+        self, database_panel: Dict[str, Any],
+    ) -> Optional[Dict[str, Any]]:
+        """Layer counts for the active genome, or None to omit the panel.
+
+        None when the registry could not be read, and when the active path
+        does not exist yet: `active_genome_path` falls back to a repo-root
+        `genome.db` whether or not it is there, so a fresh install would
+        otherwise log a warning on every poll.
+        """
+        active_path = database_panel.get("active_path")
+        if not active_path or not os.path.exists(active_path):
+            return None
+        try:
+            return self.graph_summary_cache.get(active_path)
+        except Exception as exc:
+            log.warning("Graph summary panel failed (%s)", exc, exc_info=True)
+            return None
 
     def _live_genome(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Project /admin/genome into the database panel's `live` block."""

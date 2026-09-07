@@ -35,6 +35,12 @@
   {% include "components/database_panel.html" %}
 {% endif %}
 
+{# Counts rows in the genome file rather than asking the server, so it
+   renders with cymatix stopped too. #}
+{% if state.graph_summary %}
+  {% include "components/graph_summary_panel.html" %}
+{% endif %}
+
 {% if state.cymatix.running %}
   {% if state.parties %}
     {% include "components/parties_panel.html" %}
