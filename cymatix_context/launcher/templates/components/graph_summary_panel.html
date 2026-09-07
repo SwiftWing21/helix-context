@@ -1,0 +1,64 @@
+{# Graph summary. A read-only inventory of the graph layers in the active
+   knowledge store, filled by collector.py from graph_summary.GraphSummaryCache,
+   which opens the resolved genome path with a short read-only SQLite
+   connection and caches the counts by path for about 30 seconds. Nothing here
+   is read from the running server, so the panel is meaningful with cymatix
+   stopped, which is why panels.html includes it outside the running gate.
+   It is a ledger, not a renderer: no node or edge is drawn. When the store
+   cannot be read the panel says so and the reason goes to the log, not to
+   the page. #}
+
+<section class="panel panel--graph-summary">
+  <h2 class="panel-title">
+    Graph summary
+    <span class="panel-count-muted">Renderer deferred</span>
+  </h2>
+
+  <p class="muted">Counts of what the active knowledge store holds in each graph layer.
+    This panel counts rows, it does not draw a graph.</p>
+
+  {% if state.graph_summary.available %}
+    <dl class="graph-layers">
+      <div class="graph-layer">
+        <dt>Genes</dt>
+        <dd><strong>{{ "{:,}".format(state.graph_summary.total_genes) }}</strong></dd>
+        <dd class="muted">{{ "{:,}".format(state.graph_summary.cover_connected_genes) }} COVER-connected</dd>
+      </div>
+      <div class="graph-layer">
+        <dt>Semantic</dt>
+        {% if state.graph_summary.cover_links is none %}
+          <dd><strong>{{ "{:,}".format(state.graph_summary.cover_rows) }}</strong> stored COVER rows</dd>
+          <dd class="muted">distinct links not counted at this scale</dd>
+        {% else %}
+          <dd><strong>{{ "{:,}".format(state.graph_summary.cover_links) }}</strong> distinct COVER links</dd>
+          <dd class="muted">{{ "{:,}".format(state.graph_summary.cover_rows) }} stored rows</dd>
+        {% endif %}
+      </div>
+      <div class="graph-layer">
+        <dt>Structure</dt>
+        <dd><strong>{{ "{:,}".format(state.graph_summary.chunk_of_rows) }}</strong> CHUNK_OF links</dd>
+        <dd class="muted">document hierarchy</dd>
+      </div>
+      <div class="graph-layer">
+        <dt>Co-activation</dt>
+        <dd><strong>{{ "{:,}".format(state.graph_summary.harmonic_links) }}</strong> harmonic links</dd>
+        <dd class="muted">learned from retrieval</dd>
+      </div>
+      <div class="graph-layer">
+        <dt>Entities</dt>
+        <dd><strong>{{ "{:,}".format(state.graph_summary.entities) }}</strong> distinct entities</dd>
+        <dd class="muted">{{ "{:,}".format(state.graph_summary.entity_memberships) }} memberships</dd>
+      </div>
+    </dl>
+  {% else %}
+    <p class="graph-summary-unavailable muted">Graph summary unavailable. The rest of the
+      Knowledge store tab is unaffected.</p>
+  {% endif %}
+
+  {% if state.graph_summary.path %}
+    <dl class="panel-kv">
+      <dt>Read from</dt>
+      <dd class="path-value">{{ state.graph_summary.path }}</dd>
+    </dl>
+  {% endif %}
+</section>

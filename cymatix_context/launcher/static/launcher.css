@@ -414,6 +414,7 @@ p {
 .panel--health-warning,
 .panel--switchboard,
 .panel--database,
+.panel--graph-summary,
 .panel--observability,
 .panel--bench,
 .panel--starting,
@@ -742,6 +743,7 @@ p {
 .panels[data-active-tab="genome"] .panel--models,
 .panels[data-active-tab="genome"] .panel--tools,
 .panels[data-active-tab="genome"] .panel--database,
+.panels[data-active-tab="genome"] .panel--graph-summary,
 .panels[data-active-tab="monitoring"] .panel--bench,
 .panels[data-active-tab="genome"] .panel--observability,
 .panels[data-active-tab="monitoring"] .panel--observability,
@@ -751,6 +753,61 @@ p {
 .panels[data-active-tab="monitoring"] .panel--switchboard,
 .panels[data-active-tab="monitoring"] .panel--pipeline {
   display: grid;
+}
+
+/* ── Graph summary panel ───────────────────────────── */
+
+.graph-layers {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.graph-layer {
+  display: grid;
+  grid-template-columns: minmax(110px, 0.7fr) minmax(220px, 1.3fr) minmax(180px, 1fr);
+  gap: 12px;
+  align-items: baseline;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--color-elevated) 48%, transparent);
+}
+
+.graph-layer + .graph-layer {
+  border-top: 1px solid var(--color-border);
+}
+
+.graph-layer dt {
+  color: var(--color-accent-strong);
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.graph-layer dd {
+  margin: 0;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+}
+
+.graph-layer strong {
+  color: var(--color-text);
+  font-family: var(--font-mono);
+}
+
+.graph-summary-unavailable {
+  margin: 0;
+}
+
+@media (max-width: 720px) {
+  .graph-layer {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
 }
 
 /* ── Switchboard panel ─────────────────────────────────────────── */

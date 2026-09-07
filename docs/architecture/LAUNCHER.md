@@ -146,6 +146,7 @@ cymatix_context/
         tools_panel.html
         genes_panel.html
         tokens_panel.html
+        graph_summary_panel.html   # read-only graph layer counts
     static/
       launcher.css      # one :root{} block + component classes
       htmx.min.js       # vendored, so no CDN fetch at runtime
@@ -378,6 +379,7 @@ Panels hide themselves conditionally:
 - No models reported by cymatix → models panel omitted
 - `tools` list empty → tools panel omitted
 - Token tracking not yet shipped → tokens panel omitted
+- No active genome file on disk → graph summary panel omitted
 - cymatix not running → everything below the controls is replaced with a
   single "cymatix is stopped" banner
 
