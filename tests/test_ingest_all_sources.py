@@ -63,8 +63,16 @@ def test_agent_only_does_not_probe_default_corpus_paths(monkeypatch, tmp_path):
     )
     monkeypatch.setattr(ingest_all, "open_main_db", lambda *a: conn)
     monkeypatch.setattr(ingest_all, "init_main_db", lambda *a: None)
-    monkeypatch.setattr(ingest_all.os.path, "isdir",
-                        lambda root: seen.append(root) or False)
+    real_isdir = ingest_all.os.path.isdir
+
+    def source_isdir(root):
+        # Keep pathlib's own directory checks real.
+        if isinstance(root, Path):
+            return real_isdir(root)
+        seen.append(root)
+        return False
+
+    monkeypatch.setattr(ingest_all.os.path, "isdir", source_isdir)
     args = SimpleNamespace(genomes_root=str(tmp_path), sources=None,
                            agent_source=["agent=memory"], skip_models=False)
     ingest_all._run_sharded(args, object(), object())
