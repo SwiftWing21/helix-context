@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **fix(scripts): `scripts/ingest_all.py` takes its sources from the command
+  line.** Remove the built-in list of six source roots. The stale
+  `cymatix_context.provenance` import had also stopped the script before
+  argument parsing; it is repaired here (the module moved into the identity
+  package in an earlier restructure). Missing `--sources` now prints usage and
+  exits 2 unless `--sharded --agent-source` is supplied. Monolithic agent-only
+  runs now error; sharded agent-only runs no longer also consider the removed
+  corpus roots. Explicit-source parsing and selection are unchanged once the
+  module is reachable. Test: `tests/test_ingest_all_sources.py`.
+
 - **feat(launcher): graph summary panel on the Knowledge store tab.** The
   dashboard now shows how much of each graph layer the active genome actually
   holds: documents and how many of them a COVER relation touches, distinct

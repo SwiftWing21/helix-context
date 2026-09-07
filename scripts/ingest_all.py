@@ -1,11 +1,9 @@
-r"""
+"""
 Ingest sources into the genome in one pass.
 
-Default sources (override with --sources):
-  - F:\Projects (code, docs, configs)
-  - F:\SteamLibrary (game Lua/JSON/configs + manifests)
-  - F:\OpenModels (GGUF model headers)
-  - E:\SteamLibrary, E:\Program Files, E:\NetMose
+Sources are passed explicitly via --sources (monolithic and sharded
+modes) or --agent-source (sharded mode only); the script no longer
+ships a built-in default list, so pass at least one of the two.
 
 Skips binaries, limits file size to 200KB to avoid stalls on
 massive JSON/XML blobs. Commits every 100 genes. Each gene receives
@@ -27,7 +25,7 @@ from pathlib import Path
 from cymatix_context.tagger import CpuTagger
 from cymatix_context.genome import Genome
 from cymatix_context.codons import CodonChunker
-from cymatix_context.provenance import apply_metadata_hints, apply_provenance
+from cymatix_context.identity.provenance import apply_metadata_hints, apply_provenance
 from cymatix_context.sharding import (
     corpus_shard_db,
     agent_shard_db,
@@ -220,16 +218,6 @@ def _parse_agent_source(spec: str) -> tuple[str, str]:
     return handle.strip(), path.strip()
 
 
-_DEFAULT_SOURCES: list[tuple[str, str, str]] = [
-    ("F:/Projects", "projects", "participant"),
-    ("F:/SteamLibrary", "steam-f", "reference"),
-    ("F:/OpenModels", "models", "reference"),
-    ("E:/SteamLibrary", "steam-e", "reference"),
-    ("E:/Program Files", "programs-e", "reference"),
-    ("E:/NetMose", "netmose", "reference"),
-]
-
-
 def _copy_indexes_from_shard(main_conn, shard: Genome, shard_name: str) -> int:
     """Copy per-gene provenance + fingerprint rows into main.db.
 
@@ -294,10 +282,7 @@ def _copy_indexes_from_shard(main_conn, shard: Genome, shard_name: str) -> int:
 def _run_monolithic(args, tagger, chunker) -> None:
     genome = Genome(path=args.db, synonym_map={}, splade_enabled=True, entity_graph=True)
     stats = {"files": 0, "genes": 0, "skipped": 0, "errors": 0, "t0": time.perf_counter()}
-    sources = (
-        [_parse_source_arg(s) for s in args.sources]
-        if args.sources else _DEFAULT_SOURCES
-    )
+    sources = [_parse_source_arg(s) for s in (args.sources or [])]
     for root, label, _category in sources:
         if not os.path.isdir(root):
             log.info("Skipping %s (not found)", root)
@@ -327,10 +312,7 @@ def _run_sharded(args, tagger, chunker) -> None:
     log.info("Sharded mode: main registry at %s", main_path)
 
     totals = {"files": 0, "genes": 0, "skipped": 0, "errors": 0, "t0": time.perf_counter()}
-    sources = (
-        [_parse_source_arg(s) for s in args.sources]
-        if args.sources else _DEFAULT_SOURCES
-    )
+    sources = [_parse_source_arg(s) for s in (args.sources or [])]
 
     def ingest_into_shard(shard_db: Path, root: str, label: str,
                           category: str, is_models: bool) -> None:
@@ -415,7 +397,7 @@ def main():
         nargs="+",
         metavar="PATH=LABEL[:CATEGORY]",
         help=(
-            "Override default sources. Each arg is a `path=label[:category]` "
+            "Sources to ingest. Each arg is a `path=label[:category]` "
             "triple; label 'models' triggers the GGUF-manifest reader; "
             "category defaults to 'reference' (sharded mode only)."
         ),
@@ -427,6 +409,11 @@ def main():
         help="Per-handle agent memory sources (sharded mode only).",
     )
     args = parser.parse_args()
+    if not args.sources and not (args.sharded and args.agent_source):
+        parser.error(
+            "no sources given: pass --sources PATH=LABEL[:CATEGORY] "
+            "(or --agent-source HANDLE=PATH in sharded mode)"
+        )
 
     tagger = CpuTagger()
     chunker = CodonChunker()
