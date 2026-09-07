@@ -37,7 +37,9 @@ import logging
 import os
 import re
 import sqlite3
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -299,6 +301,95 @@ class TestAggregation:
 
 
 class TestCache:
+    @pytest.mark.parametrize("unavailable", [False, True])
+    @pytest.mark.parametrize("expired", [False, True])
+    def test_concurrent_misses_share_one_read(self, tmp_path, unavailable, expired):
+        db = tmp_path / "genome.db"
+        clock = [100.0]
+        cache = graph_summary.GraphSummaryCache(clock=lambda: clock[0])
+        payload = {"available": True, "path": str(db), "total_genes": 5}
+        if expired:
+            with patch.object(graph_summary, "_read_graph_summary", return_value=payload):
+                cache.get(db)
+            clock[0] = 131.0
+
+        started = threading.Event()
+        follower_checked = threading.Event()
+        caller = threading.local()
+        lock = threading.Lock()
+
+        class ObservedLock:
+            def __enter__(self):
+                lock.acquire()
+
+            def __exit__(self, *args):
+                lock.release()
+                if getattr(caller, "follower", False):
+                    follower_checked.set()
+
+        cache._lock = ObservedLock()
+
+        def read(path):
+            started.set()
+            assert follower_checked.wait(5), "second caller never checked the cache"
+            if unavailable:
+                raise sqlite3.OperationalError("unreadable")
+            return payload
+
+        def follow():
+            caller.follower = True
+            return cache.get(db)
+
+        with patch.object(graph_summary, "_read_graph_summary", side_effect=read) as reader:
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                first = pool.submit(cache.get, db)
+                assert started.wait(5)
+                second = pool.submit(follow)
+                a, b = first.result(timeout=5), second.result(timeout=5)
+            assert reader.call_count == 1
+            assert a == b
+            assert a is not b
+            assert a["available"] is not unavailable
+            assert cache.get(db) == a
+
+    def test_slow_path_does_not_block_another_path(self, tmp_path):
+        slow = tmp_path / "slow.db"
+        other = tmp_path / "other.db"
+        started = threading.Event()
+        release = threading.Event()
+        cache = graph_summary.GraphSummaryCache()
+
+        def read(path):
+            if path == slow:
+                started.set()
+                assert release.wait(5)
+            return {"available": True, "path": str(path)}
+
+        with patch.object(graph_summary, "_read_graph_summary", side_effect=read):
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                first = pool.submit(cache.get, slow)
+                try:
+                    assert started.wait(5)
+                    second = pool.submit(cache.get, other)
+                    assert second.result(timeout=5)["path"] == str(other)
+                finally:
+                    release.set()
+                assert first.result(timeout=5)["path"] == str(slow)
+
+    def test_ttl_starts_when_the_read_finishes(self, tmp_path):
+        clock = [100.0]
+        cache = graph_summary.GraphSummaryCache(clock=lambda: clock[0])
+
+        def read(path):
+            clock[0] = 131.0
+            return {"available": True, "path": str(path)}
+
+        with patch.object(graph_summary, "_read_graph_summary", side_effect=read) as reader:
+            cache.get(tmp_path / "slow.db")
+            clock[0] = 132.0
+            cache.get(tmp_path / "slow.db")
+            assert reader.call_count == 1
+
     def test_ttl_default_is_about_thirty_seconds(self):
         assert graph_summary.GRAPH_SUMMARY_TTL_S == 30.0
 

@@ -13,7 +13,9 @@
   `cymatix_context/launcher/graph_summary.py` reads the genome over a
   short-lived `mode=ro` connection with `PRAGMA query_only=ON`, does not modify
   the genome, and caches by resolved path for 30 seconds, so the 2-second poll
-  costs a dict lookup. The read-only URI comes from `Path.as_uri()`, the form
+  costs a dict lookup. Concurrent requests share one refresh per path, with
+  the 30-second TTL starting when the read finishes. The read-only URI comes
+  from `Path.as_uri()`, the form
   `cymatix_context/cli/cmd_status.py` uses: it percent-encodes, so a genome
   path containing `#` cannot re-parse and drop `?mode=ro`. The
   distinct-pair count needs a temp B-tree over every COVER row (measured 1.7 s

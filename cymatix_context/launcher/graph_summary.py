@@ -37,6 +37,7 @@ import sqlite3
 import threading
 import time
 from collections import OrderedDict
+from concurrent.futures import Future
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Tuple, Union
 
@@ -148,9 +149,9 @@ def _read_graph_summary(path: Path) -> Dict[str, Any]:
 class GraphSummaryCache:
     """Process-local, bounded, TTL cache of graph summaries by path.
 
-    Two concurrent misses on the same path both run the aggregation; the
-    lock is held for the bookkeeping, not for the read, so one slow genome
-    cannot stall a poll for a different one.
+    Concurrent misses on the same path share one aggregation. The lock is
+    held only for bookkeeping, so one slow genome cannot stall a poll for
+    a different one. The TTL starts when the aggregation finishes.
     """
 
     def __init__(
@@ -164,6 +165,7 @@ class GraphSummaryCache:
         self._clock = clock
         self._lock = threading.Lock()
         self._entries: "OrderedDict[str, Tuple[float, Dict[str, Any]]]" = OrderedDict()
+        self._inflight: Dict[str, Future] = {}
 
     def get(self, path: Union[str, Path]) -> Dict[str, Any]:
         """Summary for `path`, from the cache when it is still fresh.
@@ -173,12 +175,18 @@ class GraphSummaryCache:
         """
         genome = Path(path).resolve()
         key = str(genome)
-        now = self._clock()
-
         with self._lock:
             hit = self._entries.get(key)
-            if hit is not None and now - hit[0] < self.ttl_s:
+            if hit is not None and self._clock() - hit[0] < self.ttl_s:
                 return dict(hit[1])
+            pending = self._inflight.get(key)
+            refresh = pending is None
+            if refresh:
+                pending = Future()
+                self._inflight[key] = pending
+
+        if not refresh:
+            return dict(pending.result())
 
         try:
             payload = _read_graph_summary(genome)
@@ -190,9 +198,11 @@ class GraphSummaryCache:
 
         with self._lock:
             self._entries.pop(key, None)
-            self._entries[key] = (now, payload)
+            self._entries[key] = (self._clock(), payload)
             while len(self._entries) > self.max_paths:
                 self._entries.popitem(last=False)
+            pending.set_result(payload)
+            self._inflight.pop(key)
 
         return dict(payload)
 
