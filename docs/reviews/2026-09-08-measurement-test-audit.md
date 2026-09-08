@@ -106,3 +106,19 @@ evidence. Its tests do not validate Joe's remote input identity, host state or
 latency, and do not prove a remote process has started. Those require the
 on-host preflight and kickoff receipt. Instrumented timings include capture
 overhead; comparative cost claims require matched uninstrumented runs.
+
+## CI dependency follow-up
+
+GitHub run `34211307868` at `101dada` exposed an incorrect dependency
+assumption in the strengthened citation test: the intentional fresh-install
+leg has no spaCy pipeline, so `/ingest` correctly returns 422. The end-to-end
+ingestion/citation test now declares that model dependency. Two additional
+cases seed the real store and attribution registry, then require the actual
+document to reach `/context` citations, both with and without attribution.
+This also removes a vacuous loop in the unattributed case.
+
+Verification: server, missing-pipeline and stage-measurement suites passed
+101 tests with the model installed. The server suite in a separate clean
+environment without spaCy passed 68 tests and skipped 15 declared model
+tests; both seeded citation cases ran. CI must confirm its Linux/Python 3.12
+matrix on the updated head; local checks used Windows/Python 3.14.

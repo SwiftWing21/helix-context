@@ -16,7 +16,7 @@ import cymatix_context.server as server_mod
 from cymatix_context.config import CymatixConfig, GenomeConfig, KnowConfig, RibosomeConfig, ServerConfig
 from cymatix_context.server import create_app
 
-from tests.conftest import make_client, make_cymatix_config, requires_spacy_model
+from tests.conftest import make_client, make_cymatix_config, make_gene, requires_spacy_model
 
 
 # -- Helpers -----------------------------------------------------------
@@ -347,6 +347,7 @@ class TestContextCitationEnrichment:
     """Item 6 — /context citations carry authored_by_party / authored_by_handle
     when the expressed gene has a gene_attribution row."""
 
+    @requires_spacy_model
     def test_citation_includes_attribution_when_present(self, client):
         # Register a participant
         reg = client.post("/sessions/register", json={
@@ -387,25 +388,47 @@ class TestContextCitationEnrichment:
         assert citation["authored_by_party"] == "max@local"
         assert citation["authored_by_handle"] == "taude"
 
-    def test_unattributed_gene_omits_attribution_fields(self, client):
-        # Ingest WITHOUT attribution
-        client.post("/ingest", json={
-            "content": "orphan content with distinctive marker xyzzyplugh",
-            "content_type": "text",
-            "local_federation": False,
-        })
+    @pytest.mark.parametrize("attributed", [False, True], ids=["unattributed", "attributed"])
+    def test_stored_document_citation_attribution(self, client, attributed):
+        # Seed the real store and registry so citation coverage also runs on
+        # fresh installs without the optional spaCy ingestion pipeline.
+        gene = make_gene(
+            content="the answer to the universe is forty two",
+            domains=["astronomy"],
+        )
+        client.app.state.cymatix.genome.upsert_gene(gene, apply_gate=False)
+        registry = client.app.state.registry
+        if attributed:
+            reg = client.post("/sessions/register", json={
+                "party_id": "max@local", "handle": "taude",
+            })
+            assert reg.status_code == 200
+            result = registry.attribute_gene(
+                gene.gene_id, participant_id=reg.json()["participant_id"],
+            )
+            assert result is not None
+        else:
+            assert registry.get_attribution(gene.gene_id) is None
+
         resp = client.post("/context", json={
-            "query": "xyzzyplugh",
+            "query": "answer universe forty two",
             "decoder_mode": "none",
+            "party_id": "max@local",
         })
+        assert resp.status_code == 200
         data = resp.json()
         if isinstance(data, list):
             data = data[0]
         citations = data.get("agent", {}).get("citations", [])
-        for c in citations:
-            # Genes without attribution should not have these fields set.
-            # If the field is present, it should be falsy / None.
-            assert c.get("authored_by_party") in (None, "", False)
+        matching = [c for c in citations if c["gene_id"] == gene.gene_id]
+        assert matching, "The stored document must reach citation enrichment"
+        citation, = matching
+        if attributed:
+            assert citation["authored_by_party"] == "max@local"
+            assert citation["authored_by_handle"] == "taude"
+        else:
+            assert not citation.get("authored_by_party")
+            assert not citation.get("authored_by_handle")
 
 
 # Ingest-driving tests need the en_core_web_sm pipeline (#313).
