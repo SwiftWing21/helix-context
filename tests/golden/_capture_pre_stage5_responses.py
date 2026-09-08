@@ -1,52 +1,19 @@
-"""Capture pre-Stage-5 build_context responses for the byte-identical regression test.
+"""Shared fixtures from the historical pre-Stage-5 response capture.
 
-Produces ``tests/golden/pre_stage5_responses.jsonl`` — one JSON object per query.
-Each object contains the query, classifier inputs, and the rendered fields of the
-ContextWindow (expressed_context, ribosome_prompt, metadata, etc.) that any
-future Stage 5 implementation must reproduce byte-for-byte under
-``caller_model_class="generic"``.
+``pre_stage5_responses.jsonl`` is an archive, not a snapshot to regenerate on
+current code. See README.md for provenance and the active render-contract and
+default/generic parity tests. Historical reproduction needs the capture script
+and dependencies from the historical checkout, with PYTHONHASHSEED=0.
 
-**Run with ``PYTHONHASHSEED=0``** so the recorded responses are reproducible
-across Python processes. The ``context_health.top_dominance`` field depends on
-the iteration order of the genome's last_query_scores dict, which under the
-default randomized hash seed produces different aggregate means run-to-run.
-Test 6 sets the same seed.
-
-Run from worktree root *before* implementing Stage 5:
-
-    PYTHONHASHSEED=0 python -m tests.golden._capture_pre_stage5_responses
-
-The output path is committed to git as the baseline. Test 6
-(``test_generic_branch_byte_identical_to_pre_stage5_output``) re-runs the same
-queries against the Stage-5 build_context with ``caller_model_class="generic"``
-and diffs every recorded field byte-for-byte.
-
-Determinism is enforced by the in-memory genome + mock ribosome backend; the
-seed corpus is hand-curated below so the golden does not depend on a live
-genome snapshot. The query set covers all 5 classifier classes proportionally
-(arithmetic / factual / procedural / multi_hop / default) so the regression
-catches any drift in any classifier branch of the §6 lookup.
+The current tests use the hand-curated corpus with an in-memory store and a
+mock compressor. Their archived projection excludes hash-sensitive health
+aggregates, so ordinary pytest runs need no special environment variables.
 """
 
 from __future__ import annotations
 
-import json
-import os
-import sys
-from pathlib import Path
 from typing import Any, Dict, List
 
-
-# Hash-seed determinism guard. Stamped at the top so CI and local runs both
-# produce the same baseline. test_generic_branch_byte_identical_to_pre_stage5_output
-# enforces the same seed at test-time.
-if os.environ.get("PYTHONHASHSEED") not in ("0",):
-    print(
-        "WARNING: PYTHONHASHSEED is not '0' — top_dominance values will not "
-        "be reproducible across Python processes. Re-run as: "
-        "PYTHONHASHSEED=0 python -m tests.golden._capture_pre_stage5_responses",
-        file=sys.stderr,
-    )
 
 from cymatix_context.config import (
     BudgetConfig,
@@ -101,8 +68,8 @@ _SEED_GENES: List[Dict[str, Any]] = [
 
 
 # 100 queries spanning the 5 classifier classes. The numbers below were
-# chosen so each classifier branch sees ≥10 queries. Mutating this list
-# invalidates the golden — re-record after edits.
+# chosen so each classifier branch sees ≥10 queries. Keep this historical
+# query list intact; changing it does not authorize regenerating the archive.
 _QUERIES: List[str] = [
     # arithmetic (signal_count >= 2 OR strong-pair) — 20 queries
     "Calculate the total cost of migration.",
@@ -215,9 +182,12 @@ _QUERIES: List[str] = [
 def _serializable_window(win: Any) -> Dict[str, Any]:
     """Project ContextWindow to a JSON-serialisable dict.
 
-    Records every field of the response surface that ``generic`` callers
-    see today. Stage 5's regression test will replay the same 100 queries
-    and diff this projection byte-for-byte.
+    Compare the response surface, excluding only the per-call correlation ID.
+    ``pipeline_request_id`` is independently generated for each invocation;
+    document IDs, ranking, content, token counts, health, and all other metadata
+    remain intact for the current default/explicit-generic parity test. Include
+    the request-scoped retrieval evidence used by downstream citation scores,
+    even though ContextWindow excludes those internal fields from model_dump.
     """
     return {
         "ribosome_prompt": win.ribosome_prompt,
@@ -226,17 +196,33 @@ def _serializable_window(win: Any) -> Dict[str, Any]:
         "total_estimated_tokens": win.total_estimated_tokens,
         "compression_ratio": win.compression_ratio,
         "context_health": win.context_health.model_dump(),
-        "metadata": win.metadata or {},
+        "retrieval_scores": win.retrieval_scores,
+        "tier_contributions": win.tier_contributions,
+        "metadata": {
+            key: value for key, value in (win.metadata or {}).items()
+            if key != "pipeline_request_id"
+        },
     }
 
 
-def _build_manager() -> CymatixContextManager:
+def _build_manager(*, historical_render_config: bool = True) -> CymatixContextManager:
     cfg = CymatixConfig(
         ribosome=RibosomeConfig(model="mock", timeout=5),
         budget=BudgetConfig(max_genes_per_turn=4, splice_aggressiveness=0.5),
         genome=GenomeConfig(path=":memory:", cold_start_threshold=5),
         classifier=ClassifierConfig(enabled=True),
     )
+    if historical_render_config:
+        # The original capture inherited these defaults (d288f9b / PR #47).
+        # Later defaults deliberately changed retrieval and delivery. Pin only
+        # the historical fixture's mode/settings; do not change shipped code.
+        cfg.retrieval.fusion_mode = "additive"
+        cfg.budget.decoder_mode = "full"
+        cfg.budget.expression_tokens = 6000
+        cfg.budget.session_delivery_enabled = False
+        cfg.budget.foveated_enabled = False
+        cfg.budget.min_delivered_docs = 0
+        cfg.budget.splice_target_chars = 1000
     mgr = CymatixContextManager(cfg)
     mgr.ribosome.backend = MockCompressorBackend()
     for i, spec in enumerate(_SEED_GENES):
@@ -250,23 +236,10 @@ def _build_manager() -> CymatixContextManager:
 
 
 def main() -> None:
-    out_path = Path(__file__).parent / "pre_stage5_responses.jsonl"
-    mgr = _build_manager()
-    try:
-        with out_path.open("w", encoding="utf-8", newline="\n") as fh:
-            for idx, query in enumerate(_QUERIES):
-                win = mgr.build_context(query)
-                row = {
-                    "idx": idx,
-                    "query": query,
-                    "response": _serializable_window(win),
-                }
-                # ensure_ascii=False so non-ASCII content stays as-is — the
-                # diff is byte-for-byte and JSON must canonicalise its keys.
-                fh.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
-    finally:
-        mgr.close()
-    print(f"Wrote {len(_QUERIES)} responses to {out_path}")
+    raise SystemExit(
+        "The pre-Stage-5 golden is archived. Refusing to replace historical "
+        "responses with current output; see tests/golden/README.md."
+    )
 
 
 if __name__ == "__main__":

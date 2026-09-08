@@ -40,10 +40,39 @@ The full runbook, including `scripts/release.py`, is
 
 ## Development setup
 
-```bash
-pip install -e .
-python -m pytest tests/ -m "not live"   # no external services needed
-python -m pytest tests/ -m live -s      # requires Ollama running
+Use Python 3.11+ in a virtual environment; CI uses Python 3.12. Install the
+contributor extra for pytest, wiki rendering, and the offline BM25 baseline:
+
+```text
+python -m pip install -e ".[dev]"
+python -m pytest tests/ -m "not live" -q -rs
+```
+
+The contributor extra also includes `httpx2`, the
+[HTTP client used by Starlette's TestClient](https://starlette.dev/testclient/).
+
+For the optional coverage exercised by the full Linux CI job, install its
+feature extras and the separate spaCy pipeline:
+
+```text
+python -m pip install --index-url https://download.pytorch.org/whl/cpu torch
+python -m pip install -e ".[dev,ast,mcp,nli]" psutil platformdirs py-cpuinfo joblib scikit-learn
+python -m spacy download en_core_web_sm
+python -m pip check
+python -m pytest tests/ -m "not live" -q -rs
+```
+
+The MCP extra requires SDK 2.x. An older environment can pass `pip check`
+while its optional MCP tests skip; reinstall the requested extras when
+updating the checkout. The `-rs` output distinguishes absent feature
+dependencies and model pipelines from hardware or platform skips. See
+[CI](.github/workflows/ci.yml) for the platform-specific jobs and
+[setup](docs/SETUP.md) for additional feature extras.
+
+Live tests require Ollama with a model:
+
+```text
+python -m pytest tests/ -m live -v -s
 ```
 
 ## Ground rules
