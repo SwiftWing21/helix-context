@@ -920,6 +920,11 @@ class ShardRouter:
         correction multiplier collapses to identity and the routing
         behaves as if scores came directly from that shard.
         """
+        from .retrieval.measurement import current_capture
+        _measurement = current_capture()
+        if _measurement is not None:
+            _measurement.unsupported.append("shard_router: fanout and merge are not captured")
+
         # Semantic-wiring arm (PRD 2026-06-02): pop query_type OUT of the
         # generic kwargs BEFORE fan-out. It must NOT ride in **kwargs — the
         # per-shard KnowledgeStore.query_docs would TypeError on an unexpected

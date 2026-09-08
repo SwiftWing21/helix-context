@@ -39,6 +39,7 @@ from .identity import session_delivery as _session_delivery
 from .ribosome import DisabledBackend, LiteLLMBackend, Ribosome, OllamaBackend
 from .identity.provenance import apply_metadata_hints, apply_provenance
 from .retrieval.query_classifier import ClassifierResult, classify_query
+from .retrieval.measurement import current_capture
 from .schemas import (
     ChromatinState,
     ContextHealth,
@@ -1961,6 +1962,10 @@ class CymatixContextManager:
             classifier_result.cls if classifier_result is not None else None,
         )
 
+        _measurement = current_capture()
+        if _measurement is not None and len(_sub_queries) != 1:
+            _measurement.unsupported.append("parallel_subqueries: executor stages are not captured")
+
         # Step 2: Retrieve (knowledge store query + pending buffer + optional cold tier)
         #
         # 2026-07-18 bugbash (score/result atomicity): ``genome.
@@ -2099,6 +2104,10 @@ class CymatixContextManager:
                 use_tcm=True,
                 query_scores=query_scores,
             )
+
+        if _measurement is not None:
+            _measurement.record("post_blend_scores", query_scores)
+            _measurement.record("post_blend_candidates", (g.gene_id for g in candidates))
 
         # Dynamic budget tiers — delegates to pipeline.tier_logic.
         # Issue #207 item 4: the tier/abstain constants thread from

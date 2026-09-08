@@ -529,6 +529,20 @@ def test_query_genes_surfaces_idf_corrected_scores(two_shard_setup):
 # ── Issue #118 — cross-shard BM25 IDF normalization ─────────────────────
 
 
+def test_stage_capture_does_not_call_single_shard_evidence_a_complete_router_trace(two_shard_setup):
+    from cymatix_context.retrieval.measurement import capture_stages
+
+    router = ShardRouter(two_shard_setup["main_path"])
+    try:
+        with capture_stages({two_shard_setup["gene_a_id"]}) as capture:
+            docs = router.query_genes(["docs"], ["cymatix"], read_only=True)
+        assert docs
+        assert capture.report()["status"] == "not_captured"
+        assert capture.report()["unsupported"]
+    finally:
+        router.close()
+
+
 def test_compute_shard_idf_correction_single_shard_is_identity():
     """A single-shard scenario must produce m_shard ≈ 1.0.
 

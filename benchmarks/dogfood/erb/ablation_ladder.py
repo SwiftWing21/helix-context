@@ -1004,6 +1004,7 @@ def run_arm(
         get_recent_pipeline_events,
     )
     from cymatix_context.scoring import cymatics as cymatics_mod
+    from cymatix_context.retrieval.measurement import capture_stages
 
     cfg = load_config(config_path) if config_path else load_config()
     cfg.genome.path = genome_path
@@ -1106,12 +1107,13 @@ def run_arm(
                 except Exception as exc:  # noqa: BLE001
                     errors.append(f"{name}: rank publication clear failed: {exc}")
                 try:
-                    window = manager.build_context(
-                        needle["query"],
-                        read_only=True,
-                        ignore_delivered=True,
-                        max_genes=k,
-                    )
+                    with capture_stages(gold, enabled=per_query) as stage_capture:
+                        window = manager.build_context(
+                            needle["query"],
+                            read_only=True,
+                            ignore_delivered=True,
+                            max_genes=k,
+                        )
                 except Exception as exc:  # noqa: BLE001
                     detail = f"{type(exc).__name__}: {exc}"
                     errors.append(f"{name}: {detail}")
@@ -1143,6 +1145,8 @@ def run_arm(
                     # ringed — mark-correlated drain, same as the success path.
                     error_record["splice_n_candidates"] = _resolve_splice_n_candidates(
                         ring_mark, name)
+                    if per_query:
+                        error_record["stage_provenance"] = stage_capture.report()
                     records.append(error_record)
                     continue
                 wall_ms = (time.perf_counter() - t0) * 1000.0
@@ -1187,6 +1191,8 @@ def run_arm(
                     ring_mark, name)
                 # W2.1: cover-walk per-needle diag (None = walk did not run).
                 record["cover_walk"] = _read_cover_walk_diag(manager.genome)
+                if per_query:
+                    record["stage_provenance"] = stage_capture.report()
                 records.append(record)
 
                 contribs = getattr(manager.genome, "last_tier_contributions", None) or {}
@@ -1438,7 +1444,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             "genome.last_ranked_ids), gate_kept / floor_appended (#341, from "
             "genome.last_rerank_diag; None when the query never reached the "
             "ANN publication point) and splice_n_candidates (ring-correlated; "
-            "None when this needle's own query never rang the splice stage)."
+            "None when this needle's own query never rang the splice stage). "
+            "stage_provenance records candidate counts and watched gold IDs at "
+            "each measured retrieval/blend boundary for this request only; "
+            "failed, not_executed, and uncaptured stages are not empty pools."
         )
 
     out = _resolve(args.out)
