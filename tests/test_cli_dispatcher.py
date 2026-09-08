@@ -1,9 +1,12 @@
 """Tests for the top-level `cymatix` CLI dispatcher (no subcommand work yet)."""
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import sys
+import sysconfig
+from pathlib import Path
 
 import pytest
 
@@ -75,17 +78,40 @@ def test_parser_prog_falls_back_when_argv_empty(monkeypatch):
     assert parser.prog == "cymatix"
 
 
+def _find_console_script(script_name: str) -> str | None:
+    # Running an environment's Python by absolute path does not activate it.
+    return shutil.which(script_name, path=sysconfig.get_path("scripts")) or shutil.which(script_name)
+
+
+def test_installed_console_script_found_without_scripts_on_path(monkeypatch, tmp_path):
+    """Invoking an environment's Python directly must still test its launcher."""
+    scripts = Path(sysconfig.get_path("scripts"))
+    installed = shutil.which("cymatix", path=str(scripts))
+    if installed is None:
+        pytest.skip(f"cymatix console script not installed in {scripts}")
+    monkeypatch.setenv("PATH", str(tmp_path))
+
+    assert _find_console_script("cymatix") == installed
+
+
 @pytest.mark.parametrize("script_name,expected_prog", [
     ("cymatix", "cymatix"),
 ])
 def test_installed_console_script_prog_matches_invoked_name(script_name, expected_prog):
     """Smoke-test the real installed console script: `cymatix --help` must
     say `usage: cymatix`."""
-    exe = shutil.which(script_name)
+    exe = _find_console_script(script_name)
     if exe is None:
-        pytest.skip(f"{script_name} console script not found on PATH")
+        pytest.skip(f"{script_name} console script not installed in this Python environment or on PATH")
+    # The environment can be shared with another checkout. Exercise this
+    # checkout's code through the real installed launcher in that case too.
+    env = os.environ.copy()
+    repo = str(Path(__file__).resolve().parents[1])
+    env["PYTHONPATH"] = os.pathsep.join(filter(None, (repo, env.get("PYTHONPATH"))))
     proc = subprocess.run(
         [exe, "--help"], capture_output=True, text=True, timeout=60,
+        env=env,
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
     )
     assert proc.returncode == 0, proc.stderr
     first_line = proc.stdout.splitlines()[0]

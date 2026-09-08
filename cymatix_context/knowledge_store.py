@@ -46,6 +46,7 @@ from .exceptions import PromoterMismatch
 from .hardware import SqliteMemPlan, sqlite_memory_budget
 from .schemas import ChromatinState, EpigeneticMarkers, Gene, PromoterTags
 from .backends.sema_codec import decode_embedding, sema_vec_to_blob
+from .retrieval.measurement import current_capture, current_retrieval, trace_retrieval
 
 log = logging.getLogger(__name__)
 
@@ -2844,6 +2845,7 @@ class KnowledgeStore:
             )
             return None
 
+    @trace_retrieval
     def query_docs(
         self,
         domains: List[str],
@@ -2911,6 +2913,7 @@ class KnowledgeStore:
         Results are merged with weighted scoring, then expanded via
         co-activation pull-forward. Returns up to max_genes * 2 candidates.
         """
+        _measurement = current_retrieval()
         domains = self._expand_terms(domains)
         entities = self._expand_terms(entities)
 
@@ -3350,6 +3353,13 @@ class KnowledgeStore:
                     ).fetchall()
 
                     # Filter by lifecycle tier (batch lookup)
+                    if _measurement is not None:
+                        _measurement.record(
+                            "fts_raw", (r["gene_id"] for r in fts_rows),
+                            fetch_depth=_fts_fetch_depth,
+                            prefilter_applied=_prefilter_set is not None,
+                            scope="bounded_fts_sql_before_lifecycle_and_party_filters",
+                        )
                     if fts_rows:
                         fts_ids = [r["gene_id"] for r in fts_rows]
                         fts_ranks = {r["gene_id"]: r["rank"] for r in fts_rows}
@@ -3361,6 +3371,8 @@ class KnowledgeStore:
                             (*fts_ids, int(ChromatinState.HETEROCHROMATIN), *_party_params),
                         ).fetchall()
                         valid_ids = {r["gene_id"] for r in valid}
+                        if _measurement is not None:
+                            _measurement.record("fts_eligible", valid_ids)
 
                         _fts5_ranked: List[Tuple[str, float]] = []  # Stage 3 RRF
                         for gid in fts_ids:
@@ -3383,7 +3395,17 @@ class KnowledgeStore:
                             # the score-cap saturation point.
                             _fts5_ranked.append((gid, -fts_ranks[gid]))
                         fuser.add_tier("fts5", _fts5_ranked, weight=self._fts5_weight)
-                except Exception:
+                    elif _measurement is not None:
+                        _measurement.record("fts_eligible", ())
+                except Exception as exc:
+                    if _measurement is not None:
+                        failed_stage = (
+                            "fts_eligible" if _measurement.stages["fts_raw"]["status"] == "captured"
+                            else "fts_raw"
+                        )
+                        _measurement.unavailable(
+                            failed_stage, status="failed", reason=type(exc).__name__,
+                        )
                     log.warning("FTS5 query failed", exc_info=True)
                 finally:
                     _sig("fts5", _fts5_t0)
@@ -4002,6 +4024,10 @@ class KnowledgeStore:
             # when this swallows; matching the cwola/latency/gauges pattern.
             log.warning("tier telemetry emit failed", exc_info=True)
 
+        if _measurement is not None:
+            _measurement.record("pre_shortlist", gene_scores)
+        _shortlist_status = "not_applied"
+
         # ── BM25 shortlist post-filter (research review 2026-04-22) ──
         # When enabled, restrict the final ranking to documents that cleared a
         # BM25 top-N pass. All tiers still accumulated scores above; this
@@ -4029,6 +4055,7 @@ class KnowledgeStore:
                     # Empty shortlist (BM25 found nothing) → don't filter;
                     # the tier-only ranking is better than nothing.
                     if shortlist:
+                        _shortlist_status = "applied"
                         before = len(gene_scores)
                         gene_scores = {
                             g: s for g, s in gene_scores.items() if g in shortlist
@@ -4040,11 +4067,19 @@ class KnowledgeStore:
                             "bm25 shortlist: scored=%d shortlist=%d kept=%d",
                             before, len(shortlist), len(gene_scores),
                         )
+                    else:
+                        _shortlist_status = "empty_fallback"
             except Exception:
+                _shortlist_status = "failed"
                 log.warning(
                     "bm25 shortlist filter failed — falling back to unfiltered ranking",
                     exc_info=True,
                 )
+
+        if _measurement is not None:
+            _measurement.record(
+                "post_shortlist", gene_scores, filter_status=_shortlist_status,
+            )
 
         # ── Stage 3: branch on fusion_mode for the final ranking ──
         # Spec: docs/specs/2026-05-08-stage-3-rrf-fusion.md §5.
@@ -4204,6 +4239,14 @@ class KnowledgeStore:
         else:
             # Additive mode — pre-Stage-3 behavior, byte-identical.
             ranked_ids = sorted(gene_scores, key=gene_scores.get, reverse=True)[:_fuse_limit]
+
+        if _measurement is not None:
+            _measurement.record(
+                "final_scoring",
+                final_scores if self._fusion_mode == "rrf" else gene_scores,
+                fusion_mode=self._fusion_mode,
+                scope="eligible_scoring_map_before_rerank_and_return_expansion",
+            )
 
         # ── Issue #341: pre-cap cross-encoder rerank ─────────────────────
         # Placed AFTER the fusion branch so the legacy additive profile is
@@ -4399,6 +4442,8 @@ class KnowledgeStore:
         with self._last_query_scores_lock:
             self.last_signal_timings = dict(_sig_ms)
 
+        if _measurement is not None:
+            _measurement.record("retrieval_returned", (g.gene_id for g in result[:limit]))
         return result[:limit]
 
     # ── BGE-M3 dense retrieval (Step 4, 2026-05-08; Stage 2 first-class) ─────
@@ -4738,6 +4783,10 @@ class KnowledgeStore:
         Back-compat: callers that pass only positional/keyword args still
         work; ``pool_size`` is keyword-only and optional.
         """
+        _measurement = current_capture()
+        if _measurement is not None:
+            _measurement.unsupported.append("query_docs_ann: union and ANN gate are not captured")
+
         # Stage 4: when mode='margin_over_random', read the calibrated value
         # from genome_calibration; falls back to self._ann_threshold (legacy
         # absolute) on missing row. Caller-supplied ``threshold`` still wins.

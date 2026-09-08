@@ -42,15 +42,20 @@ ARMS
   deep1000  : fts5_candidate_depth=1000,        bm25_shortlist_size=1000
 
 BASIS SEMANTICS -- read this before quoting a number
-  * deep1000 rank  = "gold WOULD be admitted and scored by the shipped fused
-    pipeline at greater depth". Real pipeline, real tiers, real RRF, real
-    combinator. Only the two admission bounds moved.
+  The route trace above describes the historical implementation, not a
+  measurement of today's request. Final score-map size alone cannot locate
+  a candidate drop.
+  * deep1000 rank = rank in the final score map after build_context with
+    both depth knobs raised. It does not establish upstream admission.
+  * --stage-provenance records actual stage membership. The admission verdict
+    requires post_shortlist measurements for the full 109-query cohort.
+    Failures, unsupported paths, and incomplete cohorts are INCONCLUSIVE.
   * bm25_rank      = a PROXY: raw FTS5 bm25 ordering of the pipeline's own
     OR-joined query_terms to depth 20000. Not the fused ranking. Used only to
     say whether gold is reachable by the lexical substrate at all.
 
 Usage:
-    python benchmarks/dogfood/erb/probe_pool_depth.py --stamp 2026-09-01
+    python benchmarks/dogfood/erb/probe_pool_depth.py --stage-provenance --cache NEW_DIR
 """
 
 from __future__ import annotations
@@ -96,9 +101,11 @@ KILL_CRITERION = (
     "pool_absent misses have gold anywhere in a 1000-deep candidate pool "
     "(deep1000 arm, retrieval.fts5_candidate_depth=1000 + "
     "retrieval.bm25_shortlist_size=1000, shipped pipeline otherwise "
-    "untouched). If that fires, the misses are a genuine recall-substrate "
-    "problem, every remaining lexical lever is dead, and the honest "
-    "recommendation is to re-scope the 0.80 target for this bed."
+    "untouched). Evaluate against measured post_shortlist gold membership "
+    "for all 109 misses. Missing stages, query failures, and partial cohorts "
+    "make the verdict INCONCLUSIVE. KILL rejects this depth intervention; "
+    "it does not establish that gold is absent from the corpus or that "
+    "other retrieval interventions cannot help."
 )
 
 
@@ -223,7 +230,7 @@ def write_pool(con, arm_name, needle, scores, gold_set):
 
 
 def run_arm(arm_name, knobs, targets, needles, gold, capture_terms,
-            capture_con=None, ckpt_dir=None):
+            capture_con=None, ckpt_dir=None, stage_provenance=False):
     """Run one arm over *targets*.
 
     NEEDLE-LEVEL CHECKPOINT: when ``ckpt_dir`` is given, every completed
@@ -238,6 +245,7 @@ def run_arm(arm_name, knobs, targets, needles, gold, capture_terms,
     from cymatix_context.config import load_config
     from cymatix_context.context_manager import CymatixContextManager
     from cymatix_context.knowledge_store import KnowledgeStore
+    from cymatix_context.retrieval.measurement import capture_stages
 
     cfg = load_config(str(CONFIG))
     cfg.genome.path = BED
@@ -270,6 +278,8 @@ def run_arm(arm_name, knobs, targets, needles, gold, capture_terms,
                     n_segments += 1
                     continue
                 done[rec["needle"]] = rec
+            if stage_provenance:
+                require_stage_provenance(done.values(), ckpt_path, targets)
             print("  [" + arm_name + "] resuming: " + str(len(done))
                   + " needles already checkpointed", flush=True)
         with ckpt_path.open("a", encoding="utf-8") as fh:
@@ -316,16 +326,20 @@ def run_arm(arm_name, knobs, targets, needles, gold, capture_terms,
                 pass
             t0 = time.perf_counter()
             terms = None
+            cap.last = None
+            query_error = None
             try:
-                window = manager.build_context(q, read_only=True,
-                                               ignore_delivered=True,
-                                               max_genes=K)
+                with capture_stages(g, enabled=stage_provenance) as stage_capture:
+                    window = manager.build_context(q, read_only=True,
+                                                   ignore_delivered=True,
+                                                   max_genes=K)
                 wall = (time.perf_counter() - t0) * 1000.0
                 scores = dict(manager.genome.last_query_scores or {})
                 expressed = list(getattr(window, "expressed_gene_ids", None) or ())
             except Exception as exc:
                 wall = (time.perf_counter() - t0) * 1000.0
-                errors.append(name + ": " + type(exc).__name__ + ": " + str(exc))
+                query_error = type(exc).__name__ + ": " + str(exc)
+                errors.append(name + ": " + query_error)
                 scores, expressed = {}, []
             if capture_terms:
                 terms = cap.last
@@ -349,6 +363,7 @@ def run_arm(arm_name, knobs, targets, needles, gold, capture_terms,
                     break
             rec = {
                 "needle": name,
+                "status": "failed" if query_error else "complete",
                 "map_size": len(scores),
                 "rank_of_first_gold": first,
                 "gold_ranks": all_r,
@@ -358,6 +373,10 @@ def run_arm(arm_name, knobs, targets, needles, gold, capture_terms,
                 "wall_ms": round(wall, 1),
                 "query_terms": terms,
             }
+            if query_error:
+                rec["error"] = query_error
+            if stage_provenance:
+                rec["stage_provenance"] = stage_capture.report()
             records.append(rec)
             if ckpt_path is not None:
                 with ckpt_path.open("a", encoding="utf-8") as fh:
@@ -410,11 +429,13 @@ def bm25_proxy(term_map, gold, depth):
         for name, terms in term_map.items():
             if not terms:
                 out[name] = {"bm25_rank": None, "pool": None,
+                             "status": "not_captured",
                              "note": "no query_terms captured"}
                 continue
             match = " OR ".join('"' + t + '"' for t in terms if len(t) > 2)
             if not match:
                 out[name] = {"bm25_rank": None, "pool": None,
+                             "status": "not_captured",
                              "note": "no terms len>2"}
                 continue
             t0 = time.perf_counter()
@@ -424,6 +445,7 @@ def bm25_proxy(term_map, gold, depth):
                     "ORDER BY rank LIMIT ?", (match, depth)).fetchall()
             except Exception as exc:
                 out[name] = {"bm25_rank": None, "pool": None,
+                             "status": "failed",
                              "note": type(exc).__name__ + ": " + str(exc)}
                 continue
             lat.append((time.perf_counter() - t0) * 1000.0)
@@ -433,7 +455,7 @@ def bm25_proxy(term_map, gold, depth):
                 if r["gene_id"] in gs:
                     rank = i
                     break
-            out[name] = {"bm25_rank": rank, "pool": len(rows)}
+            out[name] = {"bm25_rank": rank, "pool": len(rows), "status": "complete"}
     finally:
         con.close()
     return {"depth": depth, "per_needle": out,
@@ -490,9 +512,85 @@ def doc_rollup(pool_rows, gold_set, src, k):
     }
 
 
-def histogram(ranks):
+def stage_presence(record, stage_name):
+    """Gold membership at a captured boundary, never inferred from final scores.
+
+    Admission decisions require one completed lexical retrieval. Independent
+    calls remain separate evidence, not a synthetic union of candidate pools.
+    """
+    if record.get("error") or record.get("status") == "failed":
+        return "failed"
+    report = record.get("stage_provenance")
+    if not isinstance(report, dict) or report.get("version") != 1:
+        return "not_captured"
+    if report.get("status") == "failed":
+        return "failed"
+    if report.get("status") != "complete":
+        return "not_captured"
+    retrievals = report.get("retrievals")
+    if not isinstance(retrievals, list):
+        return "not_captured"
+    if not retrievals:
+        return "not_executed"
+    if any(call.get("status") == "failed" for call in retrievals):
+        return "failed"
+    if len(retrievals) != 1 or retrievals[0].get("status") != "complete":
+        return "not_captured"
+    stage = retrievals[0].get("stages", {}).get(stage_name, {})
+    status = stage.get("status")
+    if status in ("failed", "not_executed"):
+        return status
+    if (status != "captured" or not isinstance(stage.get("gold_ids"), list)
+            or not isinstance(stage.get("count"), int)):
+        return "not_captured"
+    return "present" if stage["gold_ids"] else "absent"
+
+
+def admission_summary(records, *, expected_n=109, threshold=30):
+    """Apply the registered threshold only to a complete measured cohort."""
+    counts = dict.fromkeys(("present", "absent", "failed", "not_captured",
+                           "not_executed"), 0)
+    for rec in records:
+        counts[stage_presence(rec, "post_shortlist")] += 1
+    measured = counts["present"] + counts["absent"]
+    complete = len(records) == expected_n and measured == expected_n
+    return {
+        "basis": "post_shortlist", "expected_n": expected_n,
+        "n": len(records), "measured_n": measured, **counts,
+        "threshold": threshold,
+        "verdict": (("PASS" if counts["present"] >= threshold else "KILL")
+                    if complete else "INCONCLUSIVE"),
+    }
+
+
+def require_stage_provenance(records, path, targets):
+    """Refuse old caches rather than treating uncaptured boundaries as empty."""
+    wanted = set(targets)
+    for rec in records:
+        if rec.get("needle") not in wanted:
+            continue
+        report = rec.get("stage_provenance")
+        if (not isinstance(report, dict) or report.get("version") != 1
+                or report.get("status") not in ("complete", "failed", "not_captured")
+                or not isinstance(report.get("retrievals"), list)
+                or not isinstance(report.get("stages"), dict)):
+            raise ValueError(
+                f"{path}: cached needle {rec.get('needle')!r} lacks stage provenance; "
+                "use a fresh --cache directory to measure these boundaries"
+            )
+
+
+def histogram(ranks, statuses=None):
+    """Final score-map ranks; absence here is not admission evidence."""
     h = {"le_48": 0, "r49_200": 0, "r201_1000": 0, "absent_at_1000": 0}
-    for r in ranks:
+    if statuses is None:
+        statuses = ["complete"] * len(ranks)
+    else:
+        h.update(failed=0, not_captured=0)
+    for r, status in zip(ranks, statuses):
+        if status != "complete":
+            h["failed" if status == "failed" else "not_captured"] += 1
+            continue
         if r is None:
             h["absent_at_1000"] += 1
         elif r <= 48:
@@ -502,6 +600,27 @@ def histogram(ranks):
         else:
             h["r201_1000"] += 1
     return h
+
+
+def bm25_window_attribution(rows):
+    """Proxy ranks by window; these cannot identify an actual pipeline drop."""
+    out = {"gold_in_bm25_top50": 0, "gold_bm25_51_1000": 0,
+           "gold_bm25_1001_20000": 0, "gold_bm25_absent_20000": 0,
+           "failed": 0, "not_captured": 0}
+    for row in rows:
+        status = row.get("bm25_proxy_status", "not_captured")
+        rank = row["bm25_proxy_rank"]
+        if status != "complete":
+            out["failed" if status == "failed" else "not_captured"] += 1
+        elif rank is None:
+            out["gold_bm25_absent_20000"] += 1
+        elif rank <= 50:
+            out["gold_in_bm25_top50"] += 1
+        elif rank <= 1000:
+            out["gold_bm25_51_1000"] += 1
+        else:
+            out["gold_bm25_1001_20000"] += 1
+    return out
 
 
 def main(argv=None) -> int:
@@ -514,6 +633,8 @@ def main(argv=None) -> int:
                     help="directory for per-arm checkpoints (crash resume)")
     ap.add_argument("--capture", default=None,
                     help="path of the reusable pool-capture sqlite artifact")
+    ap.add_argument("--stage-provenance", action="store_true",
+                    help="capture retrieval/blend stage boundaries; required for an admission verdict")
     args = ap.parse_args(argv)
 
     needles, gold, bucket, miss_names = load_inputs()
@@ -539,9 +660,16 @@ def main(argv=None) -> int:
               if cache_dir else None)
         if cf is not None and cf.exists():
             print("resuming " + arm_name + " from " + str(cf), flush=True)
-            return json.loads(cf.read_text(encoding="utf-8"))
+            result = json.loads(cf.read_text(encoding="utf-8"))
+            if args.stage_provenance:
+                records = result.get("per_query", [])
+                if set(targets) != {r.get("needle") for r in records}:
+                    raise ValueError(f"{cf}: stage provenance cache has a different target cohort")
+                require_stage_provenance(records, cf, targets)
+            return result
         res = run_arm(arm_name, knobs, targets, needles, gold, capture,
-                      capture_con=capture_con, ckpt_dir=cache_dir)
+                      capture_con=capture_con, ckpt_dir=cache_dir,
+                      stage_provenance=args.stage_provenance)
         if cf is not None:
             cf.parent.mkdir(parents=True, exist_ok=True)
             cf.write_text(json.dumps(res), encoding="utf-8")
@@ -564,7 +692,9 @@ def main(argv=None) -> int:
     print("shipped done p50=" + str(shipped["wall_ms_p50"]) + "ms map_med="
           + str(shipped["map_size_median"]), flush=True)
 
-    term_map = {r["needle"]: (r["query_terms"] or []) for r in deep["per_query"]}
+    term_map = {r["needle"]: (r["query_terms"] or [])
+                if r.get("status") == "complete" else []
+                for r in deep["per_query"]}
     proxy = bm25_proxy(term_map, gold, BM25_PROXY_DEPTH)
     print("bm25 proxy done p50=" + str(proxy["wall_ms_p50"]) + "ms", flush=True)
 
@@ -581,6 +711,10 @@ def main(argv=None) -> int:
             "cohort": "miss" if name in miss_set else "hit_control",
             "bucket": bucket.get(name),
             "question_type": needles[name]["question_type"],
+            "shipped_status": ("failed" if s.get("stage_provenance", {}).get("status") == "failed"
+                               else s.get("status", "not_captured")),
+            "deep_status": ("failed" if d.get("stage_provenance", {}).get("status") == "failed"
+                            else d.get("status", "not_captured")),
             "shipped_map_size": s["map_size"],
             "shipped_rank": s["rank_of_first_gold"],
             "shipped_delivered_gold": s["delivered_gold"],
@@ -591,10 +725,21 @@ def main(argv=None) -> int:
             "deep_delivered_gold_rank": d["delivered_gold_rank"],
             "bm25_proxy_rank": px.get("bm25_rank"),
             "bm25_proxy_pool": px.get("pool"),
+            "bm25_proxy_status": px.get("status", "not_captured"),
             "shipped_wall_ms": s["wall_ms"],
             "deep_wall_ms": d["wall_ms"],
             "query_terms_n": len(d["query_terms"] or []),
         })
+        if args.stage_provenance:
+            rows[-1]["stage_provenance"] = {
+                "shipped": s["stage_provenance"], "deep1000": d["stage_provenance"],
+            }
+            rows[-1]["shipped_admission"] = stage_presence(s, "post_shortlist")
+            rows[-1]["deep_admission"] = stage_presence(d, "post_shortlist")
+
+    def score_hist(grp):
+        return histogram([r["deep_rank"] for r in grp],
+                         statuses=[r["deep_status"] for r in grp])
 
     def subset(pred):
         return [r for r in rows if pred(r)]
@@ -605,21 +750,26 @@ def main(argv=None) -> int:
     misses = subset(lambda r: r["cohort"] == "miss")
     hitctl = subset(lambda r: r["cohort"] == "hit_control")
 
-    pa_found = sum(1 for r in pool_absent if r["deep_rank"] is not None)
-    verdict = "PASS" if pa_found >= 30 else "KILL"
+    pa_found = sum(1 for r in pool_absent
+                   if r["deep_status"] == "complete" and r["deep_rank"] is not None)
+    admission = admission_summary([deep_by[r["needle"]] for r in pool_absent])
+    verdict = admission["verdict"]
 
     by_bucket = {}
     for label, grp in (("pool_absent", pool_absent), ("near_band", near_band),
                        ("seat_capped", seat_capped), ("all_misses", misses),
                        ("hit_control", hitctl)):
-        dr = [r["deep_rank"] for r in grp]
+        measured = [r for r in grp if r["deep_status"] == "complete"]
+        dr = [r["deep_rank"] for r in measured]
         found = [x for x in dr if x is not None]
-        pxr = [r["bm25_proxy_rank"] for r in grp if r["bm25_proxy_rank"] is not None]
+        pxr = [r["bm25_proxy_rank"] for r in grp
+               if r["bm25_proxy_status"] == "complete" and r["bm25_proxy_rank"] is not None]
         by_bucket[label] = {
             "n": len(grp),
-            "deep_hist": histogram(dr),
+            "n_measured": len(measured),
+            "deep_hist": score_hist(grp),
             "n_found_at_1000": len(found),
-            "found_rate": round(len(found) / len(grp), 4) if grp else None,
+            "found_rate": round(len(found) / len(measured), 4) if measured else None,
             "deep_rank_median": statistics.median(found) if found else None,
             "deep_rank_max": max(found) if found else None,
             "bm25_proxy_found": len(pxr),
@@ -633,41 +783,22 @@ def main(argv=None) -> int:
         grp = [r for r in misses if r["question_type"] == qt]
         by_qtype[qt] = {
             "n": len(grp),
-            "deep_hist": histogram([r["deep_rank"] for r in grp]),
-            "n_found_at_1000": sum(1 for r in grp if r["deep_rank"] is not None),
+            "deep_hist": score_hist(grp),
+            "n_found_at_1000": sum(1 for r in grp if r["deep_status"] == "complete"
+                                   and r["deep_rank"] is not None),
             "n_pool_absent": sum(1 for r in grp if r["bucket"] == "pool_absent"),
         }
-
-    # Which of the two shipped bounds actually excluded gold?
-    #   bm25_proxy_rank <= 50  -> gold WAS inside the BM25 shortlist window;
-    #                             its absence from the shipped map is not an
-    #                             admission-window fact.
-    #   50 < bm25_proxy_rank    -> the bm25_shortlist post-filter deleted it.
-    #   bm25_proxy_rank is None -> unreachable even at BM25 depth 20000.
-    def bound_attribution(grp):
-        out = {"gold_in_bm25_top50": 0, "gold_bm25_51_1000": 0,
-               "gold_bm25_1001_20000": 0, "gold_bm25_absent_20000": 0}
-        for r in grp:
-            b = r["bm25_proxy_rank"]
-            if b is None:
-                out["gold_bm25_absent_20000"] += 1
-            elif b <= 50:
-                out["gold_in_bm25_top50"] += 1
-            elif b <= 1000:
-                out["gold_bm25_51_1000"] += 1
-            else:
-                out["gold_bm25_1001_20000"] += 1
-        return out
 
     for label, grp in (("pool_absent", pool_absent), ("near_band", near_band),
                        ("seat_capped", seat_capped), ("all_misses", misses),
                        ("hit_control", hitctl)):
-        by_bucket[label]["bm25_window_attribution"] = bound_attribution(grp)
+        by_bucket[label]["bm25_window_attribution"] = bm25_window_attribution(grp)
 
     sem_pa = [r for r in pool_absent if r["question_type"] == "semantic"]
     nonsem_pa = [r for r in pool_absent if r["question_type"] != "semantic"]
 
-    nb_deep = [r for r in near_band if r["deep_rank"] is not None]
+    nb_deep = [r for r in near_band
+               if r["deep_status"] == "complete" and r["deep_rank"] is not None]
 
     # ── P2 residual: does a doc rollup lift the near_band misses? ───────
     # 32 of the 41 near_band misses sit at live_rank 19-45, outside the
@@ -732,6 +863,7 @@ def main(argv=None) -> int:
         ],
         "kill_criterion": KILL_CRITERION,
         "verdict": verdict,
+        "admission_measurement": admission,
         "k": K,
         "deep_depth": DEEP,
         "bm25_proxy_depth": BM25_PROXY_DEPTH,
@@ -739,30 +871,27 @@ def main(argv=None) -> int:
         "n_hit_controls": len(hitctl),
         "control_seed": CONTROL_SEED,
         "admission_trace": {
-            "limit": "knowledge_store.py:2806  limit = max_genes * 2 = 24",
-            "fts_fetch_depth": ("knowledge_store.py:2812  _fts_fetch_depth = "
-                                "self._fts5_candidate_depth or (limit*2) = 48"),
-            "fts_lane": ("knowledge_store.py:3195-3211 Tier-3 FTS5 content lane "
-                         "-- the ONLY consumer of _fts_fetch_depth"),
-            "tag_lanes_unbounded": ("knowledge_store.py:3155 (tag_exact) / :3180 "
-                                    "(tag_prefix) carry no LIMIT"),
-            "bm25_shortlist": ("knowledge_store.py:3838-3868 -- post-filter, "
-                               "retrieval.bm25_shortlist_enabled default TRUE, "
-                               "bm25_shortlist_size default 50; deletes every "
-                               "candidate not in the BM25 top-50"),
-            "rrf_eligibility": ("knowledge_store.py:3899-3906 eligible_ids = "
-                                "set(gene_scores) -- the shortlist governs the "
-                                "fused output too"),
-            "map_publication": ("knowledge_store.py:3987-3988 last_query_scores "
-                                "= final_scores"),
-            "conclusion": ("The observed ~45-deep map floor is "
-                           "bm25_shortlist_size=50, NOT "
-                           "fts5_candidate_depth=48."),
+            "fts_lane": ("fts_raw records bounded SQL rows after any tier-0 BM25 "
+                         "prefilter, before lifecycle and party filters"),
+            "bm25_shortlist": ("pre_shortlist and post_shortlist record same-call "
+                               "membership around the optional shortlist filter"),
+            "map_publication": ("post_blend_scores records the request-local score "
+                                "map after blend refiners; it is a separate stage"),
+            "conclusion": ("Compare captured boundaries within each retrieval call. "
+                           "Final map size and proxy ranks alone cannot identify "
+                           "where a candidate was removed."),
         },
         "basis_semantics": {
-            "deep_rank": ("shipped fused pipeline with BOTH admission bounds "
-                          "raised to 1000; real tiers, real RRF, real "
-                          "combinator"),
+            "deep_rank": ("final score-map rank after build_context with both "
+                          "depth knobs raised to 1000; this map is not a "
+                          "measurement of upstream candidate admission"),
+            "deep_hist": ("legacy rank bins in the final score map; "
+                          "absent_at_1000 means absent from that map in the "
+                          "deep1000 arm, not absent at any upstream stage. "
+                          "Failed and unmeasured queries have separate bins"),
+            "admission_measurement": ("post_shortlist gold membership from one "
+                                      "completed lexical retrieval per query; complete cohort "
+                                      "measurement is required for a verdict"),
             "bm25_proxy_rank": ("PROXY -- raw FTS5 bm25 order of the pipeline's "
                                 "own OR-joined query_terms to depth 20000; NOT "
                                 "the fused ranking"),
@@ -786,13 +915,13 @@ def main(argv=None) -> int:
         "headline": {
             "pool_absent_n": len(pool_absent),
             "pool_absent_gold_found_at_1000": pa_found,
-            "pool_absent_hist": histogram([r["deep_rank"] for r in pool_absent]),
+            "pool_absent_hist": score_hist(pool_absent),
             "semantic_pool_absent_n": len(sem_pa),
             "semantic_pool_absent_found": sum(
-                1 for r in sem_pa if r["deep_rank"] is not None),
+                1 for r in sem_pa if r["deep_status"] == "complete" and r["deep_rank"] is not None),
             "nonsemantic_pool_absent_n": len(nonsem_pa),
             "nonsemantic_pool_absent_found": sum(
-                1 for r in nonsem_pa if r["deep_rank"] is not None),
+                1 for r in nonsem_pa if r["deep_status"] == "complete" and r["deep_rank"] is not None),
         },
         "by_bucket": by_bucket,
         "by_question_type_misses": by_qtype,
@@ -801,7 +930,7 @@ def main(argv=None) -> int:
             "n_shipped_rank_gt_15": sum(
                 1 for r in near_band if (r["shipped_rank"] or 0) > 15),
             "n_found_deep": len(nb_deep),
-            "deep_rank_hist": histogram([r["deep_rank"] for r in near_band]),
+            "deep_rank_hist": score_hist(near_band),
             "deep_delivered_gold": sum(r["deep_delivered_gold"] for r in near_band),
             "doc_rollup": {
                 "definition": ("parent source_id rollup; doc score = MAX "
@@ -850,8 +979,10 @@ def main(argv=None) -> int:
     out = (Path(args.out) if args.out
            else HERE / "receipts" / ("pool_depth_forensics_" + args.stamp + ".json"))
     out.write_text(json.dumps(receipt, indent=2), encoding="utf-8")
-    print("\nVERDICT " + verdict + ": pool_absent gold found at depth<=1000 = "
-          + str(pa_found) + "/" + str(len(pool_absent)) + " (threshold 30)")
+    capture_con.close()
+    print("\nVERDICT " + verdict + ": measured post_shortlist gold presence = "
+          + str(admission["present"]) + "/" + str(admission["measured_n"])
+          + " (requires 109 measured queries; threshold 30)")
     print(json.dumps(receipt["headline"], indent=2))
     print(json.dumps(receipt["latency"], indent=2))
     print("receipt -> " + str(out))

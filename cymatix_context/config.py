@@ -1620,6 +1620,14 @@ def load_config(path: Optional[str] = None) -> CymatixConfig:
             log.error("cymatix.toml is malformed (%s) — using defaults", exc)
             return _apply_env_overrides(CymatixConfig())
 
+    # Known sections must be tables (#418). Discard malformed shapes before
+    # alias resolution so a scalar legacy section cannot hide a valid alias.
+    # Field validation still runs normally for every table that survives.
+    for section, value in list(raw.items()):
+        if section in _KNOWN_TOP_LEVEL_SECTIONS and not isinstance(value, dict):
+            log.warning("[%s] is not a table; ignoring", section)
+            del raw[section]
+
     # ROSETTA Tier 2: fold canonical-name aliases onto their legacy TOML
     # keys before any section dispatch below sees ``raw``, then flag any
     # top-level section neither dispatch nor the alias table recognizes.
