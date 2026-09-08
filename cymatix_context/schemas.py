@@ -790,8 +790,9 @@ ContextPacket.model_rebuild()
 # See docs/specs/2026-05-08-stage-5-caller-model-class.md §3. Opt-in render-
 # branch selector for /context. The /context endpoint accepts an optional
 # "caller_model_class" string; unknown values return 400. Default is
-# "generic" — that branch is regression-locked byte-identical to pre-Stage-5
-# output (see test_generic_branch_byte_identical_to_pre_stage5_output).
+# "generic" — tests/test_caller_model_class.py checks current default/generic
+# response parity and the archived decoder/render contract. See
+# tests/golden/README.md for the historical snapshot's scope.
 
 
 class CallerModelClass(str, Enum):
