@@ -1,18 +1,24 @@
 # Cymatix-Context Retrieval Dimensions
 
-> **Last reviewed:** 2026-04-17 (working tree)
-> **Knowledge store snapshot:** 19,738 documents (13,710 OPEN / 1,949 EUCHRO / 4,079 HETERO)
+> **Historical inventory review:** 2026-04-17 (working tree)
+> **Historical knowledge store snapshot:** 19,738 documents (13,710 OPEN / 1,949 EUCHRO / 4,079 HETERO)
 >
-> **Status: LLM-free pipeline as of 2026-04-09 (CPU pipeline commit) +
-> 2026-04-13 (Sprints 1-4).** Every dimension below — D1 through D9,
-> including D6 cymatics rerank — runs on deterministic CPU math. The
-> "LLM re_rank" mentioned in §D6 is the *legacy* fallback path; in the
-> live config `rerank_enabled = false` and the active rerank, when on,
-> is a pretrained cross-encoder MiniLM (classifier, not an LLM call).
+> **Defaults reviewed:** 2026-09-08. The lane graph describes implemented
+> capabilities and historical measurements, including optional paths.
+> The generated [configuration reference](../config-reference.md) is the
+> authoritative defaults reference; the shipped settings are in
+> [`cymatix.toml`](../../cymatix.toml). Benchmark results and store counts
+> below retain their historical scope.
+>
+> **LLM-free pipeline milestones:** 2026-04-09 (CPU pipeline commit) +
+> 2026-04-13 (Sprints 1-4). The "LLM re_rank" mentioned in §D6 is the
+> legacy fallback path. Reranking is off by default
+> (`[retrieval] rerank_enabled = false`). When enabled, the optional reranker
+> is a pretrained MiniLM cross-encoder (classifier, not an LLM call).
 > See [`PIPELINE_LANES.md`](PIPELINE_LANES.md) §"LLM boundary" for the
-> full statement. Step 0 query-intent expansion is flag-gated
-> (`[ribosome] query_expansion_enabled`); flip to `false` for a
-> strictly LLM-free `/context`.
+> full statement. Step 0 query-intent expansion is optional and disabled
+> by default (`[ribosome] query_expansion_enabled = false`), keeping the
+> default `/context` path LLM-free.
 
 ## Lane Graph
 
@@ -62,9 +68,9 @@
 
  D8  Co-activation   [████]    [████]     [████]       [░░░░]
      graph           entity_    entity_gr  harmonic +   SR/entity
-                     graph +    + 227k     ray-trace +  graph bench
-                                           entity graph
-                     harmonic   links      live; SR off pending
+                     graph +    + 227k     ray-trace;   graph bench
+                     harmonic   links      entity/SR   pending
+                                           opt-in
 
 
  LEGEND
@@ -73,11 +79,11 @@
   [░░░░]  Not started
 ```
 
-Auxiliary live tiers not counted as separate D-lanes:
+Auxiliary tiers not counted as separate D-lanes:
 
-- `path_key_index` Tier 0 compound retrieval is live and fires before D1/D2 fusion.
-- `filename_anchor` exists as a dark-shipped lexical boost, but remains off in the default `cymatix.toml`.
-- `SR` exists as a graph-expansion path under D8, but remains dark-shipped in the default `cymatix.toml`.
+- `path_key_index` Tier 0 compound retrieval runs before D1/D2 fusion when enabled; `[retrieval] pki_enabled = false` by default.
+- `filename_anchor` is a lexical boost enabled by default (`[retrieval] filename_anchor_enabled = true`).
+- SR is an optional graph-expansion path under D8, disabled by default (`[retrieval] sr_enabled = false`).
 
 ---
 
@@ -85,7 +91,7 @@ Auxiliary live tiers not counted as separate D-lanes:
 
 ### D1 — Semantic Content (FTS5 + SPLADE + ΣĒMA)
 
-Three sub-tiers in a fusion pipeline:
+Supported sub-tiers in a fusion pipeline:
 
 | Sub-tier | Mechanism | Table/field |
 |---|---|---|
@@ -94,10 +100,17 @@ Three sub-tiers in a fusion pipeline:
 | Tier 3/3.5 | ΣĒMA 20-dim cosine similarity | `genes.embedding` |
 | Cold fallthrough | ΣĒMA cosine on heterochromatin | `genes WHERE chromatin=2` |
 
-Related live adjuncts, not counted as separate dimensions:
+SPLADE is opt-in (`[ingestion] splade_enabled = false`; both automatic
+size toggles default to `0`). ΣĒMA embedding generation and its warm
+retrieval boost are off by default (`[ingestion] sema_embed_on_ingest = false`).
+The separate BGE-M3 dense path is also opt-in
+(`[retrieval] dense_embedding_enabled = false`). The table lists supported
+paths; their activation follows the configuration reference linked above.
 
-- `path_key_index` Tier 0 compound retrieval (`path_token` + `kv_key`)
-- optional `filename_anchor` lexical boost (dark-shipped by default)
+Related adjuncts, not counted as separate dimensions:
+
+- optional `path_key_index` Tier 0 compound retrieval (`path_token` + `kv_key`; disabled by default)
+- `filename_anchor` lexical boost (enabled by default)
 
 ### D2 — Tagging (tag index; legacy: promoter index)
 
@@ -125,7 +138,11 @@ Three-tier accessibility model with cold-tier reactivation:
 |---|---|---|---|
 | OPEN | 0 | Always queried | — |
 | EUCHROMATIN | 1 | Included with hot | — |
-| HETEROCHROMATIN | 2 | Excluded by default | Opt-in via `include_cold` or automatic when hot returns ≤ `cold_tier_min_hot_genes` |
+| HETEROCHROMATIN | 2 | Excluded by default | Explicit `include_cold: true`, or enabled automatic fallthrough (see below) |
+
+Automatic fallthrough requires `[context] cold_tier_enabled = true` and
+hot results ≤ `cold_tier_min_hot_genes` (default `0`). The master flag
+defaults to `false`; explicit `include_cold: true` overrides both gates.
 
 Content is preserved across all tiers (C.1 non-destructive compression).
 
@@ -167,7 +184,7 @@ Three data sources exist, and part of the graph stack is now read at query time:
 |---|---|---|
 | Legacy co-activation | `epigenetics.co_activated_with` | Per-document JSON |
 | Entity graph | `entity_graph` table | Varies |
-| Cymatics harmonics | `harmonic_links` table | 227k+ in current knowledge store |
+| Cymatics harmonics | `harmonic_links` table | 227k+ in the historical knowledge store snapshot |
 
 Current live wiring:
 
@@ -176,8 +193,8 @@ Current live wiring:
 
 Still partial:
 
-- `entity_graph` is now a first-class retrieval signal (Tier 5b, Step 3C, 2026-05-08); dark-shipped (`entity_graph_retrieval_enabled = false`) pending bench gate
-- SR (`sr_boost`) exists under D8; `sr_enabled = true` in cymatix.toml (flip 2026-04-22) but gate bench (2026-05-08) found no recall gain at N=50 — leaving enabled pending higher-N validation
+- Entity memberships and ingest-time co-activation links are enabled (`[ingestion] entity_graph = true`). The Tier 5b query-time entity-graph boost (Step 3C, 2026-05-08) is a separate opt-in (`[retrieval] entity_graph_retrieval_enabled = false`).
+- SR (`sr_boost`) is implemented but disabled by default (`[retrieval] sr_enabled = false`). The 2026-04-22 default-on experiment was reverted in the 2026-06-12 default-honesty pass; a fresh isolation receipt showing a delivered-recall gain is required before enabling it by default.
 - seeded edges exist but are dark-shipped by default
 
 **SR Gate Bench Result (2026-05-08, N=50, SEED=42, gemma4:e4b, same knowledge-store A/B):**
@@ -194,9 +211,9 @@ Result: **GATE NOT MET.** No retrieval_pct gain on any axis. Axis-2 shows -2pp r
 (within N=50 noise floor of ±1 needle). SR's in_context_pct shows marginal +2pp on axes 2-3
 but this does not clear the gate on the primary recall@1 metric.
 
-SR remains enabled in cymatix.toml (flip 2026-04-22 was signal-positive in earlier sweep) and
-does not harm latency. Recommend re-gate at N=200+ or with a larger knowledge-store snapshot before
-deciding to disable or promote SR to a required-on tier.
+This historical gate did not justify default-on SR. SR is disabled in the
+shipped configuration; any future default change needs a fresh
+delivered-recall isolation receipt on a current bed.
 
 ### D9 — Temporal Context Model (built, lightly wired)
 
