@@ -30,6 +30,7 @@ from __future__ import annotations
 import os
 import time
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
@@ -63,6 +64,65 @@ from cymatix_context.schemas import (
     PromoterTags,
     RefreshTarget,
 )
+
+
+@pytest.mark.parametrize("missing", [False, True])
+def test_mtime_cache_never_exceeds_cap(monkeypatch, missing):
+    """Both successful stats and negative sentinels have bounded lifetime."""
+    from cymatix_context.retrieval import freshness
+
+    def stat(path):
+        if missing:
+            raise FileNotFoundError(path)
+        return SimpleNamespace(st_mtime=10.0)
+
+    monkeypatch.setattr(freshness, "os", SimpleNamespace(stat=stat))
+    cap = getattr(freshness, "MTIME_CACHE_MAX_ENTRIES", 4096)
+    cache = {}
+    for i in range(cap + 100):
+        gene = SimpleNamespace(source_id=f"/source/{i}", last_verified_at=20.0)
+        status = revalidate_source(gene, mtime_cache=cache, now_ts=100.0)
+        assert status == ("missing" if missing else "fresh")
+        assert len(cache) <= cap
+
+
+def test_mtime_cache_evicts_ttl_expired_before_clearing(monkeypatch):
+    """A still-valid entry survives pressure when expired entries free space."""
+    from cymatix_context.retrieval import freshness
+
+    cap = getattr(freshness, "MTIME_CACHE_MAX_ENTRIES", 4096)
+    cache = {f"/expired/{i}": (10.0, 0.0) for i in range(cap - 1)}
+    cache["/keep"] = (10.0, 99.0)
+    monkeypatch.setattr(
+        freshness, "os", SimpleNamespace(stat=lambda path: SimpleNamespace(st_mtime=10.0)),
+    )
+    gene = SimpleNamespace(source_id="/new", last_verified_at=20.0)
+    assert revalidate_source(gene, mtime_cache=cache, now_ts=100.0) == "fresh"
+    assert cache == {"/keep": (10.0, 99.0), "/new": (10.0, 100.0)}
+
+
+def test_admin_refresh_clears_mtime_cache_in_place(tmp_path):
+    """Refresh makes an externally changed source observable before its TTL."""
+    from tests.conftest import make_client
+
+    src = tmp_path / "source.txt"
+    src.write_text("before", encoding="utf-8")
+    gene = SimpleNamespace(source_id=str(src), last_verified_at=100.0)
+    client = make_client()
+    manager = client.app.state.cymatix
+    cache = manager._mtime_cache
+    cache[str(src)] = (50.0, 200.0)
+    try:
+        assert revalidate_source(gene, mtime_cache=cache, now_ts=201.0) == "fresh"
+        response = client.post("/admin/refresh")
+        assert response.status_code == 200
+        assert response.json()["refreshed"] is True
+        assert manager._mtime_cache is cache
+        assert cache == {}
+        assert revalidate_source(gene, mtime_cache=cache, now_ts=201.0) == "stale"
+    finally:
+        client.close()
+        manager.close()
 
 
 # ─────────────────────────────────────────────────────────────────────

@@ -1627,8 +1627,9 @@ class KnowledgeStore:
 
             # Expose similarity scores via last_query_scores for the
             # caller (context_manager uses this for tier-budget decisions)
-            for gid, sim in selected_sims.items():
-                self.last_query_scores[gid] = sim
+            with self._last_query_scores_lock:
+                for gid, sim in selected_sims.items():
+                    self.last_query_scores[gid] = sim
 
             return genes
         except Exception:
