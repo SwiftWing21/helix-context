@@ -8,6 +8,11 @@ receipt shape is unchanged. The pool-depth probe has a separate opt-in flag:
 python benchmarks/dogfood/erb/probe_pool_depth.py --stage-provenance --cache NEW_CACHE_DIRECTORY
 ```
 
+The ladder also exports `budget_tier` from the returned window metadata beside
+the existing `delivered_count`. A failed request or early return without tier
+metadata records `null`; it is not assigned a default tier. These fields help
+distinguish admission changes from downstream delivery-budget changes.
+
 These flags measure each timed `build_context` request. Warmup is outside the
 capture. Each lexical retrieval call has its own entry in `retrievals`; do not
 combine counts across calls as though they were one deduplicated pool. Capture

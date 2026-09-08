@@ -355,18 +355,24 @@ class TestContextCitationEnrichment:
         }).json()
         pid = reg["participant_id"]
 
-        # Ingest with attribution
-        client.post("/ingest", json={
+        # Explicit tags keep this short fixture eligible for hot retrieval.
+        ingest = client.post("/ingest", json={
             "content": "the answer to the universe is forty two",
             "content_type": "text",
             "participant_id": pid,
+            "metadata": {"domains": ["astronomy"]},
         })
+        assert ingest.status_code == 200
+        ingested = ingest.json()
+        assert ingested["count"] == 1
+        assert ingested["attributed"] == 1
+        gene_id, = ingested["gene_ids"]
 
-        # Query context — the ingested gene should appear in citations
-        # WITH attribution. Use a query that's likely to match.
+        # Query as the owning party so the real party filter admits the document.
         resp = client.post("/context", json={
             "query": "answer universe forty two",
             "decoder_mode": "none",
+            "party_id": "max@local",
         })
         assert resp.status_code == 200
         data = resp.json()
@@ -375,14 +381,11 @@ class TestContextCitationEnrichment:
         agent = data.get("agent", {})
         citations = agent.get("citations", [])
 
-        # At least one citation should carry attribution. We don't enforce
-        # it for ALL citations because the test environment may include
-        # other genes from prior tests in the same client fixture.
-        attributed = [c for c in citations if c.get("authored_by_party")]
-        if not attributed:
-            pytest.skip("query did not retrieve the attributed gene — retrieval is not deterministic across test runs")
-        assert any(c.get("authored_by_party") == "max@local" for c in attributed)
-        assert any(c.get("authored_by_handle") == "taude" for c in attributed)
+        matching = [c for c in citations if c["gene_id"] == gene_id]
+        assert matching, "The ingested document must reach citation enrichment"
+        citation, = matching
+        assert citation["authored_by_party"] == "max@local"
+        assert citation["authored_by_handle"] == "taude"
 
     def test_unattributed_gene_omits_attribution_fields(self, client):
         # Ingest WITHOUT attribution

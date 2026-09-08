@@ -9,6 +9,9 @@
   the pool-depth probe requires a complete observed cohort for an admission
   verdict. Retrieval defaults and normal response schemas are unchanged. See
   `docs/benchmarks/stage-provenance.md` for supported paths and receipt usage.
+  The ladder also exports observed budget tiers; a real CLI test verifies its
+  configuration-to-receipt path. The test audit closes filtering/failure gaps
+  and repairs two fixtures that previously skipped their central assertions.
 
 - **fix(scripts): `scripts/ingest_all.py` takes its sources from the command
   line.** Remove the built-in list of six source roots. The stale

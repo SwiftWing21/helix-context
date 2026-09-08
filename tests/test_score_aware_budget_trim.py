@@ -160,7 +160,9 @@ class TestScoreAwareBudgetTrim:
         sequence_index, score=9) — exactly backwards."""
         mgr, genes, gene_ids, scores = manager_five_genes
 
-        mgr.config.budget.expression_tokens = 500
+        # Exercise eviction rather than the delivered-seat truncation floor.
+        mgr.config.budget.min_delivered_docs = 0
+        mgr.config.budget.expression_tokens = 400
         mgr.config.budget.ribosome_tokens = 100
 
         window = mgr._assemble(
@@ -173,12 +175,9 @@ class TestScoreAwareBudgetTrim:
 
         survivors, dropped = _survivors_by_score(window, gene_ids, scores)
 
-        if not dropped:
-            pytest.skip(
-                "Budget did not fire a drop — token estimator changed "
-                "or content shrunk. Lower budget_expression to force a "
-                "drop."
-            )
+        assert dropped, "Fixture must exercise a real budget eviction"
+        assert window.metadata["budget_evicted"] > 0
+        assert window.metadata["budget_truncated"] == 0
 
         assert ("gene_01", 1.0) in dropped, (
             f"gene_01 (score=1) must be the first dropped under "

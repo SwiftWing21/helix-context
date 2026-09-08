@@ -1,9 +1,11 @@
 """Admission evidence must come from the stage that admitted a document."""
 
+import sqlite3
+
 import pytest
 
 from cymatix_context.exceptions import PromoterMismatch
-from cymatix_context.schemas import Gene, PromoterTags
+from cymatix_context.schemas import ChromatinState, Gene, PromoterTags
 
 
 @pytest.fixture
@@ -205,6 +207,133 @@ def test_prefiltered_raw_fetch_states_its_scope(lexical_store):
     assert stages["fts_raw"]["count"] == 1
     assert stages["fts_raw"]["gold_ids"] == []
     assert stages["post_shortlist"]["filter_status"] == "not_applied"
+
+
+@pytest.mark.parametrize("exclusion", ["lifecycle", "party"])
+def test_fts_eligible_measures_membership_after_filters(lexical_store, exclusion):
+    from cymatix_context.retrieval.measurement import capture_stages
+
+    store = lexical_store
+    party_id = None
+    if exclusion == "lifecycle":
+        gold = store.get_doc("gold")
+        gold.chromatin = ChromatinState.HETEROCHROMATIN
+        store.upsert_gene(gold)
+    else:
+        store.conn.execute(
+            "INSERT INTO parties (party_id, display_name, trust_domain, created_at) "
+            "VALUES ('bob', 'Bob', 'local', 0)"
+        )
+        store.conn.execute(
+            "INSERT INTO gene_attribution (gene_id, party_id, authored_at) "
+            "VALUES ('gold', 'bob', 0)"
+        )
+        store.conn.commit()
+        party_id = "alice"
+
+    with capture_stages({"gold"}) as capture:
+        docs = store.query_docs(
+            ["quartz"], [], max_genes=2, party_id=party_id, read_only=True,
+        )
+    report = capture.report()
+    stages = report["retrievals"][0]["stages"]
+    assert report["status"] == "complete"
+    assert stages["fts_raw"]["count"] == 3
+    assert stages["fts_raw"]["gold_ids"] == ["gold"]
+    assert stages["fts_eligible"] == {
+        "status": "captured", "count": 2, "gold_ids": [],
+    }
+    assert stages["pre_shortlist"]["gold_ids"] == []
+    assert "gold" not in {doc.gene_id for doc in docs}
+
+
+def test_fts_eligibility_failure_preserves_raw_fetch_evidence(lexical_store):
+    from cymatix_context.retrieval.measurement import capture_stages
+
+    # Let the real raw FTS query finish, then have SQLite reject the lifecycle
+    # lookup. This distinguishes a failed eligible set from a failed raw fetch.
+    state = {"raw_started": False, "denied": False}
+
+    def trace(sql):
+        if sql.lstrip().startswith("SELECT gene_id, rank") and "FROM genes_fts" in sql:
+            state["raw_started"] = True
+
+    def authorize(action, table, column, database, source):
+        if (
+            state["raw_started"] and not state["denied"]
+            and action == sqlite3.SQLITE_READ
+            and table == "genes" and column == "chromatin"
+        ):
+            state["denied"] = True
+            return sqlite3.SQLITE_DENY
+        return sqlite3.SQLITE_OK
+
+    lexical_store.conn.set_trace_callback(trace)
+    lexical_store.conn.set_authorizer(authorize)
+    try:
+        with capture_stages({"gold"}) as capture:
+            with pytest.raises(PromoterMismatch):
+                _query(lexical_store)
+    finally:
+        lexical_store.conn.set_trace_callback(None)
+        lexical_store.conn.set_authorizer(None)
+
+    report = capture.report()
+    stages = report["retrievals"][0]["stages"]
+    assert state["denied"] is True
+    assert report["status"] == "failed"
+    assert stages["fts_raw"]["status"] == "captured"
+    assert stages["fts_raw"]["count"] == 3
+    assert stages["fts_raw"]["gold_ids"] == ["gold"]
+    assert stages["fts_eligible"] == {
+        "status": "failed", "count": None, "gold_ids": None, "reason": "DatabaseError",
+    }
+
+
+def test_empty_shortlist_retains_tag_candidates_and_records_empty_fts(lexical_store):
+    from cymatix_context.retrieval.measurement import capture_stages
+
+    # Prefix tags match "unrelated", while the exact FTS token "unrel" is absent.
+    with capture_stages({"gold"}) as capture:
+        docs = lexical_store.query_docs(["unrel"], [], max_genes=2, read_only=True)
+    report = capture.report()
+    stages = report["retrievals"][0]["stages"]
+    assert report["status"] == "complete"
+    for name in ("fts_raw", "fts_eligible"):
+        assert stages[name]["status"] == "captured"
+        assert stages[name]["count"] == 0
+        assert stages[name]["gold_ids"] == []
+    assert stages["pre_shortlist"]["count"] == 3
+    assert stages["pre_shortlist"]["gold_ids"] == ["gold"]
+    assert stages["post_shortlist"] == {
+        "status": "captured", "count": 3, "gold_ids": ["gold"],
+        "filter_status": "empty_fallback",
+    }
+    assert "gold" in {doc.gene_id for doc in docs}
+
+
+def test_shortlist_sql_failure_invalidates_capture_even_when_retrieval_succeeds(lexical_store):
+    from cymatix_context.retrieval.measurement import capture_stages
+
+    # A Python int outside SQLite's signed 64-bit range fails at the real
+    # shortlist LIMIT binding; earlier FTS retrieval keeps its normal depth.
+    lexical_store._bm25_shortlist_size = 2**63
+    with capture_stages({"gold"}) as capture:
+        docs = _query(lexical_store)
+    report = capture.report()
+    call = report["retrievals"][0]
+    stages = call["stages"]
+    assert report["status"] == "failed"
+    assert call["status"] == "complete"
+    assert stages["fts_raw"]["status"] == "captured"
+    assert stages["fts_eligible"]["gold_ids"] == ["gold"]
+    assert stages["pre_shortlist"]["count"] == 3
+    assert stages["post_shortlist"] == {
+        "status": "captured", "count": 3, "gold_ids": ["gold"],
+        "filter_status": "failed",
+    }
+    assert stages["retrieval_returned"]["gold_ids"] == ["gold"]
+    assert "gold" in {doc.gene_id for doc in docs}
 
 
 def test_failure_after_capture_retains_evidence_without_claiming_query_success(lexical_store):

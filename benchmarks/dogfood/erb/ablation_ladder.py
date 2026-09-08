@@ -1130,6 +1130,7 @@ def run_arm(
                         error=detail,
                     )
                     error_record.update(delivered_gold_fields([], set(gold)))
+                    error_record["budget_tier"] = None
                     # #341 final-order basis: cleared before the call, so this
                     # is either this needle's own published order (a failure
                     # AFTER retrieval — e.g. assemble) or empty -> None. Never
@@ -1174,6 +1175,7 @@ def run_arm(
                     n_queries=len(needles), wall_ms=wall_ms, signal_ms=sig,
                 )
                 record.update(dg_fields)
+                record["budget_tier"] = (getattr(window, "metadata", None) or {}).get("budget_tier")
                 # #341: the FINAL retrieval order (post-rerank when it ran).
                 # last_query_scores cannot see a cross-encoder reorder — it
                 # permutes ids without rewriting fused scores — so the rerank
@@ -1448,6 +1450,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             "stage_provenance records candidate counts and watched gold IDs at "
             "each measured retrieval/blend boundary for this request only; "
             "failed, not_executed, and uncaptured stages are not empty pools."
+            " budget_tier is copied from the returned window metadata; null "
+            "means the request failed or returned no observed tier."
         )
 
     out = _resolve(args.out)
