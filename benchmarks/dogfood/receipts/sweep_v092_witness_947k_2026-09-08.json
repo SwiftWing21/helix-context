@@ -1,0 +1,86 @@
+{
+  "verdict": "EXACT_REPRODUCE",
+  "candidate": "benchmarks/dogfood/erb/receipts/ladder_v092_merged_witness_947k_2026-09-08.json",
+  "reference": "benchmarks/dogfood/erb/receipts/ladder_v09x_w24_min_delivered_2026-08-28.json",
+  "candidate_sha256": "d936156ca26485d19cbc0d8e5c7eed78cd4d492559e3596bec19776f21408b43",
+  "reference_sha256": "73370743ffa578f3e66c3d98ae4d32720e54cb874be2ff1e5e90192386daf4da",
+  "candidate_git_sha": "8cab199e97ae1080b8915fe0a4536a4c5ce1aa36",
+  "n": 470,
+  "k": 12,
+  "summary": {
+    "n_queries": {
+      "new": 470,
+      "reference": 470
+    },
+    "delivered_gold_queries": {
+      "new": 314,
+      "reference": 314
+    },
+    "delivered_gold_rate": {
+      "new": 0.6680851063829787,
+      "reference": 0.6680851063829787
+    },
+    "recall_at_k": {
+      "new": 0.6809,
+      "reference": 0.6809
+    },
+    "final_recall_at_k": {
+      "new": 0.683,
+      "reference": 0.683
+    },
+    "mean_rank_of_gold": {
+      "new": 5.25,
+      "reference": 5.25
+    },
+    "median_rank_of_gold": {
+      "new": 2.0,
+      "reference": 2.0
+    },
+    "gold_found_queries": {
+      "new": 361,
+      "reference": 361
+    },
+    "pool_delivery_gap": {
+      "new": 0.0128,
+      "reference": 0.0128
+    }
+  },
+  "per_needle_field_diff_counts": {
+    "delivered_gold": 0,
+    "recall_hit": 0,
+    "final_recall_hit": 0,
+    "rank_of_first_gold": 0,
+    "final_rank_of_first_gold": 0,
+    "delivered_gold_rank": 0,
+    "delivered_count": 0,
+    "gold_ranks": 0,
+    "floor_appended": 0,
+    "gate_kept": 0,
+    "splice_n_candidates": 0
+  },
+  "per_needle_differences": {
+    "delivered_gold": [],
+    "recall_hit": [],
+    "final_recall_hit": [],
+    "rank_of_first_gold": [],
+    "final_rank_of_first_gold": [],
+    "delivered_gold_rank": [],
+    "delivered_count": [],
+    "gold_ranks": [],
+    "floor_appended": [],
+    "gate_kept": [],
+    "splice_n_candidates": []
+  },
+  "delivered_gained": [],
+  "delivered_lost": [],
+  "note": "Ranks and delivery compared on the same ordered needle bank; latency excluded. Original benchmark database preserved through a consistent SQLite snapshot.",
+  "run_manifest": "benchmarks/dogfood/receipts/sweep_v092_witness_947k_2026-09-08_manifest.json",
+  "run_manifest_sha256": "84c28aee72c514248979810df7dfc8a9cf4081dcbe780d5255266526394c488c",
+  "ledger_campaign": "2026-09-08-v092-merged-stack-witness",
+  "measured_candidate_sha256": "8bb5bf1ea47226079469121ff78c9d307be54539cb2ceb1adc5f073bfe75c042",
+  "measured_reference_sha256": "2b1026bc7edfebd33dc6b70f5a5281505a5f194e8d9222b1b5c9a96915d6d9c1",
+  "measured_run_manifest_sha256": "0edbb52a4d0e37793961b6b2d796b20e17d5d7aa2eacf3ff85aef0a905b7cac8",
+  "measured_comparison_sha256": "0d80f086a6b6bead3d401264b6d2c472a8dbe3737b883a9fa00a00fa78e3ca45",
+  "measured_final_verification_sha256": "82101158a4eb09fc94407c36d9a3dc272fc35c0058df11617d4e3e6d0a19679c",
+  "sha256_normalization": "candidate_sha256, reference_sha256, and run_manifest_sha256 hash bytes after CRLF-to-LF normalization without JSON reformatting. measured_*_sha256 identify original local artifact bytes at import; the manifest includes the final verification. Hashes inside the manifest retain their recorded byte basis."
+}
