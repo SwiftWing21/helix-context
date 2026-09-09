@@ -3,11 +3,11 @@
 - Everything lives in one file: **`cymatix.toml`**, read once at process start
   by `cymatix_context.config.load_config()`. There is no second config source
   and no dotfile.
-- The loader is **soft-fail on every section**. Malformed TOML, an unknown key,
-  a bad value — each logs a `WARNING` and falls back to the typed dataclass
-  default. The server never refuses to start over a config typo. The single
-  hard failure is `[abstain] mode = "per_classifier"` without an
-  `[abstain.default]` block.
+- Malformed TOML logs an error and uses defaults. Unknown keys and non-table
+  known sections log warnings and are ignored. Invalid fields inside valid
+  tables can still raise errors — for example, a nonnumeric timeout or
+  `[abstain] mode = "per_classifier"` without an `[abstain.default]` block.
+  Section-shape recovery in v0.9.2 preserves this field validation.
 - **Defaults are the interesting part.** Almost every expensive feature in this
   project ships off, and every default-off flip is attached to a receipt. This
   page gives the tour and the flip dates; the exhaustive per-key reference is
@@ -18,7 +18,7 @@
   [Lexicon](Lexicon). The aliases come from the Tier-2 lexicon pass
   ([#419](https://github.com/mbachaud/Cymatix-Context/pull/419)), which follows the 0.9.1 tag — on a 0.9.1 wheel only the legacy
   spellings resolve.
-- This page documents **v0.9.2 branch code**. The wave-1 ranking
+- This page documents **v0.9.2**. The wave-1 ranking
   defaults ([#407](https://github.com/mbachaud/Cymatix-Context/pull/407)),
   the delivered-seat floor and its graduation to 12
   ([#409](https://github.com/mbachaud/Cymatix-Context/pull/409)), the entity
