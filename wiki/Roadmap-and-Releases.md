@@ -12,15 +12,15 @@
   [`docs/ROADMAP.md`](https://github.com/mbachaud/Cymatix-Context/blob/master/docs/ROADMAP.md)** —
   the sequencing layer that says which track a piece of work sits under.
 - **Install from PyPI:** `pip install cymatix-context`. Released versions are
-  git-tagged (`v0.9.1`, `v0.9.0`, …) on the repository; pre-releases
+  git-tagged (`v0.9.2`, `v0.9.1`, `v0.9.0`, …) on the repository; pre-releases
   (`vX.Y.ZbN`, cut from `beta`) install with `pip install --pre cymatix-context`.
-- This wiki documents **0.9.2 branch code**. Each item below carries
+- This wiki documents **v0.9.2**. Each item below carries
   its PR or issue number. The first section highlights changes since the
   published v0.9.1 release (2026-08-30).
 
-## 0.9.2 — branch contents
+## 0.9.2 (2026-09-08) — release contents
 
-The highlights below follow the 0.9.1 tag. One configuration default changes —
+The highlights below follow the 0.9.1 tag. One ingestion default changes —
 `[ingestion] entity_autolink_hub_cutoff` 0 → 200 — alongside additive features,
 fixes, and bench work. Every number here is copied from the receipt named in
 the matching `CHANGELOG.md` 0.9.2 entry.
@@ -36,6 +36,11 @@ the matching `CHANGELOG.md` 0.9.2 entry.
 | `eps_band_coverage` combinator ([#428](https://github.com/mbachaud/Cymatix-Context/pull/428)) | W2.2-narrow distinct-term tie-break inside the ε band; killed by its own receipt (**+0 / −0** delivered on 947k) | Default-inert; opt in per class |
 | ERB Phase-1/2 admission campaign ([#429](https://github.com/mbachaud/Cymatix-Context/pull/429)) | Pool-depth forensics: the admission thesis lives with corrections (66/109 pool-absent misses have gold at depth 1000), but a bare depth-1000 flip projects 0.634 vs 0.668 shipped | Bench only, no default moves |
 | Harmonic-tier bind-limit warning ([#432](https://github.com/mbachaud/Cymatix-Context/pull/432), closes [#431](https://github.com/mbachaud/Cymatix-Context/issues/431) tier 1) | Tier 5 skips with one warning per store when the candidate list would exceed `SQLITE_LIMIT_VARIABLE_NUMBER`, instead of swallowing the error at DEBUG | Ranking byte-identical below the limit |
+| Admission provenance and test audit ([#446](https://github.com/mbachaud/Cymatix-Context/pull/446)) | Opt-in per-stage candidate counts and watched-gold membership, explicit unmeasured states, actual budget tiers, and repaired filtering/eviction/citation assertions | Bench instrumentation; serial per manager/store; retrieval defaults unchanged |
+| Configuration shape recovery and dimension defaults ([#447](https://github.com/mbachaud/Cymatix-Context/pull/447)) | Malformed known TOML section shapes warn and fall back; valid settings and aliases survive; dimension-default claims match the shipped configuration | Invalid-config recovery and docs; no default changes |
+| Golden, Windows, and dependency coverage ([#448](https://github.com/mbachaud/Cymatix-Context/pull/448)) | Active archived-rendering and current-caller parity checks, native Bash/CLI discovery, declared contributor dependencies and CI import preflight | Tests and contributor setup; runtime defaults unchanged |
+| Observability exposure and concurrency fixes ([#449](https://github.com/mbachaud/Cymatix-Context/pull/449)) | Docker ports bind to loopback, anonymous Grafana access is opt-in; SPLADE loads once, freshness caches are bounded and refreshed, and score publication uses locked copies | Docker access defaults tightened; retrieval arithmetic and defaults unchanged |
+| Final merged-stack witness ([#450](https://github.com/mbachaud/Cymatix-Context/pull/450)) | September 8 at `8cab199`: all 470 queries complete with zero errors; all 11 compared fields reproduce the frozen reference; 314/470 delivered, r@12 0.6809, final r@12 0.6830 | Release evidence; ranks and delivery only, no latency claim |
 
 - **Known, tracked as [#430](https://github.com/mbachaud/Cymatix-Context/issues/430):**
   `[budget] min_delivered_docs` does not floor the TIGHT/FOCUSED budget-tier
@@ -105,7 +110,7 @@ sweep in ledger row `2026-08-30-v091-gate-sweep` (ALL PASS) — see
   retrieval-side condition has since been measured null (a paired EnronQA A/B,
   0/500 delivered flips in both configs), the post-tagger-v2 re-measure shows
   the hubs persist, and the flip to `200` ships in 0.9.2 via
-  [#425](https://github.com/mbachaud/Cymatix-Context/pull/425) — see the Unreleased section above.
+  [#425](https://github.com/mbachaud/Cymatix-Context/pull/425) — see the 0.9.2 section above.
 
 ### Tagger v2 (#413) — a behavior change with a version bump
 
@@ -125,9 +130,8 @@ sweep in ledger row `2026-08-30-v091-gate-sweep` (ALL PASS) — see
 ### After the 0.9.1 tag — Lexicon Tier 2 and the docs pass
 
 Neither of these is in the 0.9.1 wheel: both follow the 0.9.1 tag on `master`
-and ship in the next release. This wiki presents their spellings as canonical
-because it is written for that state; on a 0.9.1 install, use the legacy
-spellings.
+and ship in v0.9.2. This wiki presents their spellings as canonical; on a
+0.9.1 install, use the legacy spellings.
 
 - **Tier 2 aliases** ([#419](https://github.com/mbachaud/Cymatix-Context/pull/419))
   land on every operator-facing surface — `[compressor]` /
@@ -216,14 +220,14 @@ software terms — is a separate story, told on [Lexicon](Lexicon).
   and 30pp MRR on the xl bed
   ([#275](https://github.com/mbachaud/Cymatix-Context/issues/275)). Prefer
   unsharded for accuracy-sensitive corpora; the gap is disclosed, not fixed.
-- **Open and named, as of 0.9.1:**
+- **Issue ledger carried forward from v0.9.1:**
 
 | Item | What it is |
 |---|---|
 | [#417](https://github.com/mbachaud/Cymatix-Context/issues/417) | Tier 3 lexicon — `<GENE>` blocks, decoder prompts, wire field names, `/stats` keys. Needs its own byte-level A/B gate; v1.0-scale work |
-| [#418](https://github.com/mbachaud/Cymatix-Context/issues/418) | Pre-existing config bug: a known `cymatix.toml` section given a scalar instead of a table crashes `load_config` with an uncaught `AttributeError` |
+| [#418](https://github.com/mbachaud/Cymatix-Context/issues/418) | Resolved in v0.9.2 by [#447](https://github.com/mbachaud/Cymatix-Context/pull/447): non-table known config sections warn and fall back instead of crashing |
 | [#411](https://github.com/mbachaud/Cymatix-Context/issues/411) | Flip proposal and conditions for `entity_autolink_hub_cutoff`; both conditions receipted, the flip itself (0 → 200) is [#425](https://github.com/mbachaud/Cymatix-Context/pull/425) in 0.9.2 |
-| [#421](https://github.com/mbachaud/Cymatix-Context/issues/421) | `docs/architecture/DIMENSIONS.md` is stale on several default states and contradicts the shipped `cymatix.toml`; the wiki pages follow the TOML |
+| [#421](https://github.com/mbachaud/Cymatix-Context/issues/421) | Resolved in v0.9.2 by [#447](https://github.com/mbachaud/Cymatix-Context/pull/447): dimension-default claims agree with shipped settings and point to the generated reference |
 | [#410](https://github.com/mbachaud/Cymatix-Context/issues/410) | The tagger-hygiene root cause that #413 fixes |
 
 ## How releases work here
@@ -242,8 +246,12 @@ software terms — is a separate story, told on [Lexicon](Lexicon).
 - **Releases are receipt-gated, not calendar-gated.** A shipped-default
   change needs its paired receipt and `BASELINES.md` row before it merges to
   `beta`, and a final release needs a merged-stack witness ladder on the 947k
-  bed (0.9.1: `sweep_v091_gate_2026-08-30.json`, ALL PASS). When the receipt
-  says a change is null or negative, the change does not ship: the wave-2
+  bed. The [September 8 final witness](https://github.com/mbachaud/Cymatix-Context/blob/master/benchmarks/dogfood/receipts/sweep_v092_witness_947k_2026-09-08.json)
+  at `8cab199` is **EXACT_REPRODUCE** on all 11 compared fields. The
+  September 4 witness remains historical evidence for its own pinned
+  stack; v0.9.1's gate remains `sweep_v091_gate_2026-08-30.json` (ALL PASS).
+  When the receipt says a change is null or negative, the change does not
+  ship: the wave-2
   COVER-walk arm in the 0.9.x window was killed by its own receipt
   ([#408](https://github.com/mbachaud/Cymatix-Context/pull/408) shipped the
   infrastructure inert, `cover_walk_enabled = false`).
@@ -266,8 +274,7 @@ software terms — is a separate story, told on [Lexicon](Lexicon).
   exact commands for pre-releases, the final cut, the post-release wiki
   sync, and the `scripts/release.py` helper that bumps the version and rolls
   the changelog. It links to `beta`, not `master`, because it describes the
-  process rather than a shipped version — and because it reaches `master`
-  only with the next release.
+  process rather than a shipped version.
 
 ## Go deeper
 

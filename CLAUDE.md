@@ -1,6 +1,6 @@
 # Cymatix Context
 
-Knowledge-store-based context compression for local LLMs. v0.9.2 branch code (clean break in 0.8.5: renamed from helix-context in July 2026; the old helix CLI/env/import names, `helix.toml`, and `helix_*` MCP tools are removed — cymatix only).
+Knowledge-store-based context compression for local LLMs. v0.9.2 (clean break in 0.8.5: renamed from helix-context in July 2026; the old helix CLI/env/import names, `helix.toml`, and `helix_*` MCP tools are removed — cymatix only).
 
 ## Quick Start
 
