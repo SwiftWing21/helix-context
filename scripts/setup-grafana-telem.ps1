@@ -187,6 +187,7 @@ Write-Host "  Internals    http://localhost:3000/d/cymatix-internals"
 Write-Host "  Retrieval    http://localhost:3000/d/cymatix-retrieval-hitl"
 Write-Host ""
 Write-Host "Defaults: admin / admin (set at first Grafana boot; rotate via UI)." -ForegroundColor Gray
+Write-Host "Local trusted-host setup only. Before remote exposure, see docs/architecture/OBSERVABILITY.md." -ForegroundColor Gray
 Write-Host ""
 Write-Host "To start the full stack (collector + Prom + Tempo + Loki + Grafana):"
 Write-Host "  start-cymatix-tray.bat               # daily driver (Windows)"

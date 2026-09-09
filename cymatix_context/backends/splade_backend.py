@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import logging
 import sqlite3
+import threading
 from typing import Dict, List, Optional, Tuple
 
 from . import encoder_client
@@ -32,12 +33,13 @@ log = logging.getLogger("cymatix.splade")
 _model = None
 _tokenizer = None
 _device = None
+_load_lock = threading.Lock()
 
 _SPECIAL_TOKENS = frozenset({"[CLS]", "[SEP]", "[PAD]", "[UNK]"})
 
 # Encoder-daemon transport (Fork 1 slice 1), as a single ``(url, client)``
-# tuple so the rebind on a URL change is atomic — like ``_model`` this is
-# lock-free module state, and a benign race just rebuilds a cheap stdlib
+# tuple so the rebind on a URL change is atomic. This is lock-free module
+# state, and a benign race just rebuilds a cheap stdlib
 # client. ``None`` until the first remote encode; stays ``None`` forever when
 # no daemon URL is configured.
 _remote_client = None
@@ -116,30 +118,38 @@ def _ensure_loaded(model_name: str = "naver/splade-cocondenser-ensembledistil"):
     if _model is not None:
         return
 
-    import time as _time
+    with _load_lock:
+        if _model is not None:
+            return
 
-    # Timer starts BEFORE the torch/transformers imports — on a cold
-    # process those imports cost seconds and belong to the load bill.
-    _load_t0 = _time.monotonic()
+        import time as _time
 
-    import torch
-    from transformers import AutoModelForMaskedLM, AutoTokenizer
+        # Timer starts BEFORE the torch/transformers imports — on a cold
+        # process those imports cost seconds and belong to the load bill.
+        _load_t0 = _time.monotonic()
 
-    from cymatix_context.hardware import get_hardware
+        import torch
+        from transformers import AutoModelForMaskedLM, AutoTokenizer
 
-    from cymatix_context.hardware import resolve_layer_device
-    _device = torch.device(resolve_layer_device("splade"))
-    _tokenizer = AutoTokenizer.from_pretrained(model_name)
-    _model = AutoModelForMaskedLM.from_pretrained(model_name).to(_device)
-    _model.eval()
-    # Perf slice 1 (W0.2): record the lazy weight load so cold-start
-    # receipts can subtract it from the express stage.
-    try:
-        from cymatix_context.telemetry import record_model_load
-        record_model_load("splade", _time.monotonic() - _load_t0)
-    except Exception:
-        pass
-    log.info("SPLADE model loaded: %s on %s", model_name, _device)
+        from cymatix_context.hardware import resolve_layer_device
+        device = torch.device(resolve_layer_device("splade"))
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        model = AutoModelForMaskedLM.from_pretrained(model_name).to(device)
+        model.eval()
+
+        # Publish the ready marker last. Failed initialization leaves the
+        # cache untouched, and readers can only observe a fully ready model.
+        _device = device
+        _tokenizer = tokenizer
+        _model = model
+        # Perf slice 1 (W0.2): record the lazy weight load so cold-start
+        # receipts can subtract it from the express stage.
+        try:
+            from cymatix_context.telemetry import record_model_load
+            record_model_load("splade", _time.monotonic() - _load_t0)
+        except Exception:
+            pass
+        log.info("SPLADE model loaded: %s on %s", model_name, _device)
 
 
 def encode(text: str, top_k: int = 128, model_name: str = "naver/splade-cocondenser-ensembledistil") -> Dict[str, float]:

@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- **fix(deploy): constrain Docker observability to the local host (#434).**
+  All seven published ports bind to `127.0.0.1`; Grafana anonymous Viewer
+  access is opt-in through `CYMATIX_GRAFANA_ANON`. The initial admin password
+  accepts `CYMATIX_GRAFANA_ADMIN_PASSWORD`, with the existing `admin` fallback
+  retained only for trusted-host loopback setup. Existing Grafana volumes
+  retain their password. The Docker and architecture guides explain the
+  unauthenticated internal telemetry APIs and remote-deployment controls.
+  Regression tests parse the Compose configuration; native setup scripts
+  identify their trusted-host scope.
+
+- **fix(concurrency): complete the deferred isolation fixes (#439).**
+  Serialize SPLADE's first model load and publish the fully initialized
+  model last; bound the freshness mtime cache and clear it in place on
+  `/admin/refresh`; publish independent score-map copies under the store
+  lock while preserving request-local refinement. Retrieval score arithmetic
+  and configuration defaults are unchanged. This completes the concurrency
+  work described as deferred in the earlier audit-port entry below.
+
 - **fix(bench): distinguish retrieval admission from later score-map presence.**
   Opt-in ERB stage provenance records candidate counts and watched document
   membership before and after shortlist filtering, scoring, return expansion,

@@ -143,6 +143,7 @@ Dashboards:
   Retrieval    http://localhost:3000/d/cymatix-retrieval-hitl
 
 Defaults: admin / admin (set at first Grafana boot; rotate via UI).
+Local trusted-host setup only. Before remote exposure, see docs/architecture/OBSERVABILITY.md.
 
 To start the full stack (collector + Prom + Tempo + Loki + Grafana):
   cymatix-launcher --tray              # cross-platform
