@@ -103,7 +103,16 @@ scorerift = ["scorerift"]
 # CPU-resident semantic compression for gene content. Headroom by Tejas Chopra
 # (https://github.com/chopratejas/headroom, Apache-2.0). See NOTICE.
 codec = ["headroom-ai[proxy,code]>=0.5.21"]
-dev = ["pytest", "pytest-asyncio", "numpy", "spacy>=3.8", "hypothesis>=6.0", "markdown>=3.4"]  # markdown: scripts/build_wiki_site.py + its tests
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "numpy",
+    "spacy>=3.8",
+    "hypothesis>=6.0",
+    "markdown>=3.4",  # scripts/build_wiki_site.py + its tests
+    "rank-bm25>=0.2.2",  # offline RepoBench baseline tests
+    "httpx2>=2.0.0",  # Starlette TestClient's supported HTTP client
+]
 # `all` covers the full feature surface minus contributor-only extras
 # (dev) and the LGPL launcher-tray variant. Dep bulk dominated by
 # sentence-transformers + torch + spacy + tree-sitter + headroom-ai.

@@ -8,6 +8,8 @@ shell wrapper stays small and the testable surface is one place.
 from __future__ import annotations
 
 import hashlib
+import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -94,6 +96,67 @@ PS_SCRIPT = REPO / "scripts" / "install-native-observability.ps1"
 SH_SCRIPT = REPO / "scripts" / "install-native-observability.sh"
 
 
+def _find_bash() -> str | None:
+    """Find a host shell, without launching Windows' WSL forwarding shims."""
+    if sys.platform != "win32":
+        return shutil.which("bash")
+
+    shim_dirs = set()
+    for variable in ("SystemRoot", "WINDIR"):
+        if root := os.environ.get(variable):
+            shim_dirs.update((Path(root) / name).resolve() for name in ("System32", "Sysnative"))
+    if local := os.environ.get("LOCALAPPDATA"):
+        shim_dirs.add((Path(local) / "Microsoft" / "WindowsApps").resolve())
+
+    search_dirs = [Path(entry) for entry in os.get_exec_path() if entry]
+    # Git for Windows commonly puts only Git/cmd on PATH, not Git/bin.
+    if git := shutil.which("git"):
+        git_root = Path(git).resolve().parent.parent
+        search_dirs.extend((git_root / "bin", git_root / "usr" / "bin"))
+    for variable in ("ProgramFiles", "ProgramFiles(x86)"):
+        if root := os.environ.get(variable):
+            search_dirs.append(Path(root) / "Git" / "bin")
+    if local:
+        search_dirs.append(Path(local) / "Programs" / "Git" / "bin")
+
+    for directory in search_dirs:
+        bash = shutil.which("bash", path=str(directory))
+        if bash and Path(bash).resolve().parent not in shim_dirs:
+            return bash
+    return None
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows executable discovery")
+@pytest.mark.parametrize("native_source", ["path", "git", "absent"])
+def test_bash_discovery_excludes_wsl_shims(monkeypatch, tmp_path, native_source):
+    """An earlier WSL shim must not hide an available native Bash."""
+    windows = tmp_path / "Windows"
+    shim_dir = windows / "System32"
+    git_cmd = tmp_path / "Git" / "cmd"
+    native_dir = tmp_path / "Git" / "bin"
+    for directory in (shim_dir, git_cmd, native_dir):
+        directory.mkdir(parents=True)
+    (shim_dir / "bash.EXE").touch()
+    (git_cmd / "git.EXE").touch()
+    if native_source != "absent":
+        (native_dir / "bash.EXE").touch()
+    monkeypatch.setenv("WINDIR", str(windows))
+    monkeypatch.setenv("SystemRoot", str(windows))
+    monkeypatch.setenv("PATHEXT", ".EXE")
+    for variable in ("ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA"):
+        monkeypatch.setenv(variable, str(tmp_path / "unused"))
+    search_dirs = [shim_dir, native_dir if native_source == "path" else git_cmd]
+    monkeypatch.setenv("PATH", os.pathsep.join(map(str, search_dirs)))
+
+    bash = _find_bash()
+
+    if native_source == "absent":
+        assert bash is None
+    else:
+        assert bash is not None
+        assert Path(bash) == native_dir / "bash.EXE"
+
+
 def test_powershell_install_script_exists():
     assert PS_SCRIPT.exists(), f"missing: {PS_SCRIPT}"
 
@@ -103,33 +166,21 @@ def test_bash_install_script_exists():
 
 
 def test_bash_install_script_parses():
-    """`bash -n` checks syntax without executing. Skipped if bash missing."""
-    import shutil
-    bash = shutil.which("bash")
+    """`bash -n` checks syntax without executing. Skipped if host Bash missing."""
+    bash = _find_bash()
     if bash is None:
-        pytest.skip("bash not on PATH")
+        pytest.skip("native Bash not available (Windows WSL shims are not host shells)")
     creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-    # Windows ships a WindowsApps ``bash.EXE`` shim that relays into WSL;
-    # when no (working) WSL distro is installed it exits non-zero with
-    # "execvpe(/bin/bash) failed" without parsing anything. Probe it
-    # before trusting it as a syntax checker.
-    probe = subprocess.run(
-        [bash, "-c", "true"],
-        capture_output=True,
-        text=True,
-        timeout=10,
-        creationflags=creationflags,
-    )
-    if probe.returncode != 0:
-        pytest.skip(f"bash present but not functional: {probe.stderr.strip()[:120]}")
+    # Stdin avoids passing a Windows path to a POSIX shell. Read in text
+    # mode to normalize checkout line endings, then send bytes to retain LF.
     proc = subprocess.run(
-        [bash, "-n", str(SH_SCRIPT)],
+        [bash, "-n"],
+        input=SH_SCRIPT.read_text(encoding="utf-8").encode("utf-8"),
         capture_output=True,
-        text=True,
         timeout=10,
         creationflags=creationflags,
     )
-    assert proc.returncode == 0, f"bash -n failed: {proc.stderr}"
+    assert proc.returncode == 0, f"bash -n failed: {proc.stderr.decode(errors='replace')}"
 
 
 def test_powershell_install_script_handles_targz():

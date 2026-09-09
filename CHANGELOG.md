@@ -2,13 +2,113 @@
 
 ## Unreleased
 
-## 0.9.2 (2026-09-05)
+## 0.9.2 (2026-09-08)
 
 **Ingest at scale and the #411 default flip (PRs #424, #425), a
 default-inert W2.2 combinator with its kill receipt (#428), a never-swallow
 fix on the harmonic tier (#432), and the 0.9.2 bench ledger (#426, #427,
-#429). One default moves — `[ingestion] entity_autolink_hub_cutoff` — and it
+#429). One ingestion default moves — `[ingestion] entity_autolink_hub_cutoff` — and it
 supersedes the 0.9.1 entry below that shipped the same knob at `0`.**
+
+- **release gate: final merged-stack witness (2026-09-08, #450).** The
+  947,531-document ERB bed completed all 470 queries with zero errors at
+  `8cab199e97ae1080b8915fe0a4536a4c5ce1aa36`, after PRs #446–#449.
+  **EXACT_REPRODUCE:** all 11 compared per-needle rank, delivery, and diagnostic
+  fields match the frozen floor-12 reference; **314/470 delivered (0.668085),
+  r@12 0.6809, final r@12 0.6830, +0/−0 delivered**. Comparison:
+  `benchmarks/dogfood/receipts/sweep_v092_witness_947k_2026-09-08.json`;
+  provenance: `benchmarks/dogfood/receipts/sweep_v092_witness_947k_2026-09-08_manifest.json`;
+  BASELINES row `2026-09-08-v092-merged-stack-witness`. The original DB/WAL
+  metadata and Headroom inputs were preserved, and the measured worktree
+  remained clean. This validates ranks and delivery, not latency. The
+  September 4 receipts remain historical evidence for their own pinned stacks.
+
+- **fix(config): recover from malformed section shapes (#447, closes #418 and
+  #421).** Known top-level TOML sections with non-table values now warn and
+  fall back without discarding valid settings, aliases, or environment
+  overrides. Existing table-field validation remains in force. The retrieval
+  dimensions guide now distinguishes implemented capabilities and historical
+  results from shipped activation defaults; runtime defaults are unchanged.
+
+- **test: restore golden, Windows, and dependency coverage (#448).** Archived
+  Stage5 rendering and current default/generic caller parity run without an
+  opt-in test flag; the historical golden bytes remain unchanged. Windows
+  checks use native Bash via stdin and find the CLI in the active Python
+  environment. Contributor dependencies declare `rank-bm25` and `httpx2`;
+  CI checks its promised optional imports before running the full suite.
+  Runtime behavior and retrieval defaults are unchanged.
+
+- **fix(deploy): constrain Docker observability to the local host (#449, closes #434).**
+  All seven published ports bind to `127.0.0.1`; Grafana anonymous Viewer
+  access is opt-in through `CYMATIX_GRAFANA_ANON`. The initial admin password
+  accepts `CYMATIX_GRAFANA_ADMIN_PASSWORD`, with the existing `admin` fallback
+  retained only for trusted-host loopback setup. Existing Grafana volumes
+  retain their password. The Docker and architecture guides explain the
+  unauthenticated internal telemetry APIs and remote-deployment controls.
+  Regression tests parse the Compose configuration; native setup scripts
+  identify their trusted-host scope.
+
+- **fix(concurrency): complete the deferred isolation fixes (#449, closes #439).**
+  Serialize SPLADE's first model load and publish the fully initialized
+  model last; bound the freshness mtime cache and clear it in place on
+  `/admin/refresh`; publish independent score-map copies under the store
+  lock while preserving request-local refinement. Retrieval score arithmetic
+  and configuration defaults are unchanged. This completes the concurrency
+  work described as deferred in the earlier audit-port entry below.
+
+- **fix(bench): distinguish retrieval admission from later score-map presence (#446).**
+  Opt-in ERB stage provenance records candidate counts and watched document
+  membership before and after shortlist filtering, scoring, return expansion,
+  and blend. Failed, skipped, and unsupported observations stay unmeasured;
+  the pool-depth probe requires a complete observed cohort for an admission
+  verdict. Retrieval defaults and normal response schemas are unchanged. See
+  `docs/benchmarks/stage-provenance.md` for supported paths and receipt usage.
+  The ladder also exports observed budget tiers; a real CLI test verifies its
+  configuration-to-receipt path. The test audit closes filtering/failure gaps
+  and repairs two fixtures that previously skipped their central assertions.
+
+- **fix(scripts): `scripts/ingest_all.py` takes its sources from the command
+  line.** Remove the built-in list of six source roots. The stale
+  `cymatix_context.provenance` import had also stopped the script before
+  argument parsing; it is repaired here (the module moved into the identity
+  package in an earlier restructure). Missing `--sources` now prints usage and
+  exits 2 unless `--sharded --agent-source` is supplied. Monolithic agent-only
+  runs now error; sharded agent-only runs no longer also consider the removed
+  corpus roots. Explicit-source parsing and selection are unchanged once the
+  module is reachable. Test: `tests/test_ingest_all_sources.py`.
+
+- **feat(launcher): graph summary panel on the Knowledge store tab.** The
+  dashboard now shows how much of each graph layer the active genome actually
+  holds: documents and how many of them a COVER relation touches, distinct
+  undirected COVER links beside the stored row count, `CHUNK_OF` structure
+  links, harmonic co-activation links, and distinct entities beside their
+  membership rows. Implements
+  `docs/superpowers/specs/2026-07-13-launcher-graph-summary-design.md`; it is a
+  ledger, not a renderer, and nothing is drawn. New
+  `cymatix_context/launcher/graph_summary.py` reads the genome over a
+  short-lived `mode=ro` connection with `PRAGMA query_only=ON`, does not modify
+  the genome, and caches by resolved path for 30 seconds, so the 2-second poll
+  costs a dict lookup. Concurrent requests share one refresh per path, with
+  the 30-second TTL starting when the read finishes. The read-only URI comes
+  from `Path.as_uri()`, the form
+  `cymatix_context/cli/cmd_status.py` uses: it percent-encodes, so a genome
+  path containing `#` cannot re-parse and drop `?mode=ro`. The
+  distinct-pair count needs a temp B-tree over every COVER row (measured 1.7 s
+  at 800,000 rows, ~10 s at 7.2M), so it is skipped above
+  `COVER_LINKS_MAX_ROWS = 500_000` and the panel reports stored rows instead.
+  An unreadable store renders the unavailable state with the reason in the log
+  and never on the page. Panel omits itself when the active genome file is not
+  on disk. No new dependency, endpoint, config key or client-side script.
+  `tests/test_launcher_graph_summary.py`.
+
+- **fix(launcher): the collector publishes the real active genome path.**
+  `_database_panel` lowercased `active_genome_path()` before publishing it as
+  `state["database"]["active_path"]`. On a case-sensitive filesystem the result
+  names a file that does not exist, so anything opening that string fails; the
+  graph summary hands it straight to sqlite, which is how it surfaced. The
+  registry's own `is_active` still compares case-insensitively, so a Windows
+  genome selected as `F:/Genomes/...` and discovered as `f:/genomes/...` is
+  unaffected.
 
 - **docs: hosted-session security, RBAC, and encryption review** lands as
   `docs/reviews/2026-09-01-hosted-session-security-review.md` — read-only
@@ -16,7 +116,8 @@ supersedes the 0.9.1 entry below that shipped the same knob at `0`.**
   hosted multi-VM deployment, with a P0/P1/P2 roadmap; pointers re-verified
   against `beta` (drift noted in-doc) and the top finding filed as #434
   (`deploy/otel` compose publishes all ports with Grafana `admin/admin` +
-  anonymous Viewer). No code or default changes.
+  anonymous Viewer at review time; fixed in #449). The review itself
+  changed no code or defaults.
 - **DEFAULT FLIP: `[ingestion] entity_autolink_hub_cutoff` `0` → `200`
   (#425, closes #411).** The 0.9.1 entry below ("default `0` = off = legacy,
   byte-identical; flip proposal tracked in #411") is superseded — a fresh
@@ -503,26 +604,17 @@ gate and tracked as issue #417.
   Document deletes already sweep `filename_index` via
   `KnowledgeStore.delete_gene`'s `optional_tables` loop; the new
   `tests/test_filename_index_delete.py` pins that so it cannot regress
-  silently. Ported from audit commit 363f700. Not ported from that branch:
-  **f2b8a06 (concurrency) — deferred, not superseded**: only its
-  `knowledge_store.py` `TYPE_CHECKING` rider is here (see the ci entry
-  above), and three fixes it carries are still absent on `beta` — the SPLADE
-  `_ensure_loaded` first-load lock (`splade_backend.py:112-142`, N-thread
-  cold start constructs the model N times), the bounded freshness mtime
-  cache with its `/admin/refresh` clear (`freshness.py:133,145` grow for the
-  process lifetime; `routes_admin.py:653-658` never clears the cache that
-  `context_manager.py:1211` documents it as clearing), and `blend.py`'s
-  copy-under-lock score-map publication (`blend.py:204-207,235,283` still
-  alias the #350 request-local dict into the shared
-  `genome.last_query_scores`, plus the unlocked cold-tier write at
-  `knowledge_store.py:1571-1574`). They need a hand re-apply against #350
-  rather than a cherry-pick — **tracked in #439**. 44d0327 (docs) is
+  silently. Ported from audit commit 363f700. Initially deferred from that branch:
+  **f2b8a06 (concurrency)**. Its SPLADE load lock, bounded freshness
+  cache and refresh clear, and locked score-map publication were later
+  hand-applied in #449 (closes #439), preserving #350's request-scoped
+  scores rather than cherry-picking the older implementation. 44d0327 (docs) is
   genuinely superseded — stale claims retired by #354/#388, #357, #396 and
   865d34d — as is the README "Security" section, where the wiki
   `Configuration` and `HTTP-API` pages already carry a fuller, current
   equivalent.
 
-- **bench: beta witness sweep + four new code corpora (2026-09-04).**
+- **bench: historical beta witness sweep + four new code corpora (2026-09-04).**
   `benchmarks/dogfood/sweeps/run_sweep_beta.py` re-ran every frozen v0.9.1
   receipt on the beta head `21606a0`: bit-exact on LoCoMo, FinanceBench,
   EnronQA v2 and EnronQA padded (with the 947k check: five corpora, 3,998

@@ -1,0 +1,230 @@
+{
+  "expected_head": "8cab199e97ae1080b8915fe0a4536a4c5ce1aa36",
+  "worktree": "F:\\Projects\\cymatix-context\\.worktrees\\release-witness-20260908-code",
+  "command": [
+    "F:\\Projects\\cymatix-context\\.venv\\Scripts\\python.exe",
+    "-P",
+    "F:\\Projects\\cymatix-context\\.worktrees\\release-witness-20260908-code\\benchmarks\\dogfood\\erb\\ablation_ladder.py",
+    "--genome",
+    "F:\\Projects\\cymatix-context\\.worktrees\\release-witness-20260908-data\\erb_blob_v09x.db",
+    "--resolved",
+    "F:\\Projects\\cymatix-context\\.worktrees\\release-witness-20260908-code\\benchmarks\\dogfood\\erb\\needles_resolved_v09x_full.json",
+    "--gold",
+    "F:\\Projects\\cymatix-context\\.worktrees\\release-witness-20260908-code\\benchmarks\\dogfood\\erb\\gold_by_needle_v09x.json",
+    "--limit",
+    "0",
+    "--k",
+    "12",
+    "--arms",
+    "baseline",
+    "--config",
+    "F:\\Projects\\cymatix-context\\.worktrees\\release-witness-20260908-code\\cymatix.toml",
+    "--per-query",
+    "--stamp",
+    "2026-09-08-merged-stack",
+    "--out",
+    "F:\\Projects\\cymatix-context\\.worktrees\\release-witness-20260908-data\\ladder_v092_merged_witness_947k_2026-09-08.json"
+  ],
+  "env_pins": {
+    "PYTHONHASHSEED": "0",
+    "PYTHONUTF8": "1",
+    "PYTHONPATH": "F:\\Projects\\cymatix-context\\.worktrees\\release-witness-20260908-code",
+    "CYMATIX_DISABLE_LEARN": "1",
+    "CYMATIX_SQLITE_CACHE_SIZE": "-12582912",
+    "HEADROOM_WORKSPACE_DIR": "F:\\Projects\\cymatix-context\\.worktrees\\release-witness-20260908-data\\headroom-state",
+    "HEADROOM_TOIN_PATH": "F:\\Projects\\cymatix-context\\.worktrees\\release-witness-20260908-data\\headroom-state\\toin.json",
+    "HEADROOM_CCR_SQLITE_PATH": "F:\\Projects\\cymatix-context\\.worktrees\\release-witness-20260908-data\\headroom-state\\ccr_store.db",
+    "HEADROOM_CONFIG_DIR": "C:\\Users\\max\\.headroom\\config"
+  },
+  "unset": [
+    "CYMATIX_ENCODER_URL",
+    "CYMATIX_CONFIG"
+  ],
+  "config_sha256": "dd4ca7440b646ad6a56c363b63645020ea2cac5cb74f0ac65ab9463b81f88db8",
+  "resolved_sha256": "c09b630613cb18d317195148254f3e3cd68980add29e3d79dc09c88a2e850cae",
+  "gold_sha256": "d0d203b88281fecf4b86948b0f86b37c6878f48ce5f7d7506088e4546f2b223a",
+  "reference_sha256": "2b1026bc7edfebd33dc6b70f5a5281505a5f194e8d9222b1b5c9a96915d6d9c1",
+  "matches_previous_witness_pinned_inputs": true,
+  "snapshot_manifest": {
+    "source": "F:\\tmp\\erb_blob_v09x.db",
+    "snapshot": "F:\\Projects\\cymatix-context\\.worktrees\\release-witness-20260908-data\\erb_blob_v09x.db",
+    "method": "sqlite3.Connection.backup from source opened URI mode=ro + query_only",
+    "started_epoch": 1788911129.1554863,
+    "finished_epoch": 1788911183.1000652,
+    "elapsed_seconds": 53.94,
+    "python": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]",
+    "sqlite": "3.50.4",
+    "source_before": {
+      "db": {
+        "bytes": 24595378176,
+        "mtime_ns": 1788418268137850100
+      },
+      "-wal": {
+        "bytes": 107152,
+        "mtime_ns": 1788418292885296100
+      },
+      "-shm": {
+        "bytes": 32768,
+        "mtime_ns": 1788420025961205800
+      }
+    },
+    "source_after": {
+      "db": {
+        "bytes": 24595378176,
+        "mtime_ns": 1788418268137850100
+      },
+      "-wal": {
+        "bytes": 107152,
+        "mtime_ns": 1788418292885296100
+      },
+      "-shm": {
+        "bytes": 32768,
+        "mtime_ns": 1788911129211725100
+      }
+    },
+    "source_database_and_wal_unchanged": true,
+    "snapshot_metadata": {
+      "db": {
+        "bytes": 24595378176,
+        "mtime_ns": 1788911182426863700
+      }
+    },
+    "free_space_before": 398165921792,
+    "matches_previous_witness_source_database_and_wal": true
+  },
+  "snapshot_identity": {
+    "gene_count": 947531,
+    "gene_id_set_sha256": "729ca5d9fe20bebb00eb5451cd6d6cfd072746faba4a3f9b492e1caafc1bcd23",
+    "algorithm": "sorted gene_ids, UTF-8, each followed by newline",
+    "bed_provenance": [
+      {
+        "at_utc": "2026-08-26T06:43:06Z",
+        "event": "build",
+        "gene_count": 947531,
+        "fts_count": 947531,
+        "identity_sha256": "11a05b915f8c6d5597edfa1fb57bfa2ba104ec74006a2b48ad04263de998bda6",
+        "corpus_id": "enterprise_rag_500k",
+        "ingest_c": 6,
+        "git_sha": "5f5c67748937267bda9fa16cbd66ba48a46105d2",
+        "notes": "ERB 500k at v0.9.x shipped defaults; direct blob; ordered parallel drain; resumed after write-path A/B (cache + index-deferral both refuted, receipts ingest_write_path_ab.json)"
+      }
+    ]
+  },
+  "headroom_state_provenance": {
+    "env_pins": {
+      "HEADROOM_WORKSPACE_DIR": "F:\\Projects\\cymatix-context\\.worktrees\\release-witness-20260908-data\\headroom-state",
+      "HEADROOM_TOIN_PATH": "F:\\Projects\\cymatix-context\\.worktrees\\release-witness-20260908-data\\headroom-state\\toin.json",
+      "HEADROOM_CCR_SQLITE_PATH": "F:\\Projects\\cymatix-context\\.worktrees\\release-witness-20260908-data\\headroom-state\\ccr_store.db",
+      "HEADROOM_CONFIG_DIR": "C:\\Users\\max\\.headroom\\config"
+    },
+    "source_inputs_before": {
+      "toin": {
+        "path": "C:\\Users\\max\\.headroom\\toin.json",
+        "bytes": 19933082,
+        "mtime_ns": 1787010061110759600,
+        "sha256": "b8669cadcb471e5674088b248f54869587e1e852f458b36670eb1d68cebf22f8"
+      },
+      "ccr": {
+        "path": "C:\\Users\\max\\.headroom\\ccr_store.db",
+        "bytes": 6471680,
+        "mtime_ns": 1787011828783418700,
+        "sha256": "5fb2a17d7e8903d2c4619796f3aec05baee1dcdead4e96d318d7bf207f34da3e"
+      }
+    },
+    "source_inputs_after": {
+      "toin": {
+        "path": "C:\\Users\\max\\.headroom\\toin.json",
+        "bytes": 19933082,
+        "mtime_ns": 1787010061110759600,
+        "sha256": "b8669cadcb471e5674088b248f54869587e1e852f458b36670eb1d68cebf22f8"
+      },
+      "ccr": {
+        "path": "C:\\Users\\max\\.headroom\\ccr_store.db",
+        "bytes": 6471680,
+        "mtime_ns": 1787011828783418700,
+        "sha256": "5fb2a17d7e8903d2c4619796f3aec05baee1dcdead4e96d318d7bf207f34da3e"
+      }
+    },
+    "source_inputs_unchanged": true,
+    "matches_previous_witness_initial_inputs": true,
+    "copied_initial_state": {
+      "toin": {
+        "path": "F:\\Projects\\cymatix-context\\.worktrees\\release-witness-20260908-data\\headroom-state\\toin.json",
+        "bytes": 19933082,
+        "mtime_ns": 1787010061110759600,
+        "sha256": "b8669cadcb471e5674088b248f54869587e1e852f458b36670eb1d68cebf22f8"
+      },
+      "ccr": {
+        "path": "F:\\Projects\\cymatix-context\\.worktrees\\release-witness-20260908-data\\headroom-state\\ccr_store.db",
+        "bytes": 6471680,
+        "mtime_ns": 1788911157079736800,
+        "sha256": "64b8603833b026a98092b4fbdf45f7be002c612f976ae6d9fd74567c057c9664"
+      }
+    },
+    "ccr_copy_method": "Source WAL absent; source file copied read-only with SHA256 match and stable before/after metadata; SQLite mode=ro backup from the isolated local byte copy.",
+    "writable_preflight": [
+      "exclusive_create_flush_rename",
+      "FileSystemTOINBackend.save",
+      "SQLiteBackend.open_WAL_close"
+    ],
+    "semantic_note": "Telemetry remains enabled; TOIN initial patterns copied unchanged and CCR copied consistently. Config root and model cache locations preserved. TOIN instance ID changes with storage path; telemetry bytes are not an equivalence claim. Request compression/ranking inputs unchanged by supported storage relocation.",
+    "privacy_note": "Copied input contents remain local; only metadata and hashes belong in committed provenance."
+  },
+  "started_epoch": 1788912145.4613857,
+  "python": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]",
+  "note": "Consistent isolated snapshot. Source logical access state was older than one hour. Copy warms filesystem caches, so no latency claim is made.",
+  "launcher_pid": 32272,
+  "initial_health": {
+    "id": 9789,
+    "timestamp": 1788418292.8860495,
+    "latest_matching_needle_index": 284,
+    "latest_matching_needle": "erb_283"
+  },
+  "finished_epoch": 1788924576.426566,
+  "returncode": 0,
+  "worktree_head_after": "8cab199e97ae1080b8915fe0a4536a4c5ce1aa36",
+  "tracked_status_after": "",
+  "final_verification": {
+    "verified_epoch": 1788924577.725771,
+    "head": "8cab199e97ae1080b8915fe0a4536a4c5ce1aa36",
+    "git_status_porcelain": "",
+    "source_after_witness": {
+      "db": {
+        "bytes": 24595378176,
+        "mtime_ns": 1788418268137850100
+      },
+      "-wal": {
+        "bytes": 107152,
+        "mtime_ns": 1788418292885296100
+      },
+      "-shm": {
+        "bytes": 32768,
+        "mtime_ns": 1788911129211725100
+      }
+    },
+    "source_database_and_wal_unchanged_from_snapshot_source_before": true,
+    "source_shm_unchanged_since_read_only_backup": true,
+    "source_bookkeeping_note": "SQLite read-only backup may update existing SHM lock bookkeeping; source DB and WAL are the data preservation check.",
+    "headroom_original_inputs_after_witness": {
+      "toin": {
+        "path": "C:\\Users\\max\\.headroom\\toin.json",
+        "bytes": 19933082,
+        "mtime_ns": 1787010061110759600,
+        "sha256": "b8669cadcb471e5674088b248f54869587e1e852f458b36670eb1d68cebf22f8"
+      },
+      "ccr": {
+        "path": "C:\\Users\\max\\.headroom\\ccr_store.db",
+        "bytes": 6471680,
+        "mtime_ns": 1787011828783418700,
+        "sha256": "5fb2a17d7e8903d2c4619796f3aec05baee1dcdead4e96d318d7bf207f34da3e"
+      }
+    },
+    "headroom_original_inputs_unchanged": true,
+    "comparator_verdict": "EXACT_REPRODUCE",
+    "receipt_and_reference_hashes_match_comparator": true,
+    "complete_baseline_per_query_rows": 470,
+    "baseline_errors": [],
+    "witness_elapsed_seconds": 12430.965,
+    "timed_query_wall_seconds": 12334.501
+  }
+}

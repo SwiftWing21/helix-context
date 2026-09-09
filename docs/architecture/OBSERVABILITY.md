@@ -83,6 +83,18 @@ see [`deploy/otel/README.md`](../../deploy/otel/README.md). Both
 runtimes are bit-for-bit compatible — same dashboard JSON, same
 datasource UIDs, only the receiver runtime differs.
 
+The Docker stack is a **local-only template**. Published ports bind to
+`127.0.0.1`; Grafana anonymous Viewer access defaults off. The initial
+Grafana password can be set with `CYMATIX_GRAFANA_ADMIN_PASSWORD` (local
+fallback: `admin`); existing volumes retain their password. Loki and the
+other telemetry APIs remain unauthenticated inside the Compose network.
+Before exposing any service to other hosts, configure authenticated TLS
+ingress and network isolation, rotate credentials, and keep raw service
+ports private. See the
+[hosted-session review](../reviews/2026-09-01-hosted-session-security-review.md).
+Logs and query telemetry can include sensitive text even with query
+redaction enabled.
+
 ## What's instrumented
 
 ### Traces (`/context` span tree)

@@ -8,9 +8,8 @@ by the tray launcher. To set those up without bringing up the tray, run
 
 This Docker Compose stack is the alternate path — useful for:
 
-- Production-shape deployment (containerized, declarative)
-- Environments where native binaries don't fit (locked-down user dirs,
-  multi-host shared observability, etc.)
+- Local containerized, declarative deployment
+- Environments where native binaries don't fit (locked-down user dirs)
 - Fallback testing against a known-good runtime
 
 Both runtimes are first-class. Choose by deployment shape, not status.
@@ -34,6 +33,22 @@ identical to the native sidecar — only the receiver runtime differs.
 cd deploy/otel
 docker-compose up -d
 ```
+
+This is a **local-only template**: all published ports bind to `127.0.0.1`.
+Grafana requires login; anonymous Viewer access is opt-in with
+`CYMATIX_GRAFANA_ANON=true`. Set `CYMATIX_GRAFANA_ADMIN_PASSWORD` in your
+environment before the first boot to override the local `admin` password.
+The `admin` / `admin` fallback is only suitable for this loopback setup on a
+trusted host. An existing Grafana data volume retains its password; rotate
+it through Grafana instead of expecting the environment variable to reset it.
+
+Loki and the other telemetry APIs have no authentication. Container peers
+can reach them on the Compose network. Before allowing access from other
+hosts, add authenticated TLS ingress, rotate credentials, keep the raw
+service ports private, and restrict the network to trusted clients. See the
+[hosted-session security review](../../docs/reviews/2026-09-01-hosted-session-security-review.md)
+for the Proxmox and Ceph deployment controls. Query telemetry and logs can
+contain sensitive text even when query redaction is enabled.
 
 ## Configs
 

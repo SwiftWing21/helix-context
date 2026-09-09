@@ -655,6 +655,7 @@ def setup_admin_routes(app: FastAPI, cymatix, config, registry, bridge, **_kw) -
         """Reopen knowledge store connection to see external changes."""
         cymatix.genome.refresh()
         cymatix.genome._invalidate_dense_matrix(force=True)
+        getattr(cymatix, "_mtime_cache", {}).clear()
         new_count = cymatix.genome.total_genes()
         return {"refreshed": True, "genes": new_count}
 

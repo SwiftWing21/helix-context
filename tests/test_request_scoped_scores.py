@@ -20,6 +20,8 @@ set.
 from __future__ import annotations
 
 import pytest
+import threading
+from types import SimpleNamespace
 
 from cymatix_context.config import (
     BudgetConfig,
@@ -66,6 +68,100 @@ def _spliced_map(gene_ids):
 
 SCORES = [10.0, 1.0, 8.0, 2.0, 9.0]
 GENE_IDS = [f"gene_{i:02d}" for i in range(5)]
+
+
+def _run_publication_blend(monkeypatch, genome, refiner, query_scores=None):
+    """Exercise publication with deterministic signals, preserving blend math."""
+    from cymatix_context.scoring import cymatics, ray_trace
+    from cymatix_context.scoring.blend import apply_candidate_refiners
+
+    monkeypatch.setattr(cymatics, "query_spectrum", lambda *a, **k: None)
+    monkeypatch.setattr(cymatics, "build_weight_vector", lambda *a, **k: None)
+    monkeypatch.setattr(cymatics, "cached_doc_spectrum", lambda *a, **k: None)
+    monkeypatch.setattr(cymatics, "flux_score_dispatch", lambda *a, **k: 0.5)
+    monkeypatch.setattr(
+        ray_trace, "harmonic_bin_boost", lambda *a, **k: {"a": 0.25, "b": 0.25, "c": 0.25},
+    )
+    return apply_candidate_refiners(
+        "query", _make_genes(["a", "b", "c"]), 3, genome=genome,
+        use_cymatics=refiner == "cymatics", use_harmonic_bin=refiner == "harmonic",
+        use_tcm=False, blend_mode="legacy", query_scores=query_scores,
+    )
+
+
+@pytest.mark.parametrize("refiner", ["cymatics", "harmonic"])
+class TestPublishedScoreMapIsolation:
+    def test_blend_publishes_copy_not_alias_of_request_dict(self, monkeypatch, refiner):
+        request = {"a": 10.0, "b": 5.0, "c": 1.0}
+        genome = SimpleNamespace(last_query_scores={"foreign": 999.0})
+        candidates, _ = _run_publication_blend(monkeypatch, genome, refiner, request)
+        assert [g.gene_id for g in candidates] == ["a", "b", "c"]
+        assert request == {"a": 10.25, "b": 5.25, "c": 1.25}
+        assert genome.last_query_scores == request
+        assert genome.last_query_scores is not request
+        request["a"] = -100.0
+        assert genome.last_query_scores["a"] == 10.25
+
+    def test_blend_direct_caller_does_not_mutate_live_map(self, monkeypatch, refiner):
+        published = {"a": 10.0, "b": 5.0, "c": 1.0}
+        genome = SimpleNamespace(last_query_scores=published)
+        _run_publication_blend(monkeypatch, genome, refiner)
+        assert published == {"a": 10.0, "b": 5.0, "c": 1.0}
+        assert genome.last_query_scores == {"a": 10.25, "b": 5.25, "c": 1.25}
+
+    @pytest.mark.parametrize("request_scoped", [False, True])
+    def test_blend_snapshots_and_publishes_under_lock(self, monkeypatch, refiner, request_scoped):
+        class ObservedGenome:
+            def __init__(self):
+                self._last_query_scores_lock = threading.Lock()
+                self._scores = {"a": 10.0, "b": 5.0, "c": 1.0}
+                self.accesses = []
+
+            @property
+            def last_query_scores(self):
+                self.accesses.append(("read", self._last_query_scores_lock.locked()))
+                return self._scores
+
+            @last_query_scores.setter
+            def last_query_scores(self, value):
+                self.accesses.append(("write", self._last_query_scores_lock.locked()))
+                self._scores = value
+
+        genome = ObservedGenome()
+        request = dict(genome._scores) if request_scoped else None
+        _run_publication_blend(monkeypatch, genome, refiner, request)
+        assert genome._scores == {"a": 10.25, "b": 5.25, "c": 1.25}
+        assert ("write", True) in genome.accesses
+        assert all(held for _, held in genome.accesses), genome.accesses
+        if not request_scoped:
+            assert ("read", True) in genome.accesses
+
+
+def test_cold_tier_scores_are_written_under_publication_lock():
+    """Cold scores preserve the hot scores while respecting snapshot readers."""
+    import numpy as np
+    from cymatix_context.knowledge_store import KnowledgeStore
+
+    lock = threading.Lock()
+    writes = []
+
+    class ObservedScores(dict):
+        def __setitem__(self, key, value):
+            writes.append(lock.locked())
+            super().__setitem__(key, value)
+
+    genes = {g.gene_id: g for g in _make_genes(["cold-a", "cold-b"])}
+    genome = SimpleNamespace(
+        _sema_codec=SimpleNamespace(encode=lambda query: [1.0, 0.0]),
+        _cold_sema_cache={"gene_ids": ["cold-a", "cold-b"], "matrix": np.array([[1.0, 0.0], [0.5, 0.5]])},
+        _last_query_scores_lock=lock,
+        last_query_scores=ObservedScores({"hot": 10.0}),
+        get_doc=genes.get,
+    )
+    result = KnowledgeStore.query_cold_tier(genome, "query")
+    assert [g.gene_id for g in result] == ["cold-a", "cold-b"]
+    assert genome.last_query_scores == {"hot": 10.0, "cold-a": 1.0, "cold-b": 0.5}
+    assert writes == [True, True]
 
 
 # ─────────────────────────────────────────────────────────────────────

@@ -1,3 +1,5 @@
+# Local-only template: telemetry APIs have no authentication. Keep every
+# published port on loopback; see README.md before exposing this stack.
 services:
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.105.0
@@ -6,9 +8,9 @@ services:
     volumes:
       - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
     ports:
-      - "4317:4317"   # OTLP gRPC — what cymatix's FastAPI points at
-      - "4318:4318"   # OTLP HTTP (reserved for future clients like Celestia)
-      - "8889:8889"   # Prometheus scrape endpoint
+      - "127.0.0.1:4317:4317"   # OTLP gRPC — what cymatix's FastAPI points at
+      - "127.0.0.1:4318:4318"   # OTLP HTTP (reserved for future clients like Celestia)
+      - "127.0.0.1:8889:8889"   # Prometheus scrape endpoint
     depends_on:
       - prometheus
       - tempo
@@ -27,7 +29,7 @@ services:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
     restart: unless-stopped
 
   tempo:
@@ -38,7 +40,7 @@ services:
       - ./tempo.yaml:/etc/tempo.yaml:ro
       - tempo-data:/var/tempo
     ports:
-      - "3200:3200"   # Tempo query API
+      - "127.0.0.1:3200:3200"   # Tempo query API
     restart: unless-stopped
 
   loki:
@@ -49,7 +51,7 @@ services:
       - ./loki-config.yaml:/etc/loki/local-config.yaml:ro
       - loki-data:/loki
     ports:
-      - "3100:3100"
+      - "127.0.0.1:3100:3100"
     restart: unless-stopped
 
   grafana:
@@ -57,8 +59,10 @@ services:
     container_name: cymatix-grafana
     environment:
       - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-      - GF_AUTH_ANONYMOUS_ENABLED=true
+      # The admin fallback is for loopback-only local setup. Override on first
+      # boot; an existing Grafana volume keeps its previously configured password.
+      - GF_SECURITY_ADMIN_PASSWORD=${CYMATIX_GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_AUTH_ANONYMOUS_ENABLED=${CYMATIX_GRAFANA_ANON:-false}
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
       - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
@@ -66,7 +70,7 @@ services:
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana-data:/var/lib/grafana
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     depends_on:
       - prometheus
       - tempo

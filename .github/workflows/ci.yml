@@ -56,18 +56,11 @@ jobs:
       - name: Install package + test deps
         run: pip install -e ".[dev]" psutil platformdirs py-cpuinfo numpy joblib scikit-learn
 
-      # Scope: run only the hardware-module test files. The wider unit suite
-      # has pre-existing CI-hostile import-time side effects (server.py:3091
-      # eagerly calls create_app() which sqlite3.connects to a configured
-      # genome path that doesn't exist on a clean runner). Restructuring
-      # server.py for lazy init is out of scope for PR2; tracked as a
-      # follow-up enhancement.
+      # Platform hardware coverage; the full offline suite runs below.
       - name: Run hardware test suite
         run: pytest tests/test_hardware.py tests/test_hardware_real_device.py tests/test_hardware_mps_smoke.py -v
 
-  # WS2 review FIX-4: targeted suites for the symbol-graph feature. The full
-  # unit suite is still blocked in CI by server import-time side effects (see
-  # the scope comments below) — this job scopes to the WS2 surface instead:
+  # Targeted suites for the symbol-graph feature cover
   # extraction, pipeline, lifecycle cleanup, flag-off routing, write-lock
   # integrity, and the config/reference-sync contract. The [ast] extra
   # installs tree-sitter (+ grammars) so the skipif-marked symbol tests
@@ -108,8 +101,8 @@ jobs:
   # effect — is gone: the eager app now lives only in _asgi.py, which
   # tests never import. This job exists because file-scoped selection let
   # real drift slide (the ShardedGenomeAdapter parity gap shipped unseen
-  # for weeks); ~3.4k tests, ~10 min. Tests whose optional deps are absent
-  # skip rather than fail.
+  # for weeks). Required test dependencies are checked explicitly; optional
+  # hardware/model coverage still reports skips.
   test-full-suite:
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -129,6 +122,21 @@ jobs:
       # CUDA wheel gets pulled in.
       - name: Install package + test deps + tree-sitter, MCP and NLI extras
         run: pip install -e ".[dev,ast,mcp,nli]" psutil platformdirs py-cpuinfo numpy joblib scikit-learn
+
+      - name: Verify installed test dependencies cannot silently skip coverage
+        run: |
+          python - <<'PY'
+          from importlib import import_module
+          modules = (
+              "markdown", "rank_bm25", "httpx2", "mcp.server.mcpserver",
+              "tree_sitter", "tree_sitter_python", "tree_sitter_rust",
+              "tree_sitter_javascript", "tree_sitter_typescript", "transformers",
+          )
+          for name in modules:
+              import_module(name)
+              print(f"required test dependency available: {name}")
+          PY
+          python -m pip check
 
       # issue #313 regression gate: at this point in the job the spaCy
       # pipeline is not installed yet, which is exactly the fresh-install
@@ -158,7 +166,7 @@ jobs:
         run: python -m spacy download en_core_web_sm
 
       - name: Run full offline suite
-        run: pytest tests/ -m "not live" -q
+        run: pytest tests/ -m "not live" -q -rs
 
   test-macos-mps:
     runs-on: macos-14
@@ -172,10 +180,7 @@ jobs:
       - name: Install package + test deps + transformers (for MPS smoke test)
         run: pip install -e ".[dev]" torch transformers psutil platformdirs py-cpuinfo numpy joblib scikit-learn
 
-      # Scope: run only the hardware-module test files. The MPS smoke test
-      # is the actual integration check this job is for; the wider unit
-      # suite has pre-existing CI-hostile import-time side effects
-      # (server.py:3091) that PR2 isn't supposed to fix.
+      # The MPS smoke test is the integration check this platform job adds.
       #
       # PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0 disables PyTorch's internal MPS
       # memory ceiling. On the GHA macos-14 runner the default ceiling is
@@ -202,14 +207,12 @@ jobs:
       - name: Install package + test deps
         run: pip install -e ".[dev]" psutil platformdirs py-cpuinfo numpy joblib scikit-learn
 
-      # Scope: run only the hardware-module test files. The wider unit suite
-      # has pre-existing CI-hostile import-time side effects (server.py:3091
-      # eagerly calls create_app() which sqlite3.connects to a configured
-      # genome path that doesn't exist on a clean runner). Restructuring
-      # server.py for lazy init is out of scope for PR2; tracked as a
-      # follow-up enhancement.
-      - name: Run hardware test suite
-        run: pytest tests/test_hardware.py tests/test_hardware_real_device.py tests/test_hardware_mps_smoke.py -v
+      # Exercise Windows executable discovery as well as platform hardware.
+      - name: Run hardware and Windows invocation tests
+        run: >
+          pytest tests/test_hardware.py tests/test_hardware_real_device.py
+          tests/test_hardware_mps_smoke.py tests/test_install_observability.py
+          tests/test_cli_dispatcher.py -v -rs
 
   # Only release/** and hotfix/** heads may merge to master (docs/RELEASING.md
   # section 1). GitHub cannot express a head-branch condition in branch

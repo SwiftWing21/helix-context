@@ -19,7 +19,8 @@ Read-only contract (Stage 1 boundary, spec §5):
     within TTL) and writes through.
 
 Cache shape: ``dict[str, tuple[float, float]]`` keyed on absolute
-source path, value is ``(mtime, cached_at)``. TTL defaults to 60s. The
+source path, value is ``(mtime, cached_at)``. TTL defaults to 60s; insertion
+caps the cache at 4096 entries, reclaiming expired paths first. The
 cache lives on ``CymatixContextManager`` (per-batch state, not KnowledgeStore) so
 admin /admin/refresh can clear it without touching the DB.
 """
@@ -28,6 +29,7 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 from typing import TYPE_CHECKING, Literal, Optional
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
@@ -40,6 +42,32 @@ log = logging.getLogger("cymatix.freshness")
 # it when a recent stat is on hand — keeps tight loops (e.g. the
 # bench's planted-stale needles) from re-stat'ing the same path.
 DEFAULT_CACHE_TTL_S: float = 60.0
+MTIME_CACHE_MAX_ENTRIES: int = 4096
+# Serialize eviction + insertion; filesystem calls stay outside this lock.
+_mtime_cache_lock = threading.Lock()
+
+
+def _evict_if_full(
+    mtime_cache: dict[str, tuple[float, float]], now_ts: float, cache_ttl_s: float,
+) -> None:
+    """Prefer expired entries, then clear a full cache of still-valid paths."""
+    if len(mtime_cache) < MTIME_CACHE_MAX_ENTRIES:
+        return
+    # Snapshot so an admin refresh clearing this dict cannot disrupt iteration.
+    for path, (_, cached_at) in list(mtime_cache.items()):
+        if now_ts - cached_at >= cache_ttl_s:
+            mtime_cache.pop(path, None)
+    if len(mtime_cache) >= MTIME_CACHE_MAX_ENTRIES:
+        mtime_cache.clear()
+
+
+def _cache_mtime(
+    mtime_cache: dict[str, tuple[float, float]], source_path: str,
+    mtime: float, now_ts: float, cache_ttl_s: float,
+) -> None:
+    with _mtime_cache_lock:
+        _evict_if_full(mtime_cache, now_ts, cache_ttl_s)
+        mtime_cache[source_path] = (mtime, now_ts)
 
 
 # Status vocabulary returned by ``revalidate_source``. Names are short
@@ -130,7 +158,7 @@ def revalidate_source(
         except FileNotFoundError:
             # Persist the negative sentinel so we don't re-stat the
             # missing file on every revalidation in the same TTL window.
-            mtime_cache[source_path] = (-1.0, now_ts)
+            _cache_mtime(mtime_cache, source_path, -1.0, now_ts, cache_ttl_s)
             return "missing"
         except OSError as exc:
             # Permission error / path-too-long / other transient stat
@@ -142,7 +170,7 @@ def revalidate_source(
                 exc,
             )
             return "unknown"
-        mtime_cache[source_path] = (mtime, now_ts)
+        _cache_mtime(mtime_cache, source_path, mtime, now_ts, cache_ttl_s)
 
     last_verified = getattr(gene, "last_verified_at", None)
     if last_verified is None:
@@ -269,6 +297,7 @@ def check_superseded(genome, gene: "Gene") -> Optional[str]:
 
 __all__ = [
     "DEFAULT_CACHE_TTL_S",
+    "MTIME_CACHE_MAX_ENTRIES",
     "FreshnessStatus",
     "revalidate_source",
     "revalidate_and_mark",

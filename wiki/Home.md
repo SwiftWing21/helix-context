@@ -4,9 +4,9 @@ Coordinate-index engine for LLM agents. It retrieves, weighs, and compresses
 a corpus into a context window — without a single LLM call on the retrieval
 path.
 
-- **Version:** this wiki documents **v0.9.2 branch code**. The v0.9.1
-  release was published 2026-08-30 (tag `v0.9.1`, PyPI `0.9.1`). Changes
-  are cited by PR number where they appear.
+- **Version:** this wiki documents **v0.9.2**, released 2026-09-08
+  (tag `v0.9.2`, PyPI `0.9.2`). The prior v0.9.1 release was published
+  2026-08-30. Changes are cited by PR number where they appear.
   The Tier-2 lexicon aliases the pages present as canonical
   ([#419](https://github.com/mbachaud/Cymatix-Context/pull/419)) follow the 0.9.1 tag and are not in the 0.9.1 wheel — on that
   wheel the legacy spellings are the ones that resolve. See
@@ -110,7 +110,7 @@ path.
 | Page | What's on it |
 |---|---|
 | [Benchmarks and Receipts](Benchmarks-and-Receipts) | Token economics, shipped-defaults numbers, encoder-isolation receipts, comparability rules |
-| [Roadmap and Releases](Roadmap-and-Releases) | 0.9.2 branch highlights, published 0.9.1 history, 0.9.0 disclosures, deferred ledger, versioning |
+| [Roadmap and Releases](Roadmap-and-Releases) | 0.9.2 release highlights, published 0.9.1 history, 0.9.0 disclosures, deferred ledger, versioning |
 
 ## Elsewhere
 

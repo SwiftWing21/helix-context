@@ -25,6 +25,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+import yaml
 
 REPO = Path(__file__).resolve().parent.parent
 
@@ -154,6 +155,23 @@ def test_native_otel_readme_still_accurate():
     assert ".versions" in body
     # Idempotent re-run is called out.
     assert "idempotent" in body.lower() or "skip" in body.lower()
+
+
+def test_docker_observability_ports_are_loopback_only():
+    """Unauthenticated telemetry services must stay on the local host."""
+    services = yaml.safe_load(_read("deploy/otel/docker-compose.yml"))["services"]
+    ports = [(name, port) for name, service in services.items()
+             for port in service.get("ports", [])]
+    assert ports
+    for name, port in ports:
+        assert isinstance(port, str) and port.startswith("127.0.0.1:"), (name, port)
+
+
+def test_docker_grafana_anonymous_access_is_opt_in():
+    services = yaml.safe_load(_read("deploy/otel/docker-compose.yml"))["services"]
+    environment = dict(item.split("=", 1) for item in services["grafana"]["environment"])
+    assert environment["GF_AUTH_ANONYMOUS_ENABLED"] == "${CYMATIX_GRAFANA_ANON:-false}"
+    assert environment["GF_SECURITY_ADMIN_PASSWORD"] == "${CYMATIX_GRAFANA_ADMIN_PASSWORD:-admin}"
 
 
 if __name__ == "__main__":  # pragma: no cover
